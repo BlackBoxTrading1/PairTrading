@@ -7,17 +7,18 @@ from quantopian.pipeline.filters import QTradableStocksUS
 import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
-from quantopian.pipeline.filters import Q500US
+from quantopian.pipeline.filters import Q500US, Q3000US
 from quantopian.pipeline.data import Fundamentals
 from quantopian.pipeline.classifiers.fundamentals import Sector
 from quantopian.algorithm import attach_pipeline, pipeline_output
 from collections import OrderedDict
 
 COMMISSION = 0.0035
+MAX_GROSS_EXPOSURE = 1.0
 
 def initialize(context):
     
-    context.stocks = Q500US()  
+    context.stocks = Q3000US()  
     pipe = Pipeline()
     pipe = attach_pipeline(pipe, name = 'pairs')
     pipe.set_screen(context.stocks)
@@ -27,8 +28,8 @@ def initialize(context):
     context.short_ma_length = 1
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
-    context.universe_size = 50
-    context.num_pairs = 3
+    context.universe_size = 100
+    context.num_pairs = 4
     context.top_yield_pairs = []
     
     context.coint_data = {}
@@ -61,15 +62,15 @@ def empty_data(context):
     context.pair_weights = {}
    
 #calculate total commission cost of a stock given betsize
-def get_commission(context, data, stock, bet_size):
+def get_commission(data, stock, bet_size):
     price = data.current(stock, 'price')
     num_shares = bet_size/price
     return (COMMISSION*num_shares)
 
 #return correlation and cointegration pvalue
-def get_corr_coint(context, data, s1, s2):
-    s1_price = data.history(s1, "price", context.price_history_length, '1d')
-    s2_price = data.history(s2, "price", context.price_history_length, '1d')
+def get_corr_coint(data, s1, s2, length):
+    s1_price = data.history(s1, "price", length, '1d')
+    s2_price = data.history(s2, "price", length, '1d')
     score, pvalue, _ = sm.coint(s1_price, s2_price)
     correlation = s1_price.corr(s2_price)
     
@@ -102,13 +103,15 @@ def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLon
 def choose_pairs(context, data):
     empty_data(context)
     context.universe = pipeline_output('pairs')
+    if (context.universe_size > len(context.universe)):
+        context.universe_size = len(context.universe) - 1
     context.target_weights = pd.Series(index=context.universe.index, data=0.25)
     for i in range (context.universe_size):
         for j in range (i+1, context.universe_size):
             s1 = context.universe.index[i]
             s2 = context.universe.index[j]
             #get correlation cointegration values
-            correlation, coint_pvalue = get_corr_coint(context, data, s1, s2)
+            correlation, coint_pvalue = get_corr_coint(data, s1, s2, context.price_history_length)
             context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
             if (coint_pvalue < 0.05 and correlation > 0.95):
                 context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]      
@@ -121,8 +124,8 @@ def choose_pairs(context, data):
         context.zscores[pair] = (short_ma-long_ma)/long_std
     
         port_val = context.portfolio.portfolio_value
-        top_commission = get_commission(context, data, s1, port_val*0.5/context.num_pairs)
-        bottom_commission = get_commission(context, data, s2, port_val*0.5/context.num_pairs)
+        top_commission = get_commission(data, s1, port_val*0.5/context.num_pairs)
+        bottom_commission = get_commission(data, s2, port_val*0.5/context.num_pairs)
         pair_commission = top_commission + bottom_commission
         context.real_yields[pair] = {}
         #subtract total commission of pair from % of portfolio value to get real yield
@@ -133,6 +136,8 @@ def choose_pairs(context, data):
     context.real_yield_keys = sorted(context.real_yields, key=lambda kv: context.real_yields[kv]['corr'], reverse=True)
     
     #select top num_pairs pairs
+    if (context.num_pairs > len(context.real_yield_keys)):
+        context.num_pairs = len(context.real_yield_keys)
     for i in range(context.num_pairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
     
@@ -147,13 +152,14 @@ def choose_pairs(context, data):
     #print final data
     print(context.real_yields) #prints yield and correlation of every pair that passed 1st screen
     print(context.pair_weights) #prints weight of every pair in final list of top pairs
-            
-#INCOMPLETE
-def check_pair_status(context, data):
+    
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
+            
+#INCOMPLETE
+def check_pair_status(context, data):
     
     for pair in context.top_yield_pairs:
         if context.zscores[pair] > context.entry_threshold and not context.pair_status[pair]['currently_short']:
