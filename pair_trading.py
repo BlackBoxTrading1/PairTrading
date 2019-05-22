@@ -1,6 +1,7 @@
 #Pair Trading Algorithm
 
 import quantopian.algorithm as algo
+import quantopian.optimize as opt
 from quantopian.pipeline import Pipeline,CustomFactor
 from quantopian.pipeline.data.builtin import USEquityPricing
 from quantopian.pipeline.filters import QTradableStocksUS
@@ -18,18 +19,24 @@ MAX_GROSS_EXPOSURE = 1.0
 
 def initialize(context):
     
-    context.stocks = Q3000US()  
+    context.stocks = Q500US()  
     pipe = Pipeline()
     pipe = attach_pipeline(pipe, name = 'pairs')
     pipe.set_screen(context.stocks)
-     
+    
+    #context.universe = [symbol('ABGB'), symbol('FSLR')] 
+    #context.target_weights = pd.Series(index=context.universe.index, data=0.0)
+    
+        
     context.price_history_length = 365
     context.long_ma_length = 30
     context.short_ma_length = 1
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
     context.universe_size = 100
-    context.num_pairs = 4
+    context.num_pairs = 1
+    context.pvalue_th = 0.5
+    context.corr_th = 0.95
     context.top_yield_pairs = []
     
     context.coint_data = {}
@@ -41,6 +48,8 @@ def initialize(context):
     context.pair_status = {}
     context.pair_weights = {}
     
+    #context.target_weights = {}
+    
     context.lookback = 20 # used for regression
     context.z_window = 20 # used for zscore calculation, must be <= lookback
     
@@ -48,7 +57,9 @@ def initialize(context):
 
     # Create our dynamic stock selector.
     algo.attach_pipeline(make_pipeline(), 'pipeline')
-    algo.schedule_function(choose_pairs, date_rules.every_day(), time_rules.market_open(hours=0, minutes=1))
+    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+    
+    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=60))
     
 #empty all data structures
 def empty_data(context):
@@ -92,8 +103,10 @@ def get_std(data, s1, s2, length):
 
 #Set status of pair
 def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLong):
-    context.pair_status[pair]['top_weight'] = top_weight 
-    context.pair_status[pair]['bottom_weight'] = bottom_weight
+    #context.pair_status[pair]['top_weight'] = top_weight 
+    #context.pair_status[pair]['bottom_weight'] = bottom_weight
+    context.target_weights[pair[0]] = top_weight*context.pair_weights[pair];
+    context.target_weights[pair[1]] = bottom_weight*context.pair_weights[pair];
     context.pair_status[pair]['currently_short'] = currShort
     context.pair_status[pair]['currently_long'] = currLong
    
@@ -103,25 +116,30 @@ def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLon
 def choose_pairs(context, data):
     empty_data(context)
     context.universe = pipeline_output('pairs')
+    context.target_weights = pd.Series(index=context.universe.index, data=0.0)
+    
     if (context.universe_size > len(context.universe)):
         context.universe_size = len(context.universe) - 1
-    context.target_weights = pd.Series(index=context.universe.index, data=0.25)
     for i in range (context.universe_size):
-        for j in range (i+1, context.universe_size):
+        for j in range (i+1, context.universe_size):           
+            #s1 = context.universe.index[i]
+            #s2 = context.universe.index[j]
             s1 = context.universe.index[i]
             s2 = context.universe.index[j]
             #get correlation cointegration values
             correlation, coint_pvalue = get_corr_coint(data, s1, s2, context.price_history_length)
             context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
-            if (coint_pvalue < 0.05 and correlation > 0.95):
+            if (coint_pvalue < context.pvalue_th and correlation > context.corr_th):
                 context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]      
+    
+    #print(context.coint_pairs)
     
     for pair in context.coint_pairs:
         long_ma, short_ma = get_mvg_averages(data, pair[0], pair[1], context.long_ma_length, context.short_ma_length)
-        long_std = get_std(data, pair[0], pair[1], context.long_ma_length)
+        #long_std = get_std(data, pair[0], pair[1], context.long_ma_length)
         #calculate spread and zscore
         context.spreads[pair] = (short_ma-long_ma)/long_ma
-        context.zscores[pair] = (short_ma-long_ma)/long_std
+        #context.zscores[pair] = (short_ma-long_ma)/long_std
     
         port_val = context.portfolio.portfolio_value
         top_commission = get_commission(data, s1, port_val*0.5/context.num_pairs)
@@ -136,9 +154,10 @@ def choose_pairs(context, data):
     context.real_yield_keys = sorted(context.real_yields, key=lambda kv: context.real_yields[kv]['corr'], reverse=True)
     
     #select top num_pairs pairs
-    if (context.num_pairs > len(context.real_yield_keys)):
-        context.num_pairs = len(context.real_yield_keys)
-    for i in range(context.num_pairs):
+    npairs = context.num_pairs
+    if (npairs > len(context.real_yield_keys)):
+        npairs = len(context.real_yield_keys)
+    for i in range(npairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
     
     #determine weights of each pair based on correlation
@@ -150,8 +169,8 @@ def choose_pairs(context, data):
         context.pair_weights[pair] = context.real_yields[pair]['corr']/total_corr
     
     #print final data
-    print(context.real_yields) #prints yield and correlation of every pair that passed 1st screen
-    print(context.pair_weights) #prints weight of every pair in final list of top pairs
+    #print(context.real_yields) #prints yield and correlation of every pair that passed 1st screen
+    #print(context.pair_weights) #prints weight of every pair in final list of top pairs
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -161,8 +180,17 @@ def choose_pairs(context, data):
 #INCOMPLETE
 def check_pair_status(context, data):
     
+    print(context.top_yield_pairs)
     for pair in context.top_yield_pairs:
+        
+        long_ma, short_ma = get_mvg_averages(data, pair[0], pair[1], context.long_ma_length, context.short_ma_length)
+        long_std = get_std(data, pair[0], pair[1], context.long_ma_length)
+        context.zscores[pair] = (short_ma-long_ma)/long_std
+        record('zscore', context.zscores[pair])
+        
+        print (context.zscores[pair])
         if context.zscores[pair] > context.entry_threshold and not context.pair_status[pair]['currently_short']:
+            
             set_pair_status(context, pair, -0.5, 0.5, True, False)
         
         elif context.zscores[pair] < -context.entry_threshold and not context.pair_status[pair]['currently_long']:
@@ -170,6 +198,20 @@ def check_pair_status(context, data):
             
         elif abs(context.zscores[pair]) < context.exit_threshold:
             set_pair_status(context, pair, 0, 0, False, False) 
+            
+    allocate(context, data)
+
+def allocate(context, data):
+    objective = opt.TargetWeights(context.target_weights)
+    
+    # Define constraints
+    constraints = []
+    constraints.append(opt.MaxGrossExposure(MAX_GROSS_EXPOSURE))
+    #print(context.target_weights)
+    algo.order_optimal_portfolio(
+        objective=objective,
+        constraints=constraints,
+    )
         
 def make_pipeline():
     """
