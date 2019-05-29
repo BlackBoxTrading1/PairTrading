@@ -19,24 +19,31 @@ MAX_GROSS_EXPOSURE = 1.0
 
 def initialize(context):
     
-    context.stocks = Q500US()  
-    pipe = Pipeline()
-    pipe = attach_pipeline(pipe, name = 'pairs')
-    pipe.set_screen(context.stocks)
+    set_slippage(slippage.FixedSlippage(spread=0))
+    set_commission(commission.PerShare(cost=COMMISSION))
     
-    #context.universe = [symbol('ABGB'), symbol('FSLR')] 
-    #context.target_weights = pd.Series(index=context.universe.index, data=0.0)
+    #context.stocks = Q500US()  Q500 CODE
+    #pipe = Pipeline()            Q500 CODE
+    #pipe = attach_pipeline(pipe, name = 'pairs')    Q500 CODE
+    #pipe.set_screen(context.stocks)                Q500 CODE
     
-        
+    context.universe = symbols('ABGB', 'FSLR', 'CSUN', 'ASTI','crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat',
+'abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt',
+'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc',
+'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp','joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
+'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti',
+#'nov','mro','mur','ip', #'wynd', 'aaba'
+                                   )
+    
     context.price_history_length = 365
     context.long_ma_length = 30
     context.short_ma_length = 1
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
-    context.universe_size = 100
+    context.universe_size = 60
     context.num_pairs = 1
-    context.pvalue_th = 0.5
-    context.corr_th = 0.95
+    context.pvalue_th = 1
+    context.corr_th = 0
     context.top_yield_pairs = []
     
     context.coint_data = {}
@@ -60,7 +67,7 @@ def initialize(context):
     schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=60))
-    
+
 #empty all data structures
 def empty_data(context):
     context.coint_data = {}
@@ -115,17 +122,18 @@ def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLon
 #weight top pairs by correlation
 def choose_pairs(context, data):
     empty_data(context)
-    context.universe = pipeline_output('pairs')
-    context.target_weights = pd.Series(index=context.universe.index, data=0.0)
+    #context.universe = pipeline_output('pairs')            Q500 CODE
+    context.target_weights = pd.Series(index=context.universe, data=0.00)
     
-    if (context.universe_size > len(context.universe)):
-        context.universe_size = len(context.universe) - 1
+    #if (context.universe_size > len(context.universe)):
+    #    context.universe_size = len(context.universe) - 1
+    context.universe_size = len(context.universe)
     for i in range (context.universe_size):
         for j in range (i+1, context.universe_size):           
-            #s1 = context.universe.index[i]
-            #s2 = context.universe.index[j]
-            s1 = context.universe.index[i]
-            s2 = context.universe.index[j]
+            s1 = context.universe[i]
+            s2 = context.universe[j]
+            #s1 = context.universe.index[i]            Q500 CODE
+            #s2 = context.universe.index[j]            Q500 CODE
             #get correlation cointegration values
             correlation, coint_pvalue = get_corr_coint(data, s1, s2, context.price_history_length)
             context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
@@ -177,7 +185,6 @@ def choose_pairs(context, data):
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
             
-#INCOMPLETE
 def check_pair_status(context, data):
     
     print(context.top_yield_pairs)
