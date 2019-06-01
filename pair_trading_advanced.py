@@ -21,25 +21,37 @@ def initialize(context):
     
     set_slippage(slippage.FixedSlippage(spread=0))
     set_commission(commission.PerShare(cost=COMMISSION))
-    
+    # MC = 
     # context.stocks = Q500US()  
     # pipe = Pipeline()
     # pipe = attach_pipeline(pipe, name = 'pairs')
-    # pipe.set_screen(context.stocks)
+    # pipe.add(MC, 'MC')
+    # pipe.set_screen(context.stocks & sector.element_of([]))
+#     context.universe = symbols(
+#        'ABGB', 'FSLR','CSUN','ASTI', 
+# 'crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat','abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt',
+# 'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc',
+# 'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp','joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
+# 'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti',
+# #'nov','mro','mur','ip', #'wynd', 'aaba'
+#                                    )
     
-    context.universe = [symbol('ABGB'), symbol('FSLR'),
-                           symbol('CSUN'), symbol('ASTI')] 
-    context.stocks = symbols('ABGB', 'FSLR', 'CSUN', 'ASTI')
-    #context.target_weights = pd.Series(index=context.universe, data=0.0)
+    context.universe = symbols('ABGB', 'FSLR', 'CSUN', #'ASTI','crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat', #'abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt', #'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc', 
+                               #'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp'#,'joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
+                               'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti', 'ip', 'meli', 'shop', 'mchp', 'pru', 'hban', 'all', 'pgr', 'mcd', 'wen', 'a', 'spgi', 'v', 'tol', 'mar', 'hlt', 'mco', 'ma' , 'el', 'xel', 'aep', 'nflx','isrg','unh','cnc','intu','fisv','fe','twlo','tndm','vrsn','oas','nbl','hes','rrc','az','jblu','ne','amzn','wll','bwa','car','hri','cam','scco','tsla','spwr','mos','scty','tmo','gr','bti','pm','pe','amd','nvda','xto','nvls','gen','mir','vlo','aeo'
+)
     
-        
+    #context.universe = [symbol('ABGB'), symbol('FSLR'),
+    #                       symbol('CSUN'), symbol('ASTI')] 
+         
     context.price_history_length = 365
     context.long_ma_length = 30
     context.short_ma_length = 1
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
-    context.universe_size = 4
-    context.num_pairs = 2
+    context.universe_size = len(context.universe)
+    print(context.universe_size)
+    context.num_pairs = 1
     context.pvalue_th = 1
     context.corr_th = 0
     context.top_yield_pairs = []
@@ -47,7 +59,6 @@ def initialize(context):
     context.coint_data = {}
     context.coint_pairs = {}
     context.spreads = {}
-    context.zscores = {}
     context.real_yields = {}
     context.real_yield_keys = []
     context.pair_status = {}
@@ -59,18 +70,10 @@ def initialize(context):
     context.z_window = 20 # used for zscore calculation, must be <= lookback
     
     context.spread = np.ndarray((context.num_pairs, 0))
-    
-    context.target_weights = pd.Series(index=context.stocks, data=0.25)
-    context.top_yield_pairs = [(symbol('ABGB'), symbol('FSLR')), (symbol('CSUN'), symbol('ASTI'))]
-    
-    for pair in context.top_yield_pairs:
-        context.pair_status[pair] = {}
-        context.pair_status[pair]['currently_short'] = False
-        context.pair_status[pair]['currently_long'] = False
 
     # Create our dynamic stock selector.
-    algo.attach_pipeline(make_pipeline(), 'pipeline')
-    #schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+    #algo.attach_pipeline(make_pipeline(), 'pipeline')
+    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
     
@@ -79,7 +82,6 @@ def empty_data(context):
     context.coint_data = {}
     context.coint_pairs = {}
     context.spreads = {}
-    context.zscores = {}
     context.real_yields = {}
     context.real_yield_keys = []
     context.top_yield_pairs = []
@@ -127,14 +129,16 @@ def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLon
 #rank pairs by estimated real yield
 #weight top pairs by correlation
 def choose_pairs(context, data):
+    
+    this_month = get_datetime('US/Eastern').month  
+    if this_month not in [3, 6, 9, 12]:  
+        return 
     empty_data(context)
     #context.universe = pipeline_output('pairs')
-    context.target_weights = pd.Series(index=context.universe, data=0.25)
-    
-    if (context.universe_size > len(context.universe)):
-        context.universe_size = len(context.universe) - 1
+    context.target_weights = pd.Series(index=context.universe, data=(1/(2*context.num_pairs)))
+
     for i in range (context.universe_size):
-        for j in range (i+1, context.universe_size):           
+        for j in range (i+1, context.universe_size):
             s1 = context.universe[i]
             s2 = context.universe[j]
             #s1 = context.universe.index[i]
@@ -142,17 +146,14 @@ def choose_pairs(context, data):
             #get correlation cointegration values
             correlation, coint_pvalue = get_corr_coint(data, s1, s2, context.price_history_length)
             context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
-            if (coint_pvalue < context.pvalue_th and correlation > context.corr_th):
+            if (coint_pvalue < context.pvalue_th and abs(correlation) > context.corr_th):
                 context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]      
     
     #print(context.coint_pairs)
-    
     for pair in context.coint_pairs:
         long_ma, short_ma = get_mvg_averages(data, pair[0], pair[1], context.long_ma_length, context.short_ma_length)
-        #long_std = get_std(data, pair[0], pair[1], context.long_ma_length)
         #calculate spread and zscore
         context.spreads[pair] = (short_ma-long_ma)/long_ma
-        #context.zscores[pair] = (short_ma-long_ma)/long_std
     
         port_val = context.portfolio.portfolio_value
         top_commission = get_commission(data, s1, port_val*0.5/context.num_pairs)
@@ -162,9 +163,11 @@ def choose_pairs(context, data):
         #subtract total commission of pair from % of portfolio value to get real yield
         context.real_yields[pair]['yield'] = abs(context.spreads[pair]) * port_val-pair_commission
         context.real_yields[pair]['corr'] = context.coint_data[pair]['corr']
+        context.real_yields[pair]['coint'] = context.coint_data[pair]['coint']
     
     #sort pairs from highest to lowest correlations
-    context.real_yield_keys = sorted(context.real_yields, key=lambda kv: context.real_yields[kv]['corr'], reverse=True)
+    #context.real_yield_keys = sorted(context.real_yields, key=lambda kv: context.real_yields[kv]['corr'], reverse=True)
+    context.real_yield_keys = sorted(context.real_yields, key=lambda kv: context.real_yields[kv]['coint'], reverse=False)
     
     #select top num_pairs pairs
     npairs = context.num_pairs
@@ -172,7 +175,12 @@ def choose_pairs(context, data):
         npairs = len(context.real_yield_keys)
     for i in range(npairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
+        #print(context.real_yields[context.real_yield_keys[i]]['coint'])
+        #print(context.real_yields[context.real_yield_keys[i]]['corr'])
     
+    #print(context.coint_data)
+    #print(context.coint_pairs)
+    print(context.top_yield_pairs)
     #determine weights of each pair based on correlation
     total_corr = 0
     for pair in context.top_yield_pairs:
@@ -185,7 +193,7 @@ def choose_pairs(context, data):
     #print(context.real_yields) #prints yield and correlation of every pair that passed 1st screen
     #print(context.pair_weights) #prints weight of every pair in final list of top pairs
     
-    context.top_yield_pairs = [(symbol('ABGB'), symbol('FSLR')), (symbol('CSUN'), symbol('ASTI'))]
+    #context.top_yield_pairs = [(symbol('ABGB'), symbol('FSLR')), (symbol('CSUN'), symbol('ASTI'))]
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -195,7 +203,7 @@ def choose_pairs(context, data):
 #INCOMPLETE
 def check_pair_status(context, data):
     
-    prices = data.history(context.stocks, 'price', 35, '1d').iloc[-context.lookback::]
+    prices = data.history(context.universe, 'price', 35, '1d').iloc[-context.lookback::]
     
     new_spreads = np.ndarray((context.num_pairs, 1))
     #print (new_spreads)
@@ -287,7 +295,7 @@ def check_pair_status(context, data):
                 allocate(context, data)
                 return
 
-            print(context.target_weights)
+            #print(context.target_weights)
             
     context.spread = np.hstack([context.spread, new_spreads])                                 
 
@@ -310,7 +318,7 @@ def get_current_portfolio_weights(context, data):
 
     current_prices = data.current(positions_index, 'price')  
     current_weights = share_counts * current_prices / context.portfolio.portfolio_value  
-    return current_weights.reindex(positions_index.union(context.stocks), fill_value=0.0)  
+    return current_weights.reindex(positions_index.union(context.universe), fill_value=0.0)  
     
 def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     yDol = yShares * yPrice
@@ -332,55 +340,41 @@ def allocate(context, data):
         constraints=constraints,
     )
         
-def make_pipeline():
-    """
-    A function to create our dynamic stock selector (pipeline). Documentation
-    on pipeline can be found here:
-    https://www.quantopian.com/help#pipeline-title
-    """
+# def make_pipeline():
+#     """
+#     A function to create our dynamic stock selector (pipeline). Documentation
+#     on pipeline can be found here:
+#     https://www.quantopian.com/help#pipeline-title
+#     """
 
-    # Base universe set to the QTradableStocksUS
-    base_universe = QTradableStocksUS()
+#     # Base universe set to the QTradableStocksUS
+#     base_universe = QTradableStocksUS()
 
-    # Factor of yesterday's close price.
-    yesterday_close = USEquityPricing.close.latest
+#     # Factor of yesterday's close price.
+#     yesterday_close = USEquityPricing.close.latest
 
-    pipe = Pipeline(
-        columns={
-            'close': yesterday_close,
-        },
-        screen=base_universe
-    )
-    return pipe
-
-
-def before_trading_start(context, data):
-    """
-    Called every day before market open.
-    """
-    context.output = algo.pipeline_output('pipeline')
-
-    # These are the securities that we are interested in trading each day.
-    context.security_list = context.output.index
+#     pipe = Pipeline(
+#         columns={
+#             'close': yesterday_close,
+#         },
+#         screen=base_universe
+#     )
+#     return pipe
 
 
-def rebalance(context, data):
-    """
-    Execute orders according to our schedule_function() timing.
-    """
-    pass
+# def before_trading_start(context, data):
+#     """
+#     Called every day before market open.
+#     """
+#     context.output = algo.pipeline_output('pipeline')
+
+#     # These are the securities that we are interested in trading each day.
+#     context.security_list = context.output.index
 
 
-def record_vars(context, data):
-    """
-    Plot variables at the end of each day.
-    """
-    pass
-
-
-def handle_data(context, data):
-    """
-    Called every minute.
-    """
+# def handle_data(context, data):
+#     """
+#     Called every minute.
+#     """
     
-    pass
+#     pass
