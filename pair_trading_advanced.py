@@ -10,36 +10,33 @@ import pandas as pd
 import statsmodels.tsa.stattools as sm
 from quantopian.pipeline.filters import Q500US, Q3000US
 from quantopian.pipeline.data import Fundamentals
-from quantopian.pipeline.classifiers.fundamentals import Sector
 from quantopian.algorithm import attach_pipeline, pipeline_output
 from collections import OrderedDict
+from quantopian.pipeline.classifiers.morningstar import Sector
+import quantopian.pipeline.classifiers.morningstar
+import quantopian.pipeline.data.morningstar as ms
+import random
+import math
 
 COMMISSION = 0.0035
-MAX_GROSS_EXPOSURE = 1.0
+MAX_GROSS_EXPOSURE = 2.0
+LEVERAGE = 2.0
 
 def initialize(context):
     
     set_slippage(slippage.FixedSlippage(spread=0))
     set_commission(commission.PerShare(cost=COMMISSION))
-    # MC = 
-    # context.stocks = Q500US()  
-    # pipe = Pipeline()
-    # pipe = attach_pipeline(pipe, name = 'pairs')
-    # pipe.add(MC, 'MC')
-    # pipe.set_screen(context.stocks & sector.element_of([]))
-#     context.universe = symbols(
-#        'ABGB', 'FSLR','CSUN','ASTI', 
-# 'crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat','abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt',
-# 'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc',
-# 'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp','joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
-# 'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti',
-# #'nov','mro','mur','ip', #'wynd', 'aaba'
-#                                    )
+    pipe = Pipeline()
+    pipe = attach_pipeline(pipe, name = 'pairs')
+    #pipe.set_screen(Q3000US() & Sector().eq(309))
+    industry_code = ms.asset_classification.morningstar_industry_group_code.latest
+    pipe.set_screen(Q3000US() & industry_code.element_of([30946]))
+    context.universe = []
     
-    context.universe = symbols('ABGB', 'FSLR', 'CSUN', #'ASTI','crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat', #'abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt', #'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc', 
-                               #'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp'#,'joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
-                               'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti', 'ip', 'meli', 'shop', 'mchp', 'pru', 'hban', 'all', 'pgr', 'mcd', 'wen', 'a', 'spgi', 'v', 'tol', 'mar', 'hlt', 'mco', 'ma' , 'el', 'xel', 'aep', 'nflx','isrg','unh','cnc','intu','fisv','fe','twlo','tndm','vrsn','oas','nbl','hes','rrc','az','jblu','ne','amzn','wll','bwa','car','hri','cam','scco','tsla','spwr','mos','scty','tmo','gr','bti','pm','pe','amd','nvda','xto','nvls','gen','mir','vlo','aeo'
-)
+#     context.universe = symbols('ABGB', 'FSLR', 'CSUN', 'ASTI','crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat', 'abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt', 'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc', 
+#                                'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp','joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
+#                                'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti', 'ip', 'meli', 'shop', 'mchp', 'pru', 'hban', 'all', 'pgr', 'mcd', 'wen', 'a', 'spgi', 'v', 'tol', 'mar', 'hlt', 'mco', 'ma' , 'el', 'xel', 'aep', 'nflx','isrg','unh','cnc','intu','fisv','fe','twlo','tndm','vrsn','oas','nbl','hes','rrc','az','jblu','ne','amzn','wll','bwa','car','hri','cam','scco','tsla','spwr','mos','scty','tmo','gr','bti','pm','pe','amd','nvda','xto','nvls','gen','mir','vlo','aeo'
+# )
     
     #context.universe = [symbol('ABGB'), symbol('FSLR'),
     #                       symbol('CSUN'), symbol('ASTI')] 
@@ -49,12 +46,13 @@ def initialize(context):
     context.short_ma_length = 1
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
-    context.universe_size = len(context.universe)
-    print(context.universe_size)
-    context.num_pairs = 1
+    context.universe_size = 100
+    
+    context.num_pairs = 3
     context.pvalue_th = 1
     context.corr_th = 0
     context.top_yield_pairs = []
+    context.universe_set = False
     
     context.coint_data = {}
     context.coint_pairs = {}
@@ -70,11 +68,8 @@ def initialize(context):
     context.z_window = 20 # used for zscore calculation, must be <= lookback
     
     context.spread = np.ndarray((context.num_pairs, 0))
-
-    # Create our dynamic stock selector.
-    #algo.attach_pipeline(make_pipeline(), 'pipeline')
-    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     
+    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
     
 #empty all data structures
@@ -115,34 +110,29 @@ def get_std(data, s1, s2, length):
     prices = data.history([s1, s2], "price", length, '1d')
     std = np.std(prices[s1] - prices[s2])
     return std
-
-#Set status of pair
-def set_pair_status(context, pair, top_weight, bottom_weight, currShort, currLong):
-    #context.pair_status[pair]['top_weight'] = top_weight 
-    #context.pair_status[pair]['bottom_weight'] = bottom_weight
-    context.target_weights[pair[0]] = top_weight*context.pair_weights[pair];
-    context.target_weights[pair[1]] = bottom_weight*context.pair_weights[pair];
-    context.pair_status[pair]['currently_short'] = currShort
-    context.pair_status[pair]['currently_long'] = currLong
    
-#select pairs based on correlation, cointegration
-#rank pairs by estimated real yield
-#weight top pairs by correlation
 def choose_pairs(context, data):
-    
     this_month = get_datetime('US/Eastern').month  
     if this_month not in [3, 6, 9, 12]:  
         return 
+    
     empty_data(context)
-    #context.universe = pipeline_output('pairs')
+    context.universe = pipeline_output('pairs')
+    context.universe = context.universe.index
+    
+   
+    #print(context.universe)
+    context.universe_set = True
     context.target_weights = pd.Series(index=context.universe, data=(1/(2*context.num_pairs)))
 
+    if (context.universe_size > len(context.universe) - 1):
+        context.universe_size = len(context.universe) - 1
+    print("Universe size: " + str(context.universe_size))
+    
     for i in range (context.universe_size):
         for j in range (i+1, context.universe_size):
             s1 = context.universe[i]
             s2 = context.universe[j]
-            #s1 = context.universe.index[i]
-            #s2 = context.universe.index[j]
             #get correlation cointegration values
             correlation, coint_pvalue = get_corr_coint(data, s1, s2, context.price_history_length)
             context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
@@ -175,8 +165,10 @@ def choose_pairs(context, data):
         npairs = len(context.real_yield_keys)
     for i in range(npairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
-        #print(context.real_yields[context.real_yield_keys[i]]['coint'])
-        #print(context.real_yields[context.real_yield_keys[i]]['corr'])
+        
+        coint = context.real_yields[context.real_yield_keys[i]]['coint']
+        corr = context.real_yields[context.real_yield_keys[i]]['corr']
+        print("pair:" + str(context.real_yield_keys[i]) +", corr: " + str(corr) + ", coint: " + str(coint))
     
     #print(context.coint_data)
     #print(context.coint_pairs)
@@ -202,11 +194,14 @@ def choose_pairs(context, data):
     
 #INCOMPLETE
 def check_pair_status(context, data):
+    if (not context.universe_set):
+        return
     
-    prices = data.history(context.universe, 'price', 35, '1d').iloc[-context.lookback::]
     
+    
+    #prices = data.history(context.universe, 'price', 35, '1d').iloc[-context.lookback::]
+    #prices = data.history(context.universe.index, 'price', 35, '1d').iloc[-context.lookback::]
     new_spreads = np.ndarray((context.num_pairs, 1))
-    #print (new_spreads)
     numPairs = context.num_pairs
     
     if (numPairs > len(context.top_yield_pairs)):
@@ -215,10 +210,10 @@ def check_pair_status(context, data):
         pair = context.top_yield_pairs[i]
         s1 = pair[0]
         s2 = pair[1]
-        # s1_price = data.history(s1, 'price', 35, '1d').iloc[-context.lookback::]
-        # s2_price = data.history(s2, 'price', 35, '1d').iloc[-context.lookback::]
-        s1_price = prices[s1]
-        s2_price = prices[s2]
+        
+        s1_price = data.history(s1, 'price', 35, '1d').iloc[-context.lookback::]
+        s2_price = data.history(s2, 'price', 35, '1d').iloc[-context.lookback::]
+        
         
         try:
             hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
@@ -238,31 +233,28 @@ def check_pair_status(context, data):
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
             #print (zscore)
             if context.pair_status[pair]['currently_short'] and zscore < 0.0:
-                #print(1)
                 context.target_weights[s1] = 0
                 context.target_weights[s2] = 0
                 
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
                 
-                record(X_pct=0, Y_pct=0)
+                #record(X_pct=0, Y_pct=0)
                 allocate(context, data)
                 return
             
             if context.pair_status[pair]['currently_long'] and zscore > 0.0:
-                #print(2)
                 context.target_weights[s1] = 0
                 context.target_weights[s2] = 0
                 
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
                 
-                record(X_pct=0, Y_pct=0)
+                #record(X_pct=0, Y_pct=0)
                 allocate(context, data)
                 return
             
             if zscore < -1.0 and (not context.pair_status[pair]['currently_long']):
-                #print(3)
                 # Only trade if NOT already in a trade 
                 y_target_shares = 1
                 X_target_shares = -hedge
@@ -271,15 +263,14 @@ def check_pair_status(context, data):
 
                 (y_target_pct, x_target_pct) = computeHoldingsPct(y_target_shares,X_target_shares, s1_price[-1], s2_price[-1])
                 
-                context.target_weights[s1] = y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
                 
-                record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                #record(Y_pct=y_target_pct, X_pct=x_target_pct)
                 allocate(context, data)
                 return
             
             if zscore > 1.0 and (not context.pair_status[pair]['currently_short']):
-                #print(4)
                 # Only trade if NOT already in a trade
                 y_target_shares = -1
                 X_target_shares = hedge
@@ -288,14 +279,13 @@ def check_pair_status(context, data):
 
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
                 
-                context.target_weights[s1] = y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
                 
-                record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                #record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                
                 allocate(context, data)
                 return
-
-            #print(context.target_weights)
             
     context.spread = np.hstack([context.spread, new_spreads])                                 
 
@@ -329,7 +319,12 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     return (y_target_pct, x_target_pct)    
 
 def allocate(context, data):
+    record(leverage=context.account.leverage)
     objective = opt.TargetWeights(context.target_weights)
+    # for s in context.target_weights:
+    #     if (math.isnan(context.target_weights[s])):
+    #         return
+    print(context.target_weights)
     
     # Define constraints
     constraints = []
@@ -339,42 +334,9 @@ def allocate(context, data):
         objective=objective,
         constraints=constraints,
     )
-        
-# def make_pipeline():
-#     """
-#     A function to create our dynamic stock selector (pipeline). Documentation
-#     on pipeline can be found here:
-#     https://www.quantopian.com/help#pipeline-title
-#     """
-
-#     # Base universe set to the QTradableStocksUS
-#     base_universe = QTradableStocksUS()
-
-#     # Factor of yesterday's close price.
-#     yesterday_close = USEquityPricing.close.latest
-
-#     pipe = Pipeline(
-#         columns={
-#             'close': yesterday_close,
-#         },
-#         screen=base_universe
-#     )
-#     return pipe
-
-
-# def before_trading_start(context, data):
-#     """
-#     Called every day before market open.
-#     """
-#     context.output = algo.pipeline_output('pipeline')
-
-#     # These are the securities that we are interested in trading each day.
-#     context.security_list = context.output.index
-
-
-# def handle_data(context, data):
-#     """
-#     Called every minute.
-#     """
     
-#     pass
+def handle_data(context, data):
+    for stock in context.universe:
+        if (not data.can_trade(stock)):
+            context.universe_set = False
+            choose_pairs(context, data)
