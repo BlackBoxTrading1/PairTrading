@@ -19,8 +19,9 @@ import random
 import math
 
 COMMISSION = 0.0035
-MAX_GROSS_EXPOSURE = 2.0
-LEVERAGE = 2.0
+LEVERAGE = 1.0
+MAX_GROSS_EXPOSURE = LEVERAGE
+
 
 def initialize(context):
     
@@ -32,14 +33,7 @@ def initialize(context):
     industry_code = ms.asset_classification.morningstar_industry_group_code.latest
     pipe.set_screen(Q3000US() & industry_code.element_of([30946]))
     context.universe = []
-    
-#     context.universe = symbols('ABGB', 'FSLR', 'CSUN', 'ASTI','crs','csx','agco','de','apa','dvn','aet','aon','emr','etn','dov','duk','ed','cms','cat', 'abt','nee','cpb','gis','bac','bk','grp','upl','akam','ati','amt','jpm','bxp','flr','fwlt', 'mdr','kbh','len','tgna','mer','lm','ir','mhk','lnc','hal','nbr','java','wfm','hp','rrc', 
-#                                'kwk','stld','mac','met','hig','amg','slg','ci','hes','apd','abmd','adbe','hot','lb','alxn','bexp','joy','vrsn','tibx','el','chkp','avb','cmg','ulta','eqix','apkt','anr','hfc','jci','omc','mo',
-#                                'kmb','hd','phm','cci','sbac','abc','itw','mmm','kr','cvs','psa','antm','swks','cnx','fti', 'ip', 'meli', 'shop', 'mchp', 'pru', 'hban', 'all', 'pgr', 'mcd', 'wen', 'a', 'spgi', 'v', 'tol', 'mar', 'hlt', 'mco', 'ma' , 'el', 'xel', 'aep', 'nflx','isrg','unh','cnc','intu','fisv','fe','twlo','tndm','vrsn','oas','nbl','hes','rrc','az','jblu','ne','amzn','wll','bwa','car','hri','cam','scco','tsla','spwr','mos','scty','tmo','gr','bti','pm','pe','amd','nvda','xto','nvls','gen','mir','vlo','aeo'
-# )
-    
-    #context.universe = [symbol('ABGB'), symbol('FSLR'),
-    #                       symbol('CSUN'), symbol('ASTI')] 
+    context.q3000 = []
          
     context.price_history_length = 365
     context.long_ma_length = 30
@@ -320,11 +314,20 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
 
 def allocate(context, data):
     record(leverage=context.account.leverage)
+    
+    for s in context.target_weights.keys():
+        if (not data.can_trade(s)):
+            print("Cannot trade " + str(s))
+            context.universe_set = False
+            return
+        if(np.isnan(context.target_weights.loc[s])):
+            print("Invalid target weight " + str(s))
+            context.universe_set = False
+            return
+    # print(context.target_weights.keys())
+    # print(context.target_weights)
     objective = opt.TargetWeights(context.target_weights)
-    # for s in context.target_weights:
-    #     if (math.isnan(context.target_weights[s])):
-    #         return
-    print(context.target_weights)
+    
     
     # Define constraints
     constraints = []
@@ -336,7 +339,4 @@ def allocate(context, data):
     )
     
 def handle_data(context, data):
-    for stock in context.universe:
-        if (not data.can_trade(stock)):
-            context.universe_set = False
-            choose_pairs(context, data)
+    pass
