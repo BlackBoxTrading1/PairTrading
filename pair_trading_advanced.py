@@ -29,9 +29,12 @@ def initialize(context):
     set_commission(commission.PerShare(cost=COMMISSION))
     pipe = Pipeline()
     pipe = attach_pipeline(pipe, name = 'pairs')
-    #pipe.set_screen(Q3000US() & Sector().eq(309))
-    industry_code = ms.asset_classification.morningstar_industry_group_code.latest
-    pipe.set_screen(Q3000US() & industry_code.element_of([30946]))
+    
+    industry_code = ms.asset_classification.morningstar_industry_code.latest
+    pipe.set_screen(QTradableStocksUS() & industry_code.element_of([30948103]))
+    #industry_group = ms.asset_classification.morningstar_industry_group_code.latest
+    #pipe.set_screen(QTradableStocksUS() & industry_group.element_of([30947]))  5 digit
+    #pipe.set_screen(QTradableStocksUS() & Sector().eq(309)) 3 digit
     context.universe = []
     context.q3000 = []
          
@@ -42,7 +45,8 @@ def initialize(context):
     context.exit_threshold = 0.1
     context.universe_size = 100
     
-    context.num_pairs = 3
+    context.desired_num_pairs = 1
+    context.num_pairs = context.desired_num_pairs
     context.pvalue_th = 1
     context.corr_th = 0
     context.top_yield_pairs = []
@@ -61,10 +65,20 @@ def initialize(context):
     context.lookback = 20 # used for regression
     context.z_window = 20 # used for zscore calculation, must be <= lookback
     
-    context.spread = np.ndarray((context.num_pairs, 0))
+    #context.spread = np.ndarray((context.num_pairs, 0))
     
     schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
+    
+    
+# def warn_leverage(context, data):
+#     log.warn('Leverage Exceeded: '+str(context.account.leverage))
+#     context.open_orders = get_open_orders()
+#     if context.open_orders:
+#         for orders,_ in context.open_orders.iteritems():
+#             cancel_order(orders)
+#     for equity in context.portfolio.positions:  
+#         order_target_percent(equity, 0)
     
 #empty all data structures
 def empty_data(context):
@@ -117,11 +131,27 @@ def choose_pairs(context, data):
    
     #print(context.universe)
     context.universe_set = True
-    context.target_weights = pd.Series(index=context.universe, data=(1/(2*context.num_pairs)))
+    
+    
 
-    if (context.universe_size > len(context.universe) - 1):
-        context.universe_size = len(context.universe) - 1
+    if (context.universe_size > len(context.universe)):
+        context.universe_size = len(context.universe)
     print("Universe size: " + str(context.universe_size))
+    
+    if (context.universe_size < 2):
+        return
+    
+    # tw_divider = 2*context.num_pairs*1.0
+    # if (2*context.num_pairs > context.universe_size):
+    #     tw_divider = context.universe_size*1.0
+    
+    #context.target_weights = pd.Series(index=context.universe, data=(1/tw_divider))
+    #print(context.target_weights)
+    
+    if (context.desired_num_pairs > context.universe_size/2.0):
+        context.num_pairs = 1
+    
+    context.spread = np.ndarray((context.num_pairs, 0))
     
     for i in range (context.universe_size):
         for j in range (i+1, context.universe_size):
@@ -162,11 +192,8 @@ def choose_pairs(context, data):
         
         coint = context.real_yields[context.real_yield_keys[i]]['coint']
         corr = context.real_yields[context.real_yield_keys[i]]['corr']
-        print("pair:" + str(context.real_yield_keys[i]) +", corr: " + str(corr) + ", coint: " + str(coint))
-    
-    #print(context.coint_data)
-    #print(context.coint_pairs)
-    print(context.top_yield_pairs)
+        print("TOP PAIR: " + str(context.real_yield_keys[i]) +"\n\t\t\tcorrelation: " + str(corr) + "\n\t\t\tcointegration: " + str(coint) + "\n")
+        
     #determine weights of each pair based on correlation
     total_corr = 0
     for pair in context.top_yield_pairs:
@@ -190,8 +217,6 @@ def choose_pairs(context, data):
 def check_pair_status(context, data):
     if (not context.universe_set):
         return
-    
-    
     
     #prices = data.history(context.universe, 'price', 35, '1d').iloc[-context.lookback::]
     #prices = data.history(context.universe.index, 'price', 35, '1d').iloc[-context.lookback::]
@@ -217,6 +242,7 @@ def check_pair_status(context, data):
         
         #print(hedge)
         context.target_weights = get_current_portfolio_weights(context, data)
+        #print(context.target_weights)
         
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]
         
@@ -338,5 +364,9 @@ def allocate(context, data):
         constraints=constraints,
     )
     
+    
+    
 def handle_data(context, data):
     pass
+    # if context.account.leverage>LEVERAGE or context.account.leverage < 0:
+    #     warn_leverage(context, data)
