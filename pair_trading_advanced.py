@@ -16,7 +16,7 @@ import math
 
 COMMISSION = 0.0035
 LEVERAGE = 1.0
-MAX_GROSS_EXPOSURE = LEVERAGE
+MAX_GROSS_EXPOSURE = 1.0
 
 def initialize(context):
     
@@ -80,6 +80,11 @@ def empty_data(context):
     context.coint_pairs = {}
     context.real_yield_keys = []
     context.top_yield_pairs = []
+    
+    
+def empty_target_weights(context):
+    for s in context.target_weights.keys():
+        context.target_weights.loc[s] = 0.0
    
 #calculate total commission cost of a stock given betsize
 def get_commission(data, stock, bet_size):
@@ -131,7 +136,8 @@ def choose_pairs(context, data):
     #     return
     # if (context.desired_num_pairs > context.universe_size/2.0):
     #     context.num_pairs = 1
-    
+    context.target_weights = get_current_portfolio_weights(context, data)
+    empty_target_weights(context)
     context.spread = np.ndarray((context.num_pairs, 0))
     
     for code in context.codes:
