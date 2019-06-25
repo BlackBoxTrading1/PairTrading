@@ -54,6 +54,7 @@ def initialize(context):
     context.coint_pairs = {}
     context.real_yield_keys = []
     context.pair_status = {}
+    context.total_stock_list = []
     
     context.target_weights = {}
     
@@ -80,11 +81,22 @@ def empty_data(context):
     context.coint_pairs = {}
     context.real_yield_keys = []
     context.top_yield_pairs = []
-    
+    context.total_stock_list = []
     
 def empty_target_weights(context):
     for s in context.target_weights.keys():
         context.target_weights.loc[s] = 0.0
+    for equity in context.portfolio.positions:  
+        order_target_percent(equity, 0)
+
+def get_stock_partner(context, stock):
+    partner = 0
+    for pair in context.coint_pairs.keys():
+        if stock == pair[0]:
+            partner = pair[1]
+        elif stock == pair[1]:
+            partner = pair[0]
+    return partner     
    
 #calculate total commission cost of a stock given betsize
 def get_commission(data, stock, bet_size):
@@ -136,6 +148,7 @@ def choose_pairs(context, data):
     #     return
     # if (context.desired_num_pairs > context.universe_size/2.0):
     #     context.num_pairs = 1
+    
     context.target_weights = get_current_portfolio_weights(context, data)
     empty_target_weights(context)
     context.spread = np.ndarray((context.num_pairs, 0))
@@ -149,10 +162,18 @@ def choose_pairs(context, data):
                                                            context.price_history_length)
                 context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
                 if (coint_pvalue < context.pvalue_th and abs(correlation) > context.corr_th):
-                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]      
+                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]   
 
     #sort pairs from highest to lowest cointegrations
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
+    
+    for pair in context.real_yield_keys:
+        if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
+            context.real_yield_keys.remove(pair)
+        else:
+            context.total_stock_list.append(pair[0])
+            context.total_stock_list.append(pair[1])
+        
     
     #select top num_pairs pairs
     npairs = context.num_pairs
@@ -183,10 +204,9 @@ def check_pair_status(context, data):
     new_spreads = np.ndarray((context.num_pairs, 1))
     numPairs = context.num_pairs
     
-    if (numPairs > len(context.top_yield_pairs)):
-        numPairs = len(context.top_yield_pairs)
     for i in range(numPairs):
         pair = context.top_yield_pairs[i]
+        # print pair
         s1 = pair[0]
         s2 = pair[1]
         
@@ -301,16 +321,22 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
 
 def allocate(context, data):
     record(leverage=context.account.leverage)
-    
+    print ("ALLOCATING")
     for s in context.target_weights.keys():
         if (not data.can_trade(s)):
             print("Cannot trade " + str(s))
-            context.universe_set = False
-            return
+            partner = get_stock_partner(context, s)
+            context.target_weights.loc[s] = 0.0
+            context.target_weights.loc[partner] = 0.0
+            #context.universe_set = False
+            #return
         if(np.isnan(context.target_weights.loc[s])):
             print("Invalid target weight " + str(s))
-            context.universe_set = False
-            return
+            partner = get_stock_partner(context, s)
+            context.target_weights.loc[s] = 0.0
+            context.target_weights.loc[partner] = 0.0
+            #context.universe_set = False
+            #return
         if context.target_weights.loc[s] != 0:
             print (str(s) + " " + str(context.target_weights.loc[s]))
     # print(context.target_weights.keys())
