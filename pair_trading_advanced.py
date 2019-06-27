@@ -16,7 +16,9 @@ import math
 
 COMMISSION = 0.0035
 LEVERAGE = 1.0
-MAX_GROSS_EXPOSURE = 1.0
+MAX_GROSS_EXPOSURE = LEVERAGE
+REC_LEVERAGE = True
+REC_PCT = False
 
 def initialize(context):
     
@@ -55,6 +57,7 @@ def initialize(context):
     context.real_yield_keys = []
     context.pair_status = {}
     context.total_stock_list = []
+    context.universe_pool = []
     
     context.target_weights = {}
     
@@ -126,23 +129,56 @@ def get_std(data, s1, s2, length):
     prices = data.history([s1, s2], "price", length, '1d')
     std = np.std(prices[s1] - prices[s2])
     return std
-   
+
+def hedge_ratio(Y, X, add_const=True):
+    if add_const:
+        X = sm.add_constant(X)
+        model = sm.OLS(Y, X).fit()
+        return model.params[1]
+    model = sm.OLS(Y, X).fit()
+    return model.params.values 
+
+def get_current_portfolio_weights(context, data):  
+    positions = context.portfolio.positions  
+    positions_index = pd.Index(positions)  
+    share_counts = pd.Series(  
+        index=positions_index,  
+        data=[positions[asset].amount for asset in positions]  
+    )
+
+    current_prices = data.current(positions_index, 'price')  
+    current_weights = share_counts * current_prices / context.portfolio.portfolio_value  
+    #return current_weights.reindex(positions_index.union(context.universe), fill_value=0.0)  
+    
+    return current_weights.reindex(positions_index.union(context.universe_pool), fill_value=0.0)  
+    
+def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
+    yDol = yShares * yPrice
+    xDol = xShares * xPrice
+    notionalDol =  abs(yDol) + abs(xDol)
+    y_target_pct = yDol / notionalDol
+    x_target_pct = xDol / notionalDol
+    return (y_target_pct, x_target_pct)  
+
 def choose_pairs(context, data):
     this_month = get_datetime('US/Eastern').month  
     if this_month not in [3, 6, 9, 12]:  
         return 
     
     empty_data(context)
-   
+    size_str = ""
     for code in context.codes:
         context.universes[code]['universe'] = algo.pipeline_output(str(code))
         context.universes[code]['universe'] = context.universes[code]['universe'].index
         context.universes[code]['size'] = len(context.universes[code]['universe'])
         if context.universes[code]['size'] > 1:
             context.universe_set = True
-        print("Universe " + str(code) + " size: " + str(context.universes[code]['size']))
+        size_str = size_str + " " + str(context.universes[code]['size'])
         #print(context.universes[code]['universe'])
-    
+    print ("CHOOSING PAIRS...\nUniverse sizes:" + size_str)
+    context.universe_pool = context.universes[context.codes[0]]['universe']
+    for code in context.codes:
+        context.universe_pool = context.universe_pool | context.universes[code]['universe']
     #TODO: FIGURE THIS OUT
     # if (context.universe_size < 2):
     #     return
@@ -167,9 +203,11 @@ def choose_pairs(context, data):
     #sort pairs from highest to lowest cointegrations
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
     
-    for pair in context.real_yield_keys:
+    temp_real_yield_keys = context.real_yield_keys
+    for pair in temp_real_yield_keys:
         if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
             context.real_yield_keys.remove(pair)
+            del context.coint_pairs[pair]
         else:
             context.total_stock_list.append(pair[0])
             context.total_stock_list.append(pair[1])
@@ -188,8 +226,8 @@ def choose_pairs(context, data):
         coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
-              + "\n\t\t\tuniverse: " + str(u_code) + "\n\t\t\tcorrelation: " + str(corr) 
-              + "\n\t\t\tcointegration: " + str(coint) + "\n")
+              + "\n\t\t\tsector: \t" + str(u_code) + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
+              + "\n\t\t\tcointegration: \t" + str(round(coint,6)) + "\n")
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -221,7 +259,6 @@ def check_pair_status(context, data):
             return
         
         context.target_weights = get_current_portfolio_weights(context, data)
-        #print(context.target_weights)
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]  
         if context.spread.shape[1] > context.z_window:
             
@@ -229,116 +266,90 @@ def check_pair_status(context, data):
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
             if context.pair_status[pair]['currently_short'] and zscore < 0.0:
-                context.target_weights[s1] = 0
-                context.target_weights[s2] = 0
-                
+                context.target_weights[s1] = 0.0
+                context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
-                
-                #record(X_pct=0, Y_pct=0)
+                #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
+                if REC_PCT:
+                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
                 allocate(context, data)
                 return
             
             if context.pair_status[pair]['currently_long'] and zscore > 0.0:
-                context.target_weights[s1] = 0
-                context.target_weights[s2] = 0
-                
+                context.target_weights[s1] = 0.0
+                context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
-                
-                #record(X_pct=0, Y_pct=0)
+                #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
+                if REC_PCT:
+                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
                 allocate(context, data)
                 return
             
             if zscore < -1.0 and (not context.pair_status[pair]['currently_long']):
-                # Only trade if NOT already in a trade 
+                context.pair_status[pair]['currently_short'] = False
+                context.pair_status[pair]['currently_long'] = True
                 y_target_shares = 1
                 X_target_shares = -hedge
-                context.pair_status[pair]['currently_long'] = True
-                context.pair_status[pair]['currenlty_short'] = False
-
-                (y_target_pct, x_target_pct) = computeHoldingsPct(y_target_shares,X_target_shares, s1_price[-1], s2_price[-1])
-                
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
-                
-                #record(Y_pct=y_target_pct, X_pct=x_target_pct)
-                allocate(context, data)
-                return
-            
-            if zscore > 1.0 and (not context.pair_status[pair]['currently_short']):
-                # Only trade if NOT already in a trade
-                y_target_shares = -1
-                X_target_shares = hedge
-                context.pair_status[pair]['currently_short'] = True
-                context.pair_status[pair]['currently_long'] = False
-
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
                 
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
-                
-                #record(Y_pct=y_target_pct, X_pct=x_target_pct)
-                
+    
+                if REC_PCT:
+                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                #set_pair_status(context,s1,s2,s1_price,s2_price, 1, -hedge, True, False)
                 allocate(context, data)
                 return
             
-    context.spread = np.hstack([context.spread, new_spreads])                                 
-
-
-def hedge_ratio(Y, X, add_const=True):
-    if add_const:
-        X = sm.add_constant(X)
-        model = sm.OLS(Y, X).fit()
-        return model.params[1]
-    model = sm.OLS(Y, X).fit()
-    return model.params.values 
-
-def get_current_portfolio_weights(context, data):  
-    positions = context.portfolio.positions  
-    positions_index = pd.Index(positions)  
-    share_counts = pd.Series(  
-        index=positions_index,  
-        data=[positions[asset].amount for asset in positions]  
-    )
-
-    current_prices = data.current(positions_index, 'price')  
-    current_weights = share_counts * current_prices / context.portfolio.portfolio_value  
-    #return current_weights.reindex(positions_index.union(context.universe), fill_value=0.0)  
-    universe_pool = context.universes[context.codes[0]]['universe']
-    for t in range(1, context.num_universes):
-        universe_pool = universe_pool | context.universes[context.codes[t]]['universe']
+            if zscore > 1.0 and (not context.pair_status[pair]['currently_short']):
+                context.pair_status[pair]['currently_short'] = True
+                context.pair_status[pair]['currently_long'] = False
+                y_target_shares = -1
+                X_target_shares = hedge
+                (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
+                
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
     
-    return current_weights.reindex(positions_index.union(universe_pool), fill_value=0.0)  
-    
-def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
-    yDol = yShares * yPrice
-    xDol = xShares * xPrice
-    notionalDol =  abs(yDol) + abs(xDol)
-    y_target_pct = yDol / notionalDol
-    x_target_pct = xDol / notionalDol
-    return (y_target_pct, x_target_pct)    
+                if REC_PCT:
+                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                #set_pair_status(context,s1,s2,s1_price,s2_price, -1, hedge, False, True)
+                allocate(context, data)
+                return
+            
+    context.spread = np.hstack([context.spread, new_spreads])                                   
 
 def allocate(context, data):
-    record(leverage=context.account.leverage)
-    print ("ALLOCATING")
+    if REC_LEVERAGE:
+        record(leverage=context.account.leverage)
+    print ("ALLOCATING...")
     for s in context.target_weights.keys():
-        if (not data.can_trade(s)):
-            print("Cannot trade " + str(s))
+        error = ""
+        if (not s in context.target_weights):
+            continue
+        elif (not data.can_trade(s)):
+            error = "Cannot trade " + str(s)
+        elif(np.isnan(context.target_weights.loc[s])):
+            error = "Invalid target weight " + str(s)
+        if error:
+            print(error)
+            # context.universe_set = False
+            # return
             partner = get_stock_partner(context, s)
-            context.target_weights.loc[s] = 0.0
-            context.target_weights.loc[partner] = 0.0
-            #context.universe_set = False
-            #return
-        if(np.isnan(context.target_weights.loc[s])):
-            print("Invalid target weight " + str(s))
-            partner = get_stock_partner(context, s)
-            context.target_weights.loc[s] = 0.0
-            context.target_weights.loc[partner] = 0.0
-            #context.universe_set = False
-            #return
+            if not partner in context.target_weights:
+                context.target_weights = context.target_weights.drop([s])
+                context.universe_pool = context.universe_pool.drop([s])
+            else:
+                context.target_weights = context.target_weights.drop([s, partner])
+                context.universe_pool = context.universe_pool.drop([s, partner])
+                print("--> Removing partner " + str(partner) + "...")
+            
+    print ("Target weights:")
+    for s in context.target_weights.keys():
         if context.target_weights.loc[s] != 0:
-            print (str(s) + " " + str(context.target_weights.loc[s]))
+            print ("\t" + str(s) + ":\t" + str(round(context.target_weights.loc[s],3)))
     # print(context.target_weights.keys())
     objective = opt.TargetWeights(context.target_weights)
     
@@ -352,23 +363,8 @@ def allocate(context, data):
         constraints=constraints,
     )
     
-    
-    
+
 def handle_data(context, data):
     pass
     # if context.account.leverage>LEVERAGE or context.account.leverage < 0:
     #     warn_leverage(context, data)
-    
-    #TRASHED CODE
-    
-    # tw_divider = 2*context.num_pairs*1.0
-    # if (2*context.num_pairs > context.universe_size):
-    #     tw_divider = context.universe_size*1.0
-    
-    #context.target_weights = pd.Series(index=context.universe, data=(1/tw_divider))
-    #print(context.target_weights)
-    
-    
-    #industry_group = ms.asset_classification.morningstar_industry_group_code.latest
-    #pipe.set_screen(QTradableStocksUS() & industry_group.element_of([30947]))  5 digit
-    #pipe.set_screen(QTradableStocksUS() & Sector().eq(309)) 3 digit
