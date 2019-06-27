@@ -17,6 +17,7 @@ import math
 COMMISSION = 0.0035
 LEVERAGE = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
+INTERVAL = 3
 REC_LEVERAGE = True
 REC_PCT = False
 
@@ -63,6 +64,7 @@ def initialize(context):
     
     context.lookback = 20 # used for regression
     context.z_window = 20 # used for zscore calculation, must be <= lookback   
+    context.interval_mod = -1
     #context.spread = np.ndarray((context.num_pairs, 0))
     
     schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
@@ -161,9 +163,11 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     return (y_target_pct, x_target_pct)  
 
 def choose_pairs(context, data):
-    this_month = get_datetime('US/Eastern').month  
-    if this_month not in [3, 6, 9, 12]:  
-        return 
+    this_month = get_datetime('US/Eastern').month 
+    if context.interval_mod < 0:
+        context.interval_mod = this_month % INTERVAL
+    if (this_month % INTERVAL) != context.interval_mod:
+        return
     
     empty_data(context)
     size_str = ""
@@ -272,7 +276,7 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_long'] = False
                 #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
                 if REC_PCT:
-                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                    record(Y_pct=0, X_pct=0)
                 allocate(context, data)
                 return
             
@@ -283,7 +287,7 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_long'] = False
                 #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
                 if REC_PCT:
-                    record(Y_pct=y_target_pct, X_pct=x_target_pct)
+                    record(Y_pct=0, X_pct=0)
                 allocate(context, data)
                 return
             
