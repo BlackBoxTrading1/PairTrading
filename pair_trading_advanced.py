@@ -46,7 +46,7 @@ def initialize(context):
     context.entry_threshold = 0.2
     context.exit_threshold = 0.1
     
-    context.desired_num_pairs = 1
+    context.desired_num_pairs = 2
     context.num_pairs = context.desired_num_pairs
     context.pvalue_th = 1
     context.corr_th = 0
@@ -67,7 +67,7 @@ def initialize(context):
     context.interval_mod = -1
     #context.spread = np.ndarray((context.num_pairs, 0))
     
-    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
+    schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
     
 #TODO: LEVERAGE HANDLING
@@ -162,12 +162,70 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     x_target_pct = xDol / notionalDol
     return (y_target_pct, x_target_pct)  
 
+#REMOVE EVENTUALLY*****************************************************************************************
+def sample_comparison_test(context, data):
+    this_month = get_datetime('US/Eastern').month 
+    if context.interval_mod < 0:
+        context.interval_mod = this_month % INTERVAL
+    if (this_month % INTERVAL) != context.interval_mod:
+        return
+    
+    context.num_pairs = context.desired_num_pairs
+    empty_data(context)
+    context.universe_pool = pd.Index([symbol('ABGB'), symbol('FSLR'), symbol('CSUN'), symbol('ASTI')])
+    context.target_weights = get_current_portfolio_weights(context, data)
+    empty_target_weights(context)
+    
+    abgb_fslr_corr, abgb_fslr_coint = get_corr_coint(data, symbol('ABGB'), symbol('FSLR'),
+                                                           context.price_history_length)
+    csun_asti_corr, csun_asti_coint = get_corr_coint(data, symbol('CSUN'), symbol('ASTI'),
+                                                           context.price_history_length)
+    context.coint_pairs = {
+        (symbol('ABGB'), symbol('FSLR')): {  
+                "corr": abgb_fslr_corr,
+                "coint": abgb_fslr_coint
+            },   
+        (symbol('CSUN'), symbol('ASTI')): {
+                "corr": csun_asti_corr,
+                "coint": csun_asti_coint
+            }
+    }
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
+    
+    temp_real_yield_keys = context.real_yield_keys
+    for pair in temp_real_yield_keys:
+        if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
+            context.real_yield_keys.remove(pair)
+            del context.coint_pairs[pair]
+        else:
+            context.total_stock_list.append(pair[0])
+            context.total_stock_list.append(pair[1])
+            
+    if (context.num_pairs > len(context.real_yield_keys)):
+        context.num_pairs = len(context.real_yield_keys) 
+    for i in range(context.num_pairs):
+        context.top_yield_pairs.append(context.real_yield_keys[i])
+        coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
+        corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
+        print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
+              + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
+              + "\n\t\t\tcointegration: \t" + str(coint) + "\n")
+    for pair in context.top_yield_pairs:
+        context.pair_status[pair] = {}
+        context.pair_status[pair]['currently_short'] = False
+        context.pair_status[pair]['currently_long'] = False
+    
+    context.spread = np.ndarray((context.num_pairs, 0))
+#*************************************************************************************************************
+    
 def choose_pairs(context, data):
     this_month = get_datetime('US/Eastern').month 
     if context.interval_mod < 0:
         context.interval_mod = this_month % INTERVAL
     if (this_month % INTERVAL) != context.interval_mod:
         return
+    
+    context.num_pairs = context.desired_num_pairs
     
     empty_data(context)
     size_str = ""
@@ -178,20 +236,14 @@ def choose_pairs(context, data):
         if context.universes[code]['size'] > 1:
             context.universe_set = True
         size_str = size_str + " " + str(context.universes[code]['size'])
-        #print(context.universes[code]['universe'])
     print ("CHOOSING PAIRS...\nUniverse sizes:" + size_str)
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
-    #TODO: FIGURE THIS OUT
-    # if (context.universe_size < 2):
-    #     return
-    # if (context.desired_num_pairs > context.universe_size/2.0):
-    #     context.num_pairs = 1
     
     context.target_weights = get_current_portfolio_weights(context, data)
     empty_target_weights(context)
-    context.spread = np.ndarray((context.num_pairs, 0))
+    #context.spread = np.ndarray((context.num_pairs, 0))
     
     for code in context.codes:
         for i in range (context.universes[code]['size']):
@@ -203,7 +255,7 @@ def choose_pairs(context, data):
                 context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
                 if (coint_pvalue < context.pvalue_th and abs(correlation) > context.corr_th):
                     context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]   
-
+    
     #sort pairs from highest to lowest cointegrations
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
     
@@ -218,10 +270,9 @@ def choose_pairs(context, data):
         
     
     #select top num_pairs pairs
-    npairs = context.num_pairs
-    if (npairs > len(context.real_yield_keys)):
-        npairs = len(context.real_yield_keys)
-    for i in range(npairs):
+    if (context.num_pairs > len(context.real_yield_keys)):
+        context.num_pairs = len(context.real_yield_keys)
+    for i in range(context.num_pairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
         u_code = 0
         for code in context.codes:
@@ -231,17 +282,19 @@ def choose_pairs(context, data):
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
               + "\n\t\t\tsector: \t" + str(u_code) + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(round(coint,6)) + "\n")
+              + "\n\t\t\tcointegration: \t" + str(coint) + "\n")
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
     
+    context.spread = np.ndarray((context.num_pairs, 0))
+    
 #INCOMPLETE
 def check_pair_status(context, data):
-    if (not context.universe_set):
-        return
+    # if (not context.universe_set):
+    #     return
     
     new_spreads = np.ndarray((context.num_pairs, 1))
     numPairs = context.num_pairs
