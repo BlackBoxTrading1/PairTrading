@@ -43,12 +43,10 @@ def initialize(context):
     context.price_history_length = 365
     context.long_ma_length = 30
     context.short_ma_length = 1
-    context.entry_threshold = 0.2
-    context.exit_threshold = 0.1
     
     context.desired_num_pairs = 2
     context.num_pairs = context.desired_num_pairs
-    context.pvalue_th = 1
+    context.pvalue_th = 0.1
     context.corr_th = 0
     context.top_yield_pairs = []
     context.universe_set = False
@@ -67,7 +65,7 @@ def initialize(context):
     context.interval_mod = -1
     #context.spread = np.ndarray((context.num_pairs, 0))
     
-    schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
+    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
     
 #TODO: LEVERAGE HANDLING
