@@ -291,12 +291,11 @@ def choose_pairs(context, data):
     
 #INCOMPLETE
 def check_pair_status(context, data):
-    # if (not context.universe_set):
-    #     return
+    if (not context.universe_set):
+        return
     
     new_spreads = np.ndarray((context.num_pairs, 1))
     numPairs = context.num_pairs
-    
     for i in range(numPairs):
         pair = context.top_yield_pairs[i]
         # print pair
