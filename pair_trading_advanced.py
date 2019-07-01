@@ -44,7 +44,7 @@ def initialize(context):
     context.long_ma_length = 30
     context.short_ma_length = 1
     
-    context.desired_num_pairs = 2
+    context.desired_num_pairs = 1
     context.num_pairs = context.desired_num_pairs
     context.pvalue_th = 0.1
     context.corr_th = 0
@@ -213,6 +213,7 @@ def sample_comparison_test(context, data):
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
     
+    context.universe_set = True
     context.spread = np.ndarray((context.num_pairs, 0))
 #*************************************************************************************************************
     
