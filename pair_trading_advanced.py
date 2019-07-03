@@ -15,7 +15,7 @@ import statsmodels.tsa.stattools as sm
 import math
 
 COMMISSION         = 0.0035
-LEVERAGE           = 2.0
+LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 3
 DESIRED_PAIRS      = 2
@@ -43,7 +43,7 @@ HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= lookback
 
 #Choose tests
-RUN_SAMPLE_PAIRS         = True
+RUN_SAMPLE_PAIRS         = False
 RUN_CORRELATION_TEST     = True
 RUN_COINTEGRATION_TEST   = True
 RUN_ADFULLER_TEST        = True
@@ -66,12 +66,13 @@ def initialize(context):
     context.num_universes = len(context.codes)
     context.universes = {}
     
-    for code in context.codes:
-        context.universes[code] = {}
-        context.universes[code]['pipe'] = Pipeline()
-        context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'], 
+    if not RUN_SAMPLE_PAIRS:
+        for code in context.codes:
+            context.universes[code] = {}
+            context.universes[code]['pipe'] = Pipeline()
+            context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'], 
                                                           name = str(code))
-        context.universes[code]['pipe'].set_screen(QTradableStocksUS() & 
+            context.universes[code]['pipe'].set_screen(QTradableStocksUS() & 
                                            context.industry_code.eq(code))
     
     context.num_pairs = DESIRED_PAIRS
@@ -232,14 +233,24 @@ def sample_comparison_test(context, data):
         hurst_h = 'N/A'
         if RUN_ADFULLER_TEST:
             spreads = get_spreads(data, pair[0], pair[1], ADF_LOOKBACK)
-            adf_p = get_adf_pvalue(spreads)
+            try:
+                adf_p = get_adf_pvalue(spreads)
+            except:
+                log.warn("Unable to calculate ADFuller p-value")
             
         if RUN_HALF_LIFE_TEST or RUN_HURST_TEST:
             spreads = get_spreads(data, pair[0], pair[1], HALF_LIFE_LOOKBACK)
             if RUN_HALF_LIFE_TEST:
-                hl = get_half_life(spreads)
+                try:
+                    hl = get_half_life(spreads)
+                except:
+                    log.warn("Unable to calcualte half-life")
+                    
             if RUN_HURST_TEST:
-                hurst_h = get_hurst_hvalue(spreads)
+                try:
+                    hurst_h = get_hurst_hvalue(spreads)
+                except:
+                    log.warn("Unable to caluclate Hurst h-value")
         
         context.coint_pairs[pair]['corr'] = corr
         context.coint_pairs[pair]['coint'] = coint
@@ -322,28 +333,36 @@ def choose_pairs(context, data):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
                 correlation, coint_pvalue = get_corr_coint(data, s1, s2, COINT_LOOKBACK)
-                context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue, 
-                                               "adf": "N/A", "half-life": "N/A", "hurst": "N/A"}
+                context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
                 
                 passed_corr = (not RUN_CORRELATION_TEST) or (abs(correlation) > CORR_MIN)
                 passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue < COINT_P_MAX)
 
                 if (passed_corr and passed_coint):
-                    adf_p = 100
+                    adf_p = 'N/A'
+                    hurst_h = 'N/A'
+                    hl = 'N/A'
                     if RUN_ADFULLER_TEST:
                         spreads = get_spreads(data, s1, s2, ADF_LOOKBACK)
-                        adf_p = get_adf_pvalue(spreads)
-                        context.coint_data[(s1,s2)]['adf'] = adf_p       
+                        try:
+                            adf_p = get_adf_pvalue(spreads)
+                        except:
+                            log.warn("Unable to calculate ADFuller p-value for pair " + str((s1,s2)))
+                        context.coint_data[(s1,s2)]['adf'] = adf_p
                     if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
                         spreads = get_spreads(data, s1, s2, HALF_LIFE_LOOKBACK)
-                        hurst_h = -1
                         if RUN_HURST_TEST:
-                            hurst_h = get_hurst_hvalue(spreads)
+                            try:
+                                hurst_h = get_hurst_hvalue(spreads)
+                            except:
+                                log.warn("Unable to calculate Hurst h-value for pair " + str((s1,s2)))
                             context.coint_data[(s1,s2)]['hurst'] = hurst_h
                         if (not RUN_HURST_TEST) or (hurst_h < HURST_H_MAX and hurst_h > HURST_H_MIN):
-                            hl = -1
                             if RUN_HALF_LIFE_TEST:
-                                hl = get_half_life(spreads)
+                                try:
+                                    hl = get_half_life(spreads)
+                                except:
+                                    log.warn("Unable to calculate half-life for pair " + str((s1,s2)))
                                 context.coint_data[(s1,s2)]['half-life'] = hl
                             if (not RUN_HALF_LIFE_TEST) or (hl > HALF_LIFE_MIN and hl < HALF_LIFE_MAX):
                                 context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
