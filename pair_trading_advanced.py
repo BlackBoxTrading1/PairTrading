@@ -18,6 +18,32 @@ COMMISSION = 0.0035
 LEVERAGE = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL = 3
+DESIRED_PAIRS = 1
+SAMPLE_UNIVERSE = [(symbol('GOOG'), symbol('GOOG_L'))]
+REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
+                 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
+                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+
+#Data settings
+COINT_LOOKBACK = 730
+COINT_P_MAX = 0.01
+CORR_MIN = 0.95
+ADF_LOOKBACK = 60
+ADF_P_MAX = 0.01
+HALF_LIFE_LOOKBACK = 126
+HEDGE_LOOKBACK = 20 # used for regression
+Z_WINDOW = 20 # used for zscore calculation, must be <= lookback
+
+#Choose tests
+RUN_SAMPLE_PAIRS = False
+RUN_CORRELATION_TEST = True
+RUN_COINTEGRATION_TEST = True
+RUN_ADFULLER_TEST = True
+
+#Rank pairs by (select key): 'coint', 'adf', 'corr', 'half-life'
+SORT_BY = 'half-life'
+
+#Display graphs
 REC_LEVERAGE = True
 REC_PCT = False
 
@@ -26,9 +52,8 @@ def initialize(context):
     set_slippage(slippage.FixedSlippage(spread=0))
     set_commission(commission.PerShare(cost=COMMISSION))
     context.industry_code = ms.asset_classification.morningstar_industry_code.latest
-    #ENTER DESIRED SECTOR CODES HERE
-    context.codes = [30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 10428064, 
-                     10428065, 10428066, 10428067, 10428068, 10428069, 10428070]
+    #ENTER DESIRED SECTOR CODES:
+    context.codes = REAL_UNIVERSE
     context.num_universes = len(context.codes)
     context.universes = {}
     
@@ -40,14 +65,7 @@ def initialize(context):
         context.universes[code]['pipe'].set_screen(QTradableStocksUS() & 
                                            context.industry_code.eq(code))
     
-    context.price_history_length = 365
-    context.long_ma_length = 30
-    context.short_ma_length = 1
-    
-    context.desired_num_pairs = 1
-    context.num_pairs = context.desired_num_pairs
-    context.pvalue_th = 0.1
-    context.corr_th = 0
+    context.num_pairs = DESIRED_PAIRS
     context.top_yield_pairs = []
     context.universe_set = False
     
@@ -59,26 +77,15 @@ def initialize(context):
     context.universe_pool = []
     
     context.target_weights = {}
-    
-    context.lookback = 20 # used for regression
-    context.z_window = 20 # used for zscore calculation, must be <= lookback   
+ 
     context.interval_mod = -1
-    #context.spread = np.ndarray((context.num_pairs, 0))
     
-    schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))  
+    if RUN_SAMPLE_PAIRS:
+        schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+    else:
+        schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
-    
-#TODO: LEVERAGE HANDLING
-# def warn_leverage(context, data):
-#     log.warn('Leverage Exceeded: '+str(context.account.leverage))
-#     context.open_orders = get_open_orders()
-#     if context.open_orders:
-#         for orders,_ in context.open_orders.iteritems():
-#             cancel_order(orders)
-#     for equity in context.portfolio.positions:  
-#         order_target_percent(equity, 0)
-    
-#empty all data structures
+
 def empty_data(context):
     context.coint_data = {}
     context.coint_pairs = {}
@@ -160,6 +167,44 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     x_target_pct = xDol / notionalDol
     return (y_target_pct, x_target_pct)  
 
+def adf_pvalue(data, s1, s2, length):
+    s1_price = data.history(s1, "price", length, '1d')
+    s2_price = data.history(s2, "price", length, '1d')
+    #print s1_price
+    #print s2_price
+    try:
+        hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
+    except ValueError as e:
+        log.debug(e)
+        return
+    spreads = []
+    for i in range(length):
+        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
+    return sm.adfuller(spreads,1)[1]
+
+def half_life(data, s1, s2, length):
+    s1_price = data.history(s1, "price", length, '1d')
+    s2_price = data.history(s2, "price", length, '1d')
+    try:
+        hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
+    except ValueError as e:
+        log.debug(e)
+        return
+    spreads = []
+    for i in range(length):
+        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
+    
+    lag = np.roll(spreads, 1)
+    lag[0] = 0
+    ret = spreads - lag
+    ret[0] = 0
+    
+    lag2 = sm.add_constant(lag)
+    model = sm.OLS(ret, lag2)
+    res = model.fit()
+    return (-np.log(2) / res.params[1])
+    
+
 #REMOVE EVENTUALLY*****************************************************************************************
 def sample_comparison_test(context, data):
     this_month = get_datetime('US/Eastern').month 
@@ -168,27 +213,27 @@ def sample_comparison_test(context, data):
     if (this_month % INTERVAL) != context.interval_mod:
         return
     
-    context.num_pairs = context.desired_num_pairs
+    context.num_pairs = DESIRED_PAIRS
     empty_data(context)
-    context.universe_pool = pd.Index([symbol('ABGB'), symbol('FSLR'), symbol('CSUN'), symbol('ASTI')])
+    
+    context.universe_pool = pd.Index([])
+    for pair in SAMPLE_UNIVERSE:
+        context.universe_pool.append(pd.Index([pair[0], pair[1]]))
+        corr, coint = get_corr_coint(data, pair[0], pair[1], COINT_LOOKBACK)
+        adf_p = 'N/A'
+        if RUN_ADFULLER_TEST:
+            adf_p = adf_pvalue(data, pair[0], pair[1], ADF_LOOKBACK)
+        context.coint_pairs[pair] = {}
+        context.coint_pairs[pair]['corr'] = corr
+        context.coint_pairs[pair]['coint'] = coint
+        context.coint_pairs[pair]['adf'] = adf_p
+        
+    
     context.target_weights = get_current_portfolio_weights(context, data)
     empty_target_weights(context)
     
-    abgb_fslr_corr, abgb_fslr_coint = get_corr_coint(data, symbol('ABGB'), symbol('FSLR'),
-                                                           context.price_history_length)
-    csun_asti_corr, csun_asti_coint = get_corr_coint(data, symbol('CSUN'), symbol('ASTI'),
-                                                           context.price_history_length)
-    context.coint_pairs = {
-        (symbol('ABGB'), symbol('FSLR')): {  
-                "corr": abgb_fslr_corr,
-                "coint": abgb_fslr_coint
-            },   
-        (symbol('CSUN'), symbol('ASTI')): {
-                "corr": csun_asti_corr,
-                "coint": csun_asti_coint
-            }
-    }
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
+    
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][SORT_BY], reverse=False)
     
     temp_real_yield_keys = context.real_yield_keys
     for pair in temp_real_yield_keys:
@@ -205,9 +250,12 @@ def sample_comparison_test(context, data):
         context.top_yield_pairs.append(context.real_yield_keys[i])
         coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
+        adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
+        
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
               + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(coint) + "\n")
+              + "\n\t\t\tcointegration: \t" + str(coint) 
+              + "\n\t\t\tadf p-value: \t" + str(adf_p) + "\n")
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
@@ -224,7 +272,7 @@ def choose_pairs(context, data):
     if (this_month % INTERVAL) != context.interval_mod:
         return
     
-    context.num_pairs = context.desired_num_pairs
+    context.num_pairs = DESIRED_PAIRS
     
     empty_data(context)
     size_str = ""
@@ -244,19 +292,31 @@ def choose_pairs(context, data):
     empty_target_weights(context)
     #context.spread = np.ndarray((context.num_pairs, 0))
     
+    #SCREENING
     for code in context.codes:
         for i in range (context.universes[code]['size']):
             for j in range (i+1, context.universes[code]['size']):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
-                correlation, coint_pvalue = get_corr_coint(data, s1, s2,
-                                                           context.price_history_length)
-                context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue}
-                if (coint_pvalue < context.pvalue_th and abs(correlation) > context.corr_th):
-                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]   
+                correlation, coint_pvalue = get_corr_coint(data, s1, s2, COINT_LOOKBACK)
+                context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue, 
+                                               "adf": "N/A", "half-life": "N/A"}
+                
+                
+                passed_corr = (not RUN_CORRELATION_TEST) or (abs(correlation) > CORR_MIN)
+                passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue < COINT_P_MAX)
+
+                if (passed_corr and passed_coint):
+                    if RUN_ADFULLER_TEST:
+                        adf_p = adf_pvalue(data, s1, s2, ADF_LOOKBACK)
+                        context.coint_data[(s1,s2)]['adf'] = adf_p       
+                    if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
+                        hl = half_life(data, s1, s2, HALF_LIFE_LOOKBACK)
+                        context.coint_data[(s1,s2)]['half-life'] = hl
+                        context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
     
     #sort pairs from highest to lowest cointegrations
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][SORT_BY], reverse=False)
     
     temp_real_yield_keys = context.real_yield_keys
     for pair in temp_real_yield_keys:
@@ -279,9 +339,13 @@ def choose_pairs(context, data):
                 u_code = code
         coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
+        adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
+        hl = context.coint_pairs[context.real_yield_keys[i]]['half-life']
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
               + "\n\t\t\tsector: \t" + str(u_code) + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(coint) + "\n")
+              + "\n\t\t\tcointegration: \t" + str(coint) 
+              + "\n\t\t\tadf p-value: \t" + str(adf_p) 
+              + "\n\t\t\thalf-life: \t" + str(hl) + "\n")
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -290,7 +354,6 @@ def choose_pairs(context, data):
     
     context.spread = np.ndarray((context.num_pairs, 0))
     
-#INCOMPLETE
 def check_pair_status(context, data):
     if (not context.universe_set):
         return
@@ -303,8 +366,8 @@ def check_pair_status(context, data):
         s1 = pair[0]
         s2 = pair[1]
         
-        s1_price = data.history(s1, 'price', 35, '1d').iloc[-context.lookback::]
-        s2_price = data.history(s2, 'price', 35, '1d').iloc[-context.lookback::]
+        s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
+        s2_price = data.history(s2, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
         
         
         try:
@@ -315,9 +378,9 @@ def check_pair_status(context, data):
         
         context.target_weights = get_current_portfolio_weights(context, data)
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]  
-        if context.spread.shape[1] > context.z_window:
+        if context.spread.shape[1] > Z_WINDOW:
             
-            spreads = context.spread[i, -context.z_window:]
+            spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
             if context.pair_status[pair]['currently_short'] and zscore < 0.0:
@@ -374,7 +437,7 @@ def check_pair_status(context, data):
                 allocate(context, data)
                 return
             
-    context.spread = np.hstack([context.spread, new_spreads])                                   
+    context.spread = np.hstack([context.spread, new_spreads])
 
 def allocate(context, data):
     if REC_LEVERAGE:
