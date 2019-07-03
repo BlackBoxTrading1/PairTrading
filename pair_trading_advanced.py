@@ -313,16 +313,19 @@ def choose_pairs(context, data):
                 passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue < COINT_P_MAX)
 
                 if (passed_corr and passed_coint):
+                    adf_p = 100
                     if RUN_ADFULLER_TEST:
                         spreads = get_spreads(data, s1, s2, ADF_LOOKBACK)
                         adf_p = get_adf_pvalue(spreads)
                         context.coint_data[(s1,s2)]['adf'] = adf_p       
                     if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
                         spreads = get_spreads(data, s1, s2, HALF_LIFE_LOOKBACK)
+                        hurst_h = -1
                         if RUN_HURST_TEST:
                             hurst_h = get_hurst_hvalue(spreads)
                             context.coint_data[(s1,s2)]['hurst'] = hurst_h
                         if (not RUN_HURST_TEST) or (hurst_h < HURST_H_MAX and hurst_h > HURST_H_MIN):
+                            hl = -1
                             if RUN_HALF_LIFE_TEST:
                                 hl = get_half_life(spreads)
                                 context.coint_data[(s1,s2)]['half-life'] = hl
