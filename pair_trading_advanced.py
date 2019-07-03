@@ -19,7 +19,7 @@ LEVERAGE           = 2.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 3
 DESIRED_PAIRS      = 2
-SAMPLE_UNIVERSE    = [(symbol('GOOG'), symbol('GOOG_L'))]
+SAMPLE_UNIVERSE    = [(symbol('ABGB'), symbol('FSLR'))]
 REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
                       30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
                       31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
@@ -43,7 +43,7 @@ HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= lookback
 
 #Choose tests
-RUN_SAMPLE_PAIRS         = False
+RUN_SAMPLE_PAIRS         = True
 RUN_CORRELATION_TEST     = True
 RUN_COINTEGRATION_TEST   = True
 RUN_ADFULLER_TEST        = True
@@ -224,16 +224,28 @@ def sample_comparison_test(context, data):
     
     context.universe_pool = pd.Index([])
     for pair in SAMPLE_UNIVERSE:
+        context.coint_pairs[pair] = {}
         context.universe_pool.append(pd.Index([pair[0], pair[1]]))
         corr, coint = get_corr_coint(data, pair[0], pair[1], COINT_LOOKBACK)
         adf_p = 'N/A'
+        hl = 'N/A'
+        hurst_h = 'N/A'
         if RUN_ADFULLER_TEST:
             spreads = get_spreads(data, pair[0], pair[1], ADF_LOOKBACK)
             adf_p = get_adf_pvalue(spreads)
-        context.coint_pairs[pair] = {}
+            
+        if RUN_HALF_LIFE_TEST or RUN_HURST_TEST:
+            spreads = get_spreads(data, pair[0], pair[1], HALF_LIFE_LOOKBACK)
+            if RUN_HALF_LIFE_TEST:
+                hl = get_half_life(spreads)
+            if RUN_HURST_TEST:
+                hurst_h = get_hurst_hvalue(spreads)
+        
         context.coint_pairs[pair]['corr'] = corr
         context.coint_pairs[pair]['coint'] = coint
         context.coint_pairs[pair]['adf'] = adf_p
+        context.coint_pairs[pair]['half-life'] = hl
+        context.coint_pairs[pair]['hurst'] = hurst_h
         
     
     context.target_weights = get_current_portfolio_weights(context, data)
@@ -258,11 +270,15 @@ def sample_comparison_test(context, data):
         coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
         adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
+        hl = context.coint_pairs[context.real_yield_keys[i]]['half-life']
+        hurst_h = context.coint_pairs[context.real_yield_keys[i]]['hurst']
         
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
               + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(coint) 
-              + "\n\t\t\tadf p-value: \t" + str(adf_p) + "\n")
+              + "\n\t\t\tcointegration: \t" + str(coint)
+              + "\n\t\t\tadf p-value: \t" + str(adf_p)
+              + "\n\t\t\thalf-life: \t" + str(hl)
+              + "\n\t\t\thurst h-value: \t" + str(hurst_h) + "\n")
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
