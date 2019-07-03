@@ -14,38 +14,47 @@ import pandas as pd
 import statsmodels.tsa.stattools as sm
 import math
 
-COMMISSION = 0.0035
-LEVERAGE = 1.0
+COMMISSION         = 0.0035
+LEVERAGE           = 2.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL = 3
-DESIRED_PAIRS = 1
-SAMPLE_UNIVERSE = [(symbol('GOOG'), symbol('GOOG_L'))]
-REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
-                 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
-                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+INTERVAL           = 3
+DESIRED_PAIRS      = 2
+SAMPLE_UNIVERSE    = [(symbol('GOOG'), symbol('GOOG_L'))]
+REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
+                      30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
+                      31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
 
 #Data settings
-COINT_LOOKBACK = 730
-COINT_P_MAX = 0.01
-CORR_MIN = 0.95
-ADF_LOOKBACK = 60
-ADF_P_MAX = 0.01
+#Cointegration / correlation
+COINT_LOOKBACK     = 730
+COINT_P_MAX        = 0.05
+CORR_MIN           = 0.8
+#ADFuller Test
+ADF_LOOKBACK       = 63
+ADF_P_MAX          = 0.05
+#Hurst Test
+HURST_H_MIN        = 0.0
+HURST_H_MAX        = 0.4
+#Half-life test
 HALF_LIFE_LOOKBACK = 126
-HEDGE_LOOKBACK = 20 # used for regression
-Z_WINDOW = 20 # used for zscore calculation, must be <= lookback
+HALF_LIFE_MIN      = 1
+HALF_LIFE_MAX      = 42
+HEDGE_LOOKBACK     = 20 # used for regression
+Z_WINDOW           = 20 # used for zscore calculation, must be <= lookback
 
 #Choose tests
-RUN_SAMPLE_PAIRS = False
-RUN_CORRELATION_TEST = True
-RUN_COINTEGRATION_TEST = True
-RUN_ADFULLER_TEST = True
+RUN_SAMPLE_PAIRS         = False
+RUN_CORRELATION_TEST     = True
+RUN_COINTEGRATION_TEST   = True
+RUN_ADFULLER_TEST        = True
+RUN_HURST_TEST           = True
+RUN_HALF_LIFE_TEST       = True
 
-#Rank pairs by (select key): 'coint', 'adf', 'corr', 'half-life'
-SORT_BY = 'half-life'
+#Rank pairs by (select key): 'coint', 'adf', 'corr', 'half-life', 'hurst'
+RANK_BY = 'half-life'
 
 #Display graphs
-REC_LEVERAGE = True
-REC_PCT = False
+RECORD_LEVERAGE = True
 
 def initialize(context):
     
@@ -167,11 +176,9 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     x_target_pct = xDol / notionalDol
     return (y_target_pct, x_target_pct)  
 
-def adf_pvalue(data, s1, s2, length):
+def get_spreads(data, s1, s2, length):
     s1_price = data.history(s1, "price", length, '1d')
     s2_price = data.history(s2, "price", length, '1d')
-    #print s1_price
-    #print s2_price
     try:
         hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
     except ValueError as e:
@@ -180,20 +187,12 @@ def adf_pvalue(data, s1, s2, length):
     spreads = []
     for i in range(length):
         spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
+
+    return spreads
+def get_adf_pvalue(spreads):
     return sm.adfuller(spreads,1)[1]
 
-def half_life(data, s1, s2, length):
-    s1_price = data.history(s1, "price", length, '1d')
-    s2_price = data.history(s2, "price", length, '1d')
-    try:
-        hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
-    except ValueError as e:
-        log.debug(e)
-        return
-    spreads = []
-    for i in range(length):
-        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
-    
+def get_half_life(spreads): 
     lag = np.roll(spreads, 1)
     lag[0] = 0
     ret = spreads - lag
@@ -203,6 +202,13 @@ def half_life(data, s1, s2, length):
     model = sm.OLS(ret, lag2)
     res = model.fit()
     return (-np.log(2) / res.params[1])
+
+def get_hurst_hvalue(spreads):
+    lags = range(2, 100)
+    tau = [np.sqrt(np.std(np.subtract(spreads[lag:], spreads[:-lag]))) for lag in lags]
+    poly = np.polyfit(np.log10(lags), np.log10(tau), 1)
+    return poly[0]*2.0
+    
     
 
 #REMOVE EVENTUALLY*****************************************************************************************
@@ -222,7 +228,8 @@ def sample_comparison_test(context, data):
         corr, coint = get_corr_coint(data, pair[0], pair[1], COINT_LOOKBACK)
         adf_p = 'N/A'
         if RUN_ADFULLER_TEST:
-            adf_p = adf_pvalue(data, pair[0], pair[1], ADF_LOOKBACK)
+            spreads = get_spreads(data, pair[0], pair[1], ADF_LOOKBACK)
+            adf_p = get_adf_pvalue(spreads)
         context.coint_pairs[pair] = {}
         context.coint_pairs[pair]['corr'] = corr
         context.coint_pairs[pair]['coint'] = coint
@@ -233,7 +240,7 @@ def sample_comparison_test(context, data):
     empty_target_weights(context)
     
     
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][SORT_BY], reverse=False)
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY], reverse=False)
     
     temp_real_yield_keys = context.real_yield_keys
     for pair in temp_real_yield_keys:
@@ -300,23 +307,30 @@ def choose_pairs(context, data):
                 s2 = context.universes[code]['universe'][j]
                 correlation, coint_pvalue = get_corr_coint(data, s1, s2, COINT_LOOKBACK)
                 context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue, 
-                                               "adf": "N/A", "half-life": "N/A"}
-                
+                                               "adf": "N/A", "half-life": "N/A", "hurst": "N/A"}
                 
                 passed_corr = (not RUN_CORRELATION_TEST) or (abs(correlation) > CORR_MIN)
                 passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue < COINT_P_MAX)
 
                 if (passed_corr and passed_coint):
                     if RUN_ADFULLER_TEST:
-                        adf_p = adf_pvalue(data, s1, s2, ADF_LOOKBACK)
+                        spreads = get_spreads(data, s1, s2, ADF_LOOKBACK)
+                        adf_p = get_adf_pvalue(spreads)
                         context.coint_data[(s1,s2)]['adf'] = adf_p       
                     if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
-                        hl = half_life(data, s1, s2, HALF_LIFE_LOOKBACK)
-                        context.coint_data[(s1,s2)]['half-life'] = hl
-                        context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
+                        spreads = get_spreads(data, s1, s2, HALF_LIFE_LOOKBACK)
+                        if RUN_HURST_TEST:
+                            hurst_h = get_hurst_hvalue(spreads)
+                            context.coint_data[(s1,s2)]['hurst'] = hurst_h
+                        if (not RUN_HURST_TEST) or (hurst_h < HURST_H_MAX and hurst_h > HURST_H_MIN):
+                            if RUN_HALF_LIFE_TEST:
+                                hl = get_half_life(spreads)
+                                context.coint_data[(s1,s2)]['half-life'] = hl
+                            if (not RUN_HALF_LIFE_TEST) or (hl > HALF_LIFE_MIN and hl < HALF_LIFE_MAX):
+                                context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
     
     #sort pairs from highest to lowest cointegrations
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][SORT_BY], reverse=False)
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY], reverse=False)
     
     temp_real_yield_keys = context.real_yield_keys
     for pair in temp_real_yield_keys:
@@ -341,11 +355,14 @@ def choose_pairs(context, data):
         corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
         adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
         hl = context.coint_pairs[context.real_yield_keys[i]]['half-life']
+        hurst_h = context.coint_pairs[context.real_yield_keys[i]]['hurst']
+        
         print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
               + "\n\t\t\tsector: \t" + str(u_code) + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
               + "\n\t\t\tcointegration: \t" + str(coint) 
               + "\n\t\t\tadf p-value: \t" + str(adf_p) 
-              + "\n\t\t\thalf-life: \t" + str(hl) + "\n")
+              + "\n\t\t\thalf-life: \t" + str(hl) 
+              + "\n\t\t\thurst h-value: \t" + str(hurst_h) + "\n")
     
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -389,7 +406,7 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
                 #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
-                if REC_PCT:
+                if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
                 allocate(context, data)
                 return
@@ -400,7 +417,7 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
                 #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
-                if REC_PCT:
+                if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
                 allocate(context, data)
                 return
@@ -415,7 +432,7 @@ def check_pair_status(context, data):
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
     
-                if REC_PCT:
+                if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
                 #set_pair_status(context,s1,s2,s1_price,s2_price, 1, -hedge, True, False)
                 allocate(context, data)
@@ -431,7 +448,7 @@ def check_pair_status(context, data):
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
     
-                if REC_PCT:
+                if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
                 #set_pair_status(context,s1,s2,s1_price,s2_price, -1, hedge, False, True)
                 allocate(context, data)
@@ -440,7 +457,7 @@ def check_pair_status(context, data):
     context.spread = np.hstack([context.spread, new_spreads])
 
 def allocate(context, data):
-    if REC_LEVERAGE:
+    if RECORD_LEVERAGE:
         record(leverage=context.account.leverage)
     print ("ALLOCATING...")
     for s in context.target_weights.keys():
