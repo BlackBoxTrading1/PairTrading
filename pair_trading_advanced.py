@@ -15,29 +15,32 @@ import statsmodels.tsa.stattools as sm
 import math
 
 COMMISSION         = 0.0035
-LEVERAGE           = 1.0
+LEVERAGE           = 6.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 3
+INTERVAL           = 6
 DESIRED_PAIRS      = 2
-SAMPLE_UNIVERSE    = [(symbol('ABGB'), symbol('FSLR')), 
+SAMPLE_UNIVERSE    = [(symbol('ABGB'), symbol('FSLR')),
                       (symbol('ASTI'), symbol('CSUN'))]
-REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 10428064, 10428065,
-                      30946101, 30947102, 30948103, 30949104, 30950105, 30951106]
+# REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 10428064, 10428065,
+#                       30946101, 30947102, 30948103, 30949104, 30950105, 30951106]
+REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
+                      30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
+                      31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
 
 #Cointegration / correlation
 COINT_LOOKBACK     = 730
-COINT_P_MAX        = 0.05
-CORR_MIN           = 0.8
+COINT_P_MAX        = 0.01
+CORR_MIN           = 0.95
 #ADFuller Test
-ADF_LOOKBACK       = 63
-ADF_P_MAX          = 0.05
+ADF_LOOKBACK       = COINT_LOOKBACK
+ADF_P_MAX          = COINT_P_MAX
 #Hurst Test
-HURST_H_MIN        = 0.0
-HURST_H_MAX        = 0.4
+HURST_H_MIN        = 0.1
+HURST_H_MAX        = 0.2
 #Half-life test
-HALF_LIFE_LOOKBACK = 126
-HALF_LIFE_MIN      = 1
-HALF_LIFE_MAX      = 42
+HALF_LIFE_LOOKBACK = COINT_LOOKBACK
+HALF_LIFE_MIN      = 10
+HALF_LIFE_MAX      = 14
 HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 
@@ -70,9 +73,9 @@ def initialize(context):
         for code in context.codes:
             context.universes[code] = {}
             context.universes[code]['pipe'] = Pipeline()
-            context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'], 
+            context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'],
                                                           name = str(code))
-            context.universes[code]['pipe'].set_screen(QTradableStocksUS() & 
+            context.universes[code]['pipe'].set_screen(QTradableStocksUS() &
                                     context.industry_code.eq(code))
 
     context.num_pairs = DESIRED_PAIRS
@@ -90,7 +93,7 @@ def initialize(context):
 
     context.interval_mod = -1
     
-    if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf') or (not RUN_HURST_TEST and RANK_BY == 'hurst') 
+    if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf') or (not RUN_HURST_TEST and RANK_BY == 'hurst')
         or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life')):
         log.error("Ranking by untested metric... Cannot proceed")
         log.debug("1. Change value of RANK_BY to a tested metric")
@@ -98,7 +101,8 @@ def initialize(context):
         return
 
     if RUN_SAMPLE_PAIRS:
-        schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+        schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0,
+                                                                                                   minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
