@@ -15,7 +15,7 @@ import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro
 import math
 
-COMMISSION         = 0.005
+COMMISSION         = 0.0035
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 6
