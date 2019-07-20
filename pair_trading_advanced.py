@@ -19,20 +19,27 @@ COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 6
-DESIRED_PAIRS      = 3
+DESIRED_PAIRS      = 2
 HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY              = 1.0
 EXIT               = 0.2
 RECORD_LEVERAGE    = True
 
-SAMPLE_UNIVERSE    = [(symbol('ABGB'), symbol('FSLR')),
+SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),    
+                      (symbol('DPZ'), symbol('PZZA')),
+                      (symbol('WMT'), symbol('TGT')),
+                      (symbol('XOM'), symbol('CVX')),               
+                      (symbol('PT'), symbol('TEF')),            
+                      (symbol('BHP'), symbol('BBL')),
+                      (symbol('ABGB'), symbol('FSLR')),
                       (symbol('CSUN'), symbol('ASTI'))]
 #10209016, 10209017, 10209018, 10209019, 10209020, 
 #30951106, 10428064, 
 REAL_UNIVERSE      = [30946101, 30947102, 30948103, 30949104,
                       30950105, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
                       31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+#REAL_UNIVERSE = [10428070, 10428066, 30946101, 10428067, 10428064, 30951106, 10428065]
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = True
 
@@ -61,7 +68,7 @@ def initialize(context):
 
     set_slippage(slippage.FixedBasisPointsSlippage())
     set_commission(commission.PerShare(cost=COMMISSION))
-    set_benchmark(symbol('SHY'))
+    set_benchmark(symbol('SPY'))
     context.industry_code = ms.asset_classification.morningstar_industry_code.latest
     context.codes = REAL_UNIVERSE
     context.num_universes = len(context.codes)
@@ -340,8 +347,8 @@ def passed_all_tests(context, data, s1, s2):
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
     return True
-        
-#OUT OF ORDER*****************************************************************************************
+
+#*****************************************************************************************
 def sample_comparison_test(context, data):
     this_month = get_datetime('US/Eastern').month 
     if context.interval_mod < 0:
