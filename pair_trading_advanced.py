@@ -15,60 +15,61 @@ import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro
 import math
 
-COMMISSION         = 0.0035
+COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 6
 DESIRED_PAIRS      = 2
-SAMPLE_UNIVERSE    = [(symbol('ABGB'), symbol('FSLR')),
-                      (symbol('ASTI'), symbol('CSUN'))]
-REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104,
-                      30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
-                      31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+HEDGE_LOOKBACK     = 20 # used for regression
+Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
+ENTRY              = 1.0
+EXIT               = 0.2
+RECORD_LEVERAGE    = True
 
-#Cointegration / correlation
-COINT_LOOKBACK         = 730
-COINT_P_MAX            = 0.01
-CORR_MIN               = 0.95
-#ADFuller Test
-ADF_LOOKBACK           = COINT_LOOKBACK
-ADF_P_MAX              = COINT_P_MAX
-#Hurst Test
-HURST_LOOKBACK         = COINT_LOOKBACK
-HURST_H_MIN            = 0.1
-HURST_H_MAX            = 0.2
-#Half-life test
-HALF_LIFE_LOOKBACK     = COINT_LOOKBACK
-HALF_LIFE_MIN          = 10
-HALF_LIFE_MAX          = 14
-HEDGE_LOOKBACK         = 20 # used for regression
-Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
-#Shapiro-Wilke test
-SHAPIROWILKE_LOOKBACK  = COINT_LOOKBACK
-SHAPIROWILKE_P_MIN     = 0.05
+SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),    
+                      (symbol('DPZ'), symbol('PZZA')),
+                      (symbol('WMT'), symbol('TGT')),
+                      (symbol('XOM'), symbol('CVX')),               
+                      (symbol('PT'), symbol('TEF')),            
+                      (symbol('BHP'), symbol('BBL')),
+                      (symbol('ABGB'), symbol('FSLR')),
+                      (symbol('CSUN'), symbol('ASTI'))]
+#10209016, 10209017, 10209018, 10209019, 10209020, 
+#30951106, 10428064, 
+REAL_UNIVERSE      = [30946101, 30947102, 30948103, 30949104,
+                      30950105, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
+                      31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+#REAL_UNIVERSE = [10428070, 10428066, 30946101, 10428067, 10428064, 30951106, 10428065]
+RUN_SAMPLE_PAIRS   = False
+TEST_SAMPLE_PAIRS  = True
 
 #Choose tests
-RUN_SAMPLE_PAIRS         = False
+RUN_CORRELATION_TEST      = True
+RUN_COINTEGRATION_TEST    = True
+RUN_ADFULLER_TEST         = True
+RUN_HURST_TEST            = True
+RUN_HALF_LIFE_TEST        = True
+RUN_SHAPIROWILKE_TEST     = True
 
-RUN_CORRELATION_TEST     = True
-RUN_COINTEGRATION_TEST   = True
-RUN_ADFULLER_TEST        = True
-RUN_HURST_TEST           = True
-RUN_HALF_LIFE_TEST       = True
-RUN_SHAPIROWILKE_TEST    = True
-
-#Rank pairs by (select key): 'coint', 'adf', 'corr', 'half-life', 'hurst'
-RANK_BY = 'half-life'
-
-#Display graphs
-RECORD_LEVERAGE = True
+#Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
+#                            'half-life', 'hurst h-value', 'sw p-value'
+RANK_BY         = 'half-life'
+DESIRED_PVALUE  = 0.01
+TEST_PARAMS     = {
+            'Correlation':      {'lookback': 730, 'min': 0.95,           'max': 1.00,           'pvalue': False},
+            'Cointegration':    {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
+            'ADFuller':         {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
+            'Hurst':            {'lookback': 730, 'min': 0.10,           'max': 0.20,           'pvalue': False},
+            'Half-life':        {'lookback': 730, 'min': 10,             'max': 14,             'pvalue': False},
+            'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': True },
+                  }
 
 def initialize(context):
 
-    set_slippage(slippage.FixedSlippage(spread=0))
+    set_slippage(slippage.FixedBasisPointsSlippage())
     set_commission(commission.PerShare(cost=COMMISSION))
+    set_benchmark(symbol('SPY'))
     context.industry_code = ms.asset_classification.morningstar_industry_code.latest
-    #ENTER DESIRED SECTOR CODES:
     context.codes = REAL_UNIVERSE
     context.num_universes = len(context.codes)
     context.universes = {}
@@ -97,8 +98,33 @@ def initialize(context):
 
     context.interval_mod = -1
     
-    if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf') or (not RUN_HURST_TEST and RANK_BY == 'hurst')
-        or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life')):
+    context.prices = {}
+    context.price_lookbacks = []
+    context.spreads = {}
+    context.spread_lookbacks = []
+    
+    num_pvalue_tests = 0
+    for test in TEST_PARAMS.keys():
+        if TEST_PARAMS[test]['pvalue']:
+            num_pvalue_tests = num_pvalue_tests + 1
+    new_p = DESIRED_PVALUE / num_pvalue_tests
+    for test in TEST_PARAMS.keys():
+        if TEST_PARAMS[test]['pvalue']:
+            if test == 'Shapiro-Wilke':
+                TEST_PARAMS[test]['min'] = new_p
+            else:
+                TEST_PARAMS[test]['max'] = new_p
+    print(str(num_pvalue_tests) + " p-value tests --> New target p-value = " + str(round(new_p,4)))
+    
+    if (RANK_BY == 'coint' or RANK_BY == 'adf p-value' or RANK_BY == 'sw p-value'):
+        log.warn("Ranking by p-value is undefined. Rank by different metric")
+    
+    if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf p-value') 
+        or (not RUN_HURST_TEST and RANK_BY == 'hurst h-value')
+        or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life') 
+        or (not RUN_SHAPIROWILKE_TEST and RANK_BY == 'sw p-value')
+        or (not RUN_CORRELATION_TEST and RANK_BY == 'correlation')
+        or (not RUN_COINTEGRATION_TEST and RANK_BY == 'cointegration')):
         log.error("Ranking by untested metric... Cannot proceed")
         log.debug("1. Change value of RANK_BY to a tested metric")
         log.debug("2. Set the test of RANK_BY value to True")
@@ -142,20 +168,28 @@ def get_commission(data, stock, bet_size):
 def get_price_history(data, stock, length):
     return data.history(stock, "price", length, '1d')
 
-#return correlation and cointegration pvalue
-def get_corr_coint(data, s1_price, s2_price):
-    score_pos, pvalue_pos, _ = sm.coint(s1_price, s2_price)
-    score_neg, pvalue_neg, _ = sm.coint(s2_price, s1_price)
-    correlation = s1_price.corr(s2_price)
-    return correlation, pvalue_pos, pvalue_neg
+def get_stored_prices(context, data, s1, s2, lookback):
+    s1_price = 0
+    s2_price = 0
+    if lookback in context.price_lookbacks:
+        s1_price = context.prices[lookback][0]
+        s2_price = context.prices[lookback][1]
+    else:
+        s1_price = get_price_history(data, s1, lookback)
+        s2_price = get_price_history(data, s2, lookback)
+        context.prices[lookback] = (s1_price, s2_price)
+        context.price_lookbacks.append(lookback)
+    return s1_price, s2_price
 
-#return long and short moving avg
-def get_mvg_averages(data, s1, s2, long_length, short_length):
-    prices = data.history([s1, s2], "price", long_length, '1d')
-    short_prices = prices.iloc[-short_length:]
-    long_ma = np.mean(prices[s1] - prices[s2])
-    short_ma = np.mean(short_prices[s1] - short_prices[s2])
-    return long_ma, short_ma
+def get_stored_spreads(context, data, s1_price, s2_price, lookback):
+    spreads = 0
+    if lookback in context.spread_lookbacks:
+        spreads = context.spreads[lookback]
+    else:
+        spreads = get_spreads(data, s1_price, s2_price, lookback)
+        context.spreads[lookback] = spreads
+        context.spread_lookbacks.append(lookback)
+    return spreads    
 
 def hedge_ratio(Y, X, add_const=True):
     if add_const:
@@ -196,6 +230,11 @@ def get_spreads(data, s1_price, s2_price, length):
     for i in range(length):
         spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
     return spreads
+
+def get_cointegration(s1_price, s2_price):
+    score, pvalue, _ = sm.coint(s1_price, s2_price)
+    return pvalue
+
 def get_adf_pvalue(spreads):
     return sm.adfuller(spreads,1)[1]
 
@@ -219,7 +258,97 @@ def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
     return p
 
-#OUT OF ORDER*****************************************************************************************
+def run_test(test, value):
+    return (value != 'N/A' and value >= TEST_PARAMS[test]['min'] and value <= TEST_PARAMS[test]['max'])
+
+def passed_all_tests(context, data, s1, s2):
+    context.spreads = {}
+    context.spread_lookbacks = []
+    context.prices = {}
+    context.price_lookbacks = []
+    context.coint_data[(s1,s2)] = {}
+    
+    if RUN_CORRELATION_TEST:
+        lookback = TEST_PARAMS['Correlation']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        corr = 'N/A'
+        try:
+            corr = s1_price.corr(s2_price)
+        except:
+            corr = 'N/A'
+        context.coint_data[(s1,s2)]['correlation'] = corr
+        if not run_test('Correlation', corr) and (not RUN_SAMPLE_PAIRS 
+                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    if RUN_COINTEGRATION_TEST:
+        
+        lookback = TEST_PARAMS['Cointegration']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        coint = 'N/A'
+        try:
+            coint = get_cointegration(s1_price,s2_price)
+        except:
+            coint = 'N/A'
+        context.coint_data[(s1,s2)]['coint p-value'] = coint
+        if not run_test('Cointegration', coint) and (not RUN_SAMPLE_PAIRS 
+                                                     or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    
+    if RUN_ADFULLER_TEST:
+        lookback = TEST_PARAMS['ADFuller']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        adf = 'N/A'
+        try:
+            adf = get_adf_pvalue(spreads)
+        except:
+            adf = 'N/A'
+        context.coint_data[(s1,s2)]['adf p-value'] = adf
+        if not run_test('ADFuller', adf) and (not RUN_SAMPLE_PAIRS 
+                                              or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    if RUN_HURST_TEST:
+        lookback = TEST_PARAMS['Hurst']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        hurst = 'N/A'
+        try:
+            hurst = get_hurst_hvalue(spreads)
+        except:
+            hurst = 'N/A'
+        context.coint_data[(s1,s2)]['hurst h-value'] = hurst
+        if not run_test('Hurst', hurst) and (not RUN_SAMPLE_PAIRS 
+                                             or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    if RUN_HALF_LIFE_TEST:
+        lookback = TEST_PARAMS['Half-life']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        hl = 'N/A'
+        try:
+            hl = get_half_life(spreads)
+        except:
+            hl = 'N/A'
+        context.coint_data[(s1,s2)]['half-life'] = hl
+        if not run_test('Half-life', hl) and (not RUN_SAMPLE_PAIRS 
+                                              or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    if RUN_SHAPIROWILKE_TEST:
+        lookback = TEST_PARAMS['Shapiro-Wilke']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        sw = 'N/A'
+        try:
+            sw = get_shapiro_pvalue(spreads)
+        except:
+            sw = 'N/A'
+        context.coint_data[(s1,s2)]['sw p-value'] = sw
+        if not run_test('Shapiro-Wilke', sw) and (not RUN_SAMPLE_PAIRS 
+                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
+    return True
+
+#*****************************************************************************************
 def sample_comparison_test(context, data):
     this_month = get_datetime('US/Eastern').month 
     if context.interval_mod < 0:
@@ -228,80 +357,55 @@ def sample_comparison_test(context, data):
         return
 
     context.num_pairs = DESIRED_PAIRS
+    if (DESIRED_PAIRS > len(SAMPLE_UNIVERSE)):
+        context.num_pairs = len(SAMPLE_UNIVERSE)
+    
     empty_data(context)
 
+    print ("RUNNING SAMPLE PAIRS...")
     context.universe_pool = pd.Index([])
     for pair in SAMPLE_UNIVERSE:
-        context.coint_pairs[pair] = {}
         context.universe_pool.append(pd.Index([pair[0], pair[1]]))
-        s1_price = get_price_history(data, pair[0], COINT_LOOKBACK)
-        s2_price = get_price_history(data, pair[1], COINT_LOOKBACK)
-        corr, coint_pos, _ = get_corr_coint(data, s1_price, s2_price)
-        spreads = get_spreads(data, s1_price, s2_price, 730)
-        adf_p = 'N/A'
-        hl = 'N/A'
-        hurst_h = 'N/A'
-        sw = 'N/A'
-        
-        try:
-            adf_p = get_adf_pvalue(spreads)
-        except:
-            log.warn("Unable to calculate adf pvalue")
-        try:
-            hl = get_half_life(spreads)
-        except:
-            log.warn("Unable to calculate half life")
-        try:
-            hurst_h = get_hurst_hvalue(spreads)
-        except:
-            log.warn("Unable to calculate Hurst h-value")
-        try:
-            sw = get_shapiro_pvalue(spreads)
-        except:
-            log.warn("Unable to calculate Shaprio-Wilke p-value")
-
-        context.coint_pairs[pair]['corr'] = corr
-        context.coint_pairs[pair]['coint'] = coint_pos
-        context.coint_pairs[pair]['adf'] = adf_p
-        context.coint_pairs[pair]['half-life'] = hl
-        context.coint_pairs[pair]['hurst'] = hurst_h
-        context.coint_pairs[pair]['sw'] = sw
-
+        if passed_all_tests(context, data, pair[0], pair[1]):
+            context.coint_pairs[(pair[0],pair[1])] = context.coint_data[(pair[0],pair[1])]
+        if passed_all_tests(context, data, pair[1], pair[0]):
+            context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
+    
     context.target_weights = get_current_portfolio_weights(context, data)
     empty_target_weights(context)
-
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv]['coint'], reverse=False)
-
+    rev = False
+    if RANK_BY == 'corr':
+        rev = True
+    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
+                                     reverse=rev)
     temp_real_yield_keys = context.real_yield_keys
-    for pair in temp_real_yield_keys:
-        if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
-            context.real_yield_keys.remove(pair)
-            del context.coint_pairs[pair]
-        else:
-            context.total_stock_list.append(pair[0])
-            context.total_stock_list.append(pair[1])
+    if TEST_SAMPLE_PAIRS:
+        for pair in temp_real_yield_keys:
+            if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
+                context.real_yield_keys.remove(pair)
+                del context.coint_pairs[pair]
+            else:
+                context.total_stock_list.append(pair[0])
+                context.total_stock_list.append(pair[1])
 
+    
+    #select top num_pairs pairs
     if (context.num_pairs > len(context.real_yield_keys)):
-        context.num_pairs = len(context.real_yield_keys) 
+        context.num_pairs = len(context.real_yield_keys)
+    if not TEST_SAMPLE_PAIRS:
+        context.num_pairs = len(SAMPLE_UNIVERSE)
+        context.real_yield_keys = SAMPLE_UNIVERSE
     for i in range(context.num_pairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
-        coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
-        corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
-        adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
-        hl = context.coint_pairs[context.real_yield_keys[i]]['half-life']
-        hurst_h = context.coint_pairs[context.real_yield_keys[i]]['hurst']
+        report = "TOP PAIR "+str(i+1)+": "+str(context.real_yield_keys[i])
+        for test in context.coint_pairs[context.real_yield_keys[i]]:
+            report += "\n\t\t\t" + str(test) + ": \t" + str(context.coint_pairs[context.real_yield_keys[i]][test])
+        print(report)
 
-        print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
-              + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(coint)
-              + "\n\t\t\tadf p-value: \t" + str(adf_p)
-              + "\n\t\t\thalf-life: \t" + str(hl)
-              + "\n\t\t\thurst h-value: \t" + str(hurst_h) + "\n")
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
-
     context.universe_set = True
     context.spread = np.ndarray((context.num_pairs, 0))
 #*************************************************************************************************************
@@ -317,6 +421,7 @@ def choose_pairs(context, data):
 
     empty_data(context)
     size_str = ""
+    usizes = []
     for code in context.codes:
         context.universes[code]['universe'] = algo.pipeline_output(str(code))
         context.universes[code]['universe'] = context.universes[code]['universe'].index
@@ -324,7 +429,17 @@ def choose_pairs(context, data):
         if context.universes[code]['size'] > 1:
             context.universe_set = True
         size_str = size_str + " " + str(context.universes[code]['size'])
-    print ("CHOOSING PAIRS...\nUniverse sizes:" + size_str)
+        usizes.append(context.universes[code]['size'])
+    #usizes = [100]
+    comps = 0
+    total = 0
+    for size in usizes:
+      total += size
+      for i in range (size+1):
+        comps+=i
+    comps = comps*2
+    print ("CHOOSING PAIRS...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
+           + "\nTotal comparisons: " + str(comps))
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
@@ -339,146 +454,13 @@ def choose_pairs(context, data):
             for j in range (i+1, context.universes[code]['size']):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
-                s1_price_coint = get_price_history(data, s1, COINT_LOOKBACK)
-                s2_price_coint = get_price_history(data, s2, COINT_LOOKBACK)
-                correlation, coint_pvalue_pos, coint_pvalue_neg = get_corr_coint(data, s1_price_coint,
-                                                                                 s2_price_coint)
-                context.coint_data[(s1,s2)] = {"corr": correlation, "coint": coint_pvalue_pos}
-
-                passed_corr = (not RUN_CORRELATION_TEST) or (abs(correlation) > CORR_MIN)
-                passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue_pos < COINT_P_MAX)
-
-                if (passed_corr and passed_coint):
-                    adf_p = 'N/A'
-                    hurst_h = 'N/A'
-                    hl = 'N/A'
-                    sw = 'N/A'
-                    
-                    s1_price_adf = s1_price_coint
-                    s2_price_adf = s2_price_coint
-                    s1_price_hurst = s1_price_coint
-                    s2_price_hurst = s2_price_coint
-                    s1_price_hl = s1_price_coint
-                    s2_price_hl = s2_price_coint
-                    s1_price_sw = s1_price_coint
-                    s2_price_sw = s2_price_coint
-                    
-                    if RUN_ADFULLER_TEST:
-                        if ADF_LOOKBACK != COINT_LOOKBACK:
-                            s1_price_adf = get_price_history(data, s1, ADF_LOOKBACK)
-                            s2_price_adf = get_price_history(data, s2, ADF_LOOKBACK)
-                        spreads = get_spreads(data, s1_price_adf, s2_price_adf, ADF_LOOKBACK)
-                        try:
-                            adf_p = get_adf_pvalue(spreads)
-                        except:
-                            log.warn("Unable to calculate ADFuller p-value for pair " + str((s1,s2)))
-                    context.coint_data[(s1,s2)]['adf'] = adf_p
-                    if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
-                        if RUN_HURST_TEST:
-                            if HURST_LOOKBACK != COINT_LOOKBACK:
-                                s1_price_hurst = get_price_history(data, s1, HURST_LOOKBACK)
-                                s2_price_hurst = get_price_history(data, s2, HURST_LOOKBACK)
-                            spreads = get_spreads(data, s1_price_hurst, s2_price_hurst, HURST_LOOKBACK)
-                            try:
-                                hurst_h = get_hurst_hvalue(spreads)
-                            except:
-                                log.warn("Unable to calculate Hurst h-value for pair " + str((s1,s2)))
-                        context.coint_data[(s1,s2)]['hurst'] = hurst_h
-                        if (not RUN_HURST_TEST) or (hurst_h < HURST_H_MAX and hurst_h > HURST_H_MIN):
-                            if RUN_HALF_LIFE_TEST:
-                                if HALF_LIFE_LOOKBACK != COINT_LOOKBACK:
-                                    s1_price_hl = get_price_history(data, s1, HALF_LIFE_LOOKBACK)
-                                    s2_price_hl = get_price_history(data, s2, HALF_LIFE_LOOKBACK)
-                                spreads = get_spreads(data, s1_price_hl, s2_price_hl, HALF_LIFE_LOOKBACK)
-                                try:
-                                    hl = get_half_life(spreads)
-                                except:
-                                    log.warn("Unable to calculate half-life for pair " + str((s1,s2)))
-                            context.coint_data[(s1,s2)]['half-life'] = hl
-                            if (not RUN_HALF_LIFE_TEST) or (hl > HALF_LIFE_MIN and hl < HALF_LIFE_MAX):
-                                if RUN_SHAPIROWILKE_TEST:
-                                    if SHAPIROWILKE_LOOKBACK != COINT_LOOKBACK:
-                                        s1_price_sw = get_price_history(data, s1, SHAPIROWILKE_LOOKBACK)
-                                        s2_price_sw = get_price_history(data, s2, SHAPIROWILKE_LOOKBACK)
-                                    spreads = get_spreads(data, s1_price_sw, s2_price_sw, SHAPIROWILKE_LOOKBACK)
-                                    try:
-                                        sw = get_shapiro_pvalue(spreads)
-                                    except:
-                                        log.warn("Unable to calculate Shapiro-Wilke p-value for pair " 
-                                                 + str((s1,s2)))
-                                context.coint_data[(s1,s2)]['sw'] = sw
-                                if (not RUN_SHAPIROWILKE_TEST) or (sw < SHAPIROWILKE_P_MIN):
-                                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
-
-                #TEST REVERSE
-                context.coint_data[(s2,s1)] = {"corr": correlation, "coint": coint_pvalue_neg}
-                passed_corr = (not RUN_CORRELATION_TEST) or (abs(correlation) > CORR_MIN)
-                passed_coint = (not RUN_COINTEGRATION_TEST) or (coint_pvalue_pos < COINT_P_MAX)
-                if (passed_corr and passed_coint):
-                    adf_p = 'N/A'
-                    hurst_h = 'N/A'
-                    hl = 'N/A'
-                    sw = 'N/A'
-                    
-                    s1_price_adf = s1_price_coint
-                    s2_price_adf = s2_price_coint
-                    s1_price_hurst = s1_price_coint
-                    s2_price_hurst = s2_price_coint
-                    s1_price_hl = s1_price_coint
-                    s2_price_hl = s2_price_coint
-                    s1_price_sw = s1_price_coint
-                    s2_price_sw = s2_price_coint
-                    
-                    if RUN_ADFULLER_TEST:
-                        if ADF_LOOKBACK != COINT_LOOKBACK:
-                            s2_price_adf = get_price_history(data, s2, ADF_LOOKBACK)
-                            s1_price_adf = get_price_history(data, s1, ADF_LOOKBACK)
-                        spreads = get_spreads(data, s2_price_adf, s1_price_adf, ADF_LOOKBACK)
-                        try:
-                            adf_p = get_adf_pvalue(spreads)
-                        except:
-                            log.warn("Unable to calculate ADFuller p-value for pair " + str((s2,s1)))
-                    context.coint_data[(s2,s1)]['adf'] = adf_p
-                    if (not RUN_ADFULLER_TEST) or (adf_p < ADF_P_MAX):
-                        if RUN_HURST_TEST:
-                            if HURST_LOOKBACK != COINT_LOOKBACK:
-                                s2_price_hurst = get_price_history(data, s2, HURST_LOOKBACK)
-                                s1_price_hurst = get_price_history(data, s1, HURST_LOOKBACK)
-                            spreads = get_spreads(data, s2_price_hurst, s1_price_hurst, HURST_LOOKBACK)
-                            try:
-                                hurst_h = get_hurst_hvalue(spreads)
-                            except:
-                                log.warn("Unable to calculate Hurst h-value for pair " + str((s2,s1)))
-                        context.coint_data[(s2,s1)]['hurst'] = hurst_h
-                        if (not RUN_HURST_TEST) or (hurst_h < HURST_H_MAX and hurst_h > HURST_H_MIN):
-                            if RUN_HALF_LIFE_TEST:
-                                if HALF_LIFE_LOOKBACK != COINT_LOOKBACK:
-                                    s2_price_hl = get_price_history(data, s2, HALF_LIFE_LOOKBACK)
-                                    s1_price_hl = get_price_history(data, s1, HALF_LIFE_LOOKBACK)
-                                spreads = get_spreads(data, s2_price_hl, s1_price_hl, HALF_LIFE_LOOKBACK)
-                                try:
-                                    hl = get_half_life(spreads)
-                                except:
-                                    log.warn("Unable to calculate half-life for pair " + str((s2,s1)))
-                            context.coint_data[(s2,s1)]['half-life'] = hl
-                            if (not RUN_HALF_LIFE_TEST) or (hl > HALF_LIFE_MIN and hl < HALF_LIFE_MAX):
-                                if RUN_SHAPIROWILKE_TEST:
-                                    if SHAPIROWILKE_LOOKBACK != COINT_LOOKBACK:
-                                        s2_price_sw = get_price_history(data, s2, SHAPIROWILKE_LOOKBACK)
-                                        s1_price_sw = get_price_history(data, s1, SHAPIROWILKE_LOOKBACK)
-                                    spreads = get_spreads(data, s2_price_sw, s1_price_sw, SHAPIROWILKE_LOOKBACK)
-                                    try:
-                                        sw = get_shapiro_pvalue(spreads)
-                                    except:
-                                        log.warn("Unable to calculate Shapiro-Wilke p-value for pair " 
-                                                 + str((s2,s1)))
-                                context.coint_data[(s2,s1)]['sw'] = sw
-                                if (not RUN_SHAPIROWILKE_TEST) or (sw < SHAPIROWILKE_P_MIN):
-                                    context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
+                
+                if passed_all_tests(context, data, s1, s2):
+                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
+                if passed_all_tests(context, data, s2, s1):
+                    context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
-    rev = False
-    if RANK_BY == 'corr':
-        rev = True
+    rev = (RANK_BY == 'corr')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
 
@@ -500,21 +482,10 @@ def choose_pairs(context, data):
         for code in context.codes:
             if context.real_yield_keys[i][0] in context.universes[code]['universe']:
                 u_code = code
-        coint = context.coint_pairs[context.real_yield_keys[i]]['coint']
-        corr = context.coint_pairs[context.real_yield_keys[i]]['corr']
-        adf_p = context.coint_pairs[context.real_yield_keys[i]]['adf']
-        hl = context.coint_pairs[context.real_yield_keys[i]]['half-life']
-        hurst_h = context.coint_pairs[context.real_yield_keys[i]]['hurst']
-        sw = context.coint_pairs[context.real_yield_keys[i]]['sw']
-
-        print("TOP PAIR " + str(i+1) + ": " + str(context.real_yield_keys[i]) 
-              + "\n\t\t\tsector: \t" + str(u_code) + "\n\t\t\tcorrelation: \t" + str(round(corr,3)) 
-              + "\n\t\t\tcointegration: \t" + str(coint) 
-              + "\n\t\t\tadf p-value: \t" + str(adf_p) 
-              + "\n\t\t\thalf-life: \t" + str(hl) 
-              + "\n\t\t\thurst h-value: \t" + str(hurst_h) 
-              + "\n\t\t\tshapiro-wilke p-value: \t" + str(sw)
-              + "\n")
+        report = "TOP PAIR "+str(i+1)+": "+str(context.real_yield_keys[i])+"\n\t\t\tsector: \t"+str(u_code)
+        for test in context.coint_pairs[context.real_yield_keys[i]]:
+            report += "\n\t\t\t" + str(test) + ": \t" + str(context.coint_pairs[context.real_yield_keys[i]][test])
+        print(report)
 
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -545,13 +516,13 @@ def check_pair_status(context, data):
             return
 
         context.target_weights = get_current_portfolio_weights(context, data)
-        new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]  
+        new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]
         if context.spread.shape[1] > Z_WINDOW:
   
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
-            if context.pair_status[pair]['currently_short'] and zscore < 0.0:
+            if context.pair_status[pair]['currently_short'] and zscore < EXIT:
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -562,7 +533,7 @@ def check_pair_status(context, data):
                 allocate(context, data)
                 return
 
-            if context.pair_status[pair]['currently_long'] and zscore > 0.0:
+            if context.pair_status[pair]['currently_long'] and zscore > -EXIT:
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -573,13 +544,13 @@ def check_pair_status(context, data):
                 allocate(context, data)
                 return
 
-            if zscore < -1.0 and (not context.pair_status[pair]['currently_long']):
+            if zscore < -ENTRY and (not context.pair_status[pair]['currently_long']):
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = True
                 y_target_shares = 1
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
- 
+
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
 
@@ -589,7 +560,7 @@ def check_pair_status(context, data):
                 allocate(context, data)
                 return
 
-            if zscore > 1.0 and (not context.pair_status[pair]['currently_short']):
+            if zscore > ENTRY and (not context.pair_status[pair]['currently_short']):
                 context.pair_status[pair]['currently_short'] = True
                 context.pair_status[pair]['currently_long'] = False
                 y_target_shares = -1
