@@ -20,8 +20,8 @@ LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 6
 DESIRED_PAIRS      = 2
-HEDGE_LOOKBACK     = 20 # used for regression
-Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
+HEDGE_LOOKBACK     = 30 # used for regression
+Z_WINDOW           = 30 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY              = 1.0
 EXIT               = 0.1
 RECORD_LEVERAGE    = True
@@ -35,9 +35,8 @@ SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),
                       (symbol('ABGB'), symbol('FSLR')),
                       (symbol('CSUN'), symbol('ASTI'))]
 
-REAL_UNIVERSE      = [30946101, 30947102, 30948103, 30949104,
-                      30950105, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070,
-                      31167136, 31167137, 31167138, 10320051, 31167140, 31167141, 31167142, 31167143]
+REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104, 30950105,                               30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 31167136, 31167137,                               31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+
 
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = True
@@ -58,7 +57,7 @@ TEST_PARAMS     = {
             'Correlation':      {'lookback': 730, 'min': 0.95,           'max': 1.00,           'pvalue': False},
             'Cointegration':    {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
             'ADFuller':         {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
-            'Hurst':            {'lookback': 730, 'min': 0.10,           'max': 0.20,           'pvalue': False},
+            'Hurst':            {'lookback': 730, 'min': 0.00,           'max': 0.20,           'pvalue': False},
             'Half-life':        {'lookback': 730, 'min': 10,             'max': 14,             'pvalue': False},
             'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': True },
                   }
