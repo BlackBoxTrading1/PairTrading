@@ -12,6 +12,7 @@ import quantopian.pipeline.data.morningstar as ms
 import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
+import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
 
@@ -35,11 +36,13 @@ SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),
                       (symbol('ABGB'), symbol('FSLR')),
                       (symbol('CSUN'), symbol('ASTI'))]
 
-REAL_UNIVERSE      = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 30949104, 30950105,                               30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 31167136, 31167137,                               31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
-
+REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 
+                 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
+                 10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
+                 31167142, 31167143]
 
 RUN_SAMPLE_PAIRS   = False
-TEST_SAMPLE_PAIRS  = True
+TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
 RUN_CORRELATION_TEST      = True
@@ -48,6 +51,7 @@ RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
+RUN_LJUNGBOX_TEST         = True
 
 #Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
 #                            'half-life', 'hurst h-value', 'sw p-value'
@@ -60,6 +64,7 @@ TEST_PARAMS     = {
             'Hurst':            {'lookback': 730, 'min': 0.00,           'max': 0.20,           'pvalue': False},
             'Half-life':        {'lookback': 730, 'min': 10,             'max': 14,             'pvalue': False},
             'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': True },
+            'Ljung-Box':        {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': False}
                   }
 
 def initialize(context):
@@ -256,6 +261,13 @@ def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
     return p
 
+def get_ljung_pvalue(spreads):
+    count = 0
+    for p in sd.acorr_ljungbox(spreads)[1]:
+        if p > 0.05:
+            count += 1
+    return (count / 40.0)
+
 def run_test(test, value):
     return (value != 'N/A' and value >= TEST_PARAMS[test]['min'] and value <= TEST_PARAMS[test]['max'])
 
@@ -344,6 +356,19 @@ def passed_all_tests(context, data, s1, s2):
         if not run_test('Shapiro-Wilke', sw) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
+    if RUN_LJUNGBOX_TEST:
+        lookback = TEST_PARAMS['Ljung-Box']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        lb = 'N/A'
+        try:
+            lb = get_ljung_pvalue(spreads)
+        except:
+            lb = 'N'
+        context.coint_data[(s1,s2)]['lb p-value'] = lb
+        if not run_test('Ljung-Box', lb) and (not RUN_SAMPLE_PAIRS 
+                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+            return False
     return True
 
 #*****************************************************************************************
@@ -359,21 +384,19 @@ def sample_comparison_test(context, data):
         context.num_pairs = len(SAMPLE_UNIVERSE)
     
     empty_data(context)
+    empty_target_weights(context)
 
     print ("RUNNING SAMPLE PAIRS...")
     context.universe_pool = pd.Index([])
     for pair in SAMPLE_UNIVERSE:
-        context.universe_pool.append(pd.Index([pair[0], pair[1]]))
+        context.universe_pool = context.universe_pool.append(pd.Index([pair[0], pair[1]]))
         if passed_all_tests(context, data, pair[0], pair[1]):
             context.coint_pairs[(pair[0],pair[1])] = context.coint_data[(pair[0],pair[1])]
         if passed_all_tests(context, data, pair[1], pair[0]):
             context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
     
     context.target_weights = get_current_portfolio_weights(context, data)
-    empty_target_weights(context)
-    rev = False
-    if RANK_BY == 'corr':
-        rev = True
+    rev = (RANK_BY == 'corr')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
     temp_real_yield_keys = context.real_yield_keys
@@ -582,24 +605,21 @@ def allocate(context, data):
     print ("ALLOCATING...")
     for s in context.target_weights.keys():
         error = ""
-        if (not s in context.target_weights):
+        if not (s in context.target_weights):
             continue
-        elif (not data.can_trade(s)):
+        elif not (data.can_trade(s)):
             error = "Cannot trade " + str(s)
         elif(np.isnan(context.target_weights.loc[s])):
             error = "Invalid target weight " + str(s)
         if error:
             print(error)
-            # context.universe_set = False
-            # return
             partner = get_stock_partner(context, s)
-            if not partner in context.target_weights:
-                context.target_weights = context.target_weights.drop([s])
-                context.universe_pool = context.universe_pool.drop([s])
-            else:
-                context.target_weights = context.target_weights.drop([s, partner])
-                context.universe_pool = context.universe_pool.drop([s, partner])
-                print("--> Removing partner " + str(partner) + "...")
+            context.target_weights = context.target_weights.drop([s])
+            context.universe_pool = context.universe_pool.drop([s])
+            if partner in context.target_weights:
+                context.target_weights = context.target_weights.drop([partner])
+                context.universe_pool = context.universe_pool.drop([partner])
+                print("--> Removed partner " + str(partner))
 
     print ("Target weights:")
     for s in context.target_weights.keys():
