@@ -36,7 +36,7 @@ SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),
                       (symbol('ABGB'), symbol('FSLR')),
                       (symbol('CSUN'), symbol('ASTI'))]
 
-REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 
+REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30947102, 30946101, 30948103, 
                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
                  10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
                  31167142, 31167143]
@@ -58,12 +58,12 @@ RUN_LJUNGBOX_TEST         = True
 RANK_BY         = 'half-life'
 DESIRED_PVALUE  = 0.05
 TEST_PARAMS     = {
-            'Correlation':      {'lookback': 730, 'min': 0.95,           'max': 1.00,           'pvalue': False},
+            'Correlation':      {'lookback': 730, 'min': 0.00,           'max': 1.00,           'pvalue': False},
             'Cointegration':    {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
-            'ADFuller':         {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
+            'ADFuller':         {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': False},
             'Hurst':            {'lookback': 730, 'min': 0.00,           'max': 0.20,           'pvalue': False},
-            'Half-life':        {'lookback': 730, 'min': 10,             'max': 14,             'pvalue': False},
-            'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': True },
+            'Half-life':        {'lookback': 730, 'min': 0,              'max': 999,            'pvalue': False},
+            'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': False},
             'Ljung-Box':        {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': False}
                   }
 
@@ -138,7 +138,12 @@ def initialize(context):
                                                                                                    minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
-    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
+    for hours_offset in range(7):  
+        schedule_function(  
+            check_pair_status,  
+            date_rules.every_day(),  
+            time_rules.market_open(hours=hours_offset, minutes=10),  
+            half_days = True)
 
 def empty_data(context):
     context.coint_data = {}
