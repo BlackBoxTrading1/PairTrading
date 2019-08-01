@@ -27,11 +27,11 @@ ENTRY              = 1.0
 EXIT               = 0.1
 RECORD_LEVERAGE    = True
 
-SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),    
+SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),
                       (symbol('DPZ'), symbol('PZZA')),
                       (symbol('WMT'), symbol('TGT')),
-                      (symbol('XOM'), symbol('CVX')),               
-                      (symbol('PT'), symbol('TEF')),            
+                      (symbol('XOM'), symbol('CVX')),
+                      (symbol('PT'), symbol('TEF')),
                       (symbol('BHP'), symbol('BBL')),
                       (symbol('ABGB'), symbol('FSLR')),
                       (symbol('CSUN'), symbol('ASTI'))]
@@ -77,6 +77,8 @@ def initialize(context):
     context.num_universes = len(context.codes)
     context.universes = {}
 
+    context.initial_portfolio_value = context.portfolio.portfolio_value
+    
     if not RUN_SAMPLE_PAIRS:
         for code in context.codes:
             context.universes[code] = {}
@@ -101,8 +103,7 @@ def initialize(context):
 
     context.interval_mod = -1
     
-    context.prices = {}
-    context.price_lookbacks = []
+    context.curr_price_history = ()
     context.spreads = {}
     context.spread_lookbacks = []
     
@@ -148,6 +149,7 @@ def empty_data(context):
     context.total_stock_list = []
 
 def empty_target_weights(context):
+    print ("Emptying target weights...")
     for s in context.target_weights.keys():
         context.target_weights.loc[s] = 0.0
     for equity in context.portfolio.positions:  
@@ -172,16 +174,8 @@ def get_price_history(data, stock, length):
     return data.history(stock, "price", length, '1d')
 
 def get_stored_prices(context, data, s1, s2, lookback):
-    s1_price = 0
-    s2_price = 0
-    if lookback in context.price_lookbacks:
-        s1_price = context.prices[lookback][0]
-        s2_price = context.prices[lookback][1]
-    else:
-        s1_price = get_price_history(data, s1, lookback)
-        s2_price = get_price_history(data, s2, lookback)
-        context.prices[lookback] = (s1_price, s2_price)
-        context.price_lookbacks.append(lookback)
+    s1_price = context.curr_price_history[0][-lookback:]
+    s2_price = context.curr_price_history[1][-lookback:]
     return s1_price, s2_price
 
 def get_stored_spreads(context, data, s1_price, s2_price, lookback):
@@ -192,7 +186,7 @@ def get_stored_spreads(context, data, s1_price, s2_price, lookback):
         spreads = get_spreads(data, s1_price, s2_price, lookback)
         context.spreads[lookback] = spreads
         context.spread_lookbacks.append(lookback)
-    return spreads    
+    return spreads
 
 def hedge_ratio(Y, X, add_const=True):
     if add_const:
@@ -210,10 +204,10 @@ def get_current_portfolio_weights(context, data):
         data=[positions[asset].amount for asset in positions]  
     )
 
-    current_prices = data.current(positions_index, 'price')  
-    current_weights = share_counts * current_prices / context.portfolio.portfolio_value  
+    current_prices = data.current(positions_index, 'price')
+    current_weights = share_counts * current_prices / context.portfolio.portfolio_value
     #return current_weights.reindex(positions_index.union(context.universe), fill_value=0.0)
-    return current_weights.reindex(positions_index.union(context.universe_pool), fill_value=0.0)  
+    return current_weights.reindex(positions_index.union(context.universe_pool), fill_value=0.0)
 
 def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     yDol = yShares * yPrice
@@ -274,8 +268,6 @@ def run_test(test, value):
 def passed_all_tests(context, data, s1, s2):
     context.spreads = {}
     context.spread_lookbacks = []
-    context.prices = {}
-    context.price_lookbacks = []
     context.coint_data[(s1,s2)] = {}
     
     if RUN_CORRELATION_TEST:
@@ -291,7 +283,7 @@ def passed_all_tests(context, data, s1, s2):
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
     if RUN_COINTEGRATION_TEST:
-        
+
         lookback = TEST_PARAMS['Cointegration']['lookback']
         s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
         coint = 'N/A'
@@ -303,7 +295,7 @@ def passed_all_tests(context, data, s1, s2):
         if not run_test('Cointegration', coint) and (not RUN_SAMPLE_PAIRS 
                                                      or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
-    
+
     if RUN_ADFULLER_TEST:
         lookback = TEST_PARAMS['ADFuller']['lookback']
         s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
@@ -366,14 +358,14 @@ def passed_all_tests(context, data, s1, s2):
         except:
             lb = 'N'
         context.coint_data[(s1,s2)]['lb p-value'] = lb
-        if not run_test('Ljung-Box', lb) and (not RUN_SAMPLE_PAIRS 
+        if not run_test('Ljung-Box', lb) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
     return True
 
 #*****************************************************************************************
 def sample_comparison_test(context, data):
-    this_month = get_datetime('US/Eastern').month 
+    this_month = get_datetime('US/Eastern').month
     if context.interval_mod < 0:
         context.interval_mod = this_month % INTERVAL
     if (this_month % INTERVAL) != context.interval_mod:
@@ -382,7 +374,7 @@ def sample_comparison_test(context, data):
     context.num_pairs = DESIRED_PAIRS
     if (DESIRED_PAIRS > len(SAMPLE_UNIVERSE)):
         context.num_pairs = len(SAMPLE_UNIVERSE)
-    
+
     empty_data(context)
     empty_target_weights(context)
 
@@ -394,7 +386,7 @@ def sample_comparison_test(context, data):
             context.coint_pairs[(pair[0],pair[1])] = context.coint_data[(pair[0],pair[1])]
         if passed_all_tests(context, data, pair[1], pair[0]):
             context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
-    
+
     context.target_weights = get_current_portfolio_weights(context, data)
     rev = (RANK_BY == 'corr')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
@@ -409,7 +401,7 @@ def sample_comparison_test(context, data):
                 context.total_stock_list.append(pair[0])
                 context.total_stock_list.append(pair[1])
 
-    
+
     #select top num_pairs pairs
     if (context.num_pairs > len(context.real_yield_keys)):
         context.num_pairs = len(context.real_yield_keys)
@@ -438,8 +430,10 @@ def choose_pairs(context, data):
     if (this_month % INTERVAL) != context.interval_mod:
         return
 
-    context.num_pairs = DESIRED_PAIRS
-
+    #context.num_pairs = DESIRED_PAIRS
+    context.num_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
+    context.num_pairs = int(round(context.num_pairs))
+    
     empty_data(context)
     size_str = ""
     usizes = []
@@ -459,7 +453,7 @@ def choose_pairs(context, data):
       for i in range (size+1):
         comps+=i
     comps = comps*2
-    print ("CHOOSING PAIRS...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
+    print ("CHOOSING " + str(context.num_pairs) +" PAIRS...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
            + "\nTotal comparisons: " + str(comps))
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
@@ -468,6 +462,11 @@ def choose_pairs(context, data):
     context.target_weights = get_current_portfolio_weights(context, data)
     empty_target_weights(context)
     #context.spread = np.ndarray((context.num_pairs, 0))
+    
+    max_lookback = 0
+    for test in TEST_PARAMS:
+        if TEST_PARAMS[test]['lookback'] > max_lookback:
+            max_lookback = TEST_PARAMS[test]['lookback']
 
     #SCREENING
     for code in context.codes:
@@ -476,8 +475,13 @@ def choose_pairs(context, data):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
                 
+                s1_price = get_price_history(data, s1, max_lookback)
+                s2_price = get_price_history(data, s2, max_lookback)
+                
+                context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
                     context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
+                context.curr_price_history = (s2_price, s1_price)
                 if passed_all_tests(context, data, s2, s1):
                     context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
@@ -497,6 +501,7 @@ def choose_pairs(context, data):
     #select top num_pairs pairs
     if (context.num_pairs > len(context.real_yield_keys)):
         context.num_pairs = len(context.real_yield_keys)
+    print ("Found " + str(context.num_pairs) + " pairs")
     for i in range(context.num_pairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
         u_code = 0
@@ -539,7 +544,7 @@ def check_pair_status(context, data):
         context.target_weights = get_current_portfolio_weights(context, data)
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]
         if context.spread.shape[1] > Z_WINDOW:
-  
+
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
@@ -587,7 +592,7 @@ def check_pair_status(context, data):
                 y_target_shares = -1
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-                
+
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
 
@@ -601,7 +606,7 @@ def check_pair_status(context, data):
 
 def allocate(context, data):
     if RECORD_LEVERAGE:
-        record(leverage=context.account.leverage)
+        record(market_exposure=context.account.net_leverage, leverage=context.account.leverage)
     print ("ALLOCATING...")
     for s in context.target_weights.keys():
         error = ""
