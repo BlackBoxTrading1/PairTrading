@@ -51,7 +51,7 @@ TEST_SAMPLE_PAIRS  = False
 #Choose tests
 RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
-RUN_ADFULLER_TEST         = False
+RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
@@ -62,12 +62,12 @@ RUN_LJUNGBOX_TEST         = False
 RANK_BY         = 'half-life'
 DESIRED_PVALUE  = 0.01
 TEST_PARAMS     = {
-            'Correlation':      {'lookback': 730, 'min': 0.8,          'max': 1.00,           'pvalue': False},
-            'Cointegration':    {'lookback': 730, 'min': 0.00,          'max': 0.01,           'pvalue': True },
-            'ADFuller':         {'lookback': 730, 'min': 0.00,          'max': 0.01,           'pvalue': False },
-            'Hurst':            {'lookback': 730, 'min': 0.20,          'max': 0.50,           'pvalue': False},
+            'Correlation':      {'lookback': 730, 'min': 0.95,          'max': 1.00,           'pvalue': False},
+            'Cointegration':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': True },
+            'ADFuller':         {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
+            'Hurst':            {'lookback': 730, 'min': 0.00,          'max': 0.50,           'pvalue': False},
             'Half-life':        {'lookback': 730, 'min': 0,             'max': 999,            'pvalue': False},
-            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False },
+            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
             'Ljung-Box':        {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False}
                   }
 
