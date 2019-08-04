@@ -246,7 +246,7 @@ def get_half_life(spreads):
     ret[0] = 0
     lag2 = sm.add_constant(lag)
     model = sm.OLS(ret, lag2)
-    res = model.fit()
+    res = model.fit_regularized()
     return (-np.log(2) / res.params[1])
 
 def get_hurst_hvalue(spreads):
