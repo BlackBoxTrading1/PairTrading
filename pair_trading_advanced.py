@@ -19,23 +19,22 @@ import math
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 6
+INTERVAL           = 5
 DESIRED_PAIRS      = 2
 HEDGE_LOOKBACK     = 30 # used for regression
 Z_WINDOW           = 30 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY              = 1.0
-EXIT               = 0.1
+EXIT               = 0.2
 RECORD_LEVERAGE    = True
 
-SAMPLE_UNIVERSE    = [(symbol('KO'), symbol('PEP')),
-                      (symbol('DPZ'), symbol('PZZA')),
-                      (symbol('WMT'), symbol('TGT')),
+SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
+                      (symbol('CBI'), symbol('JEC')),
+                      (symbol('MAS'), symbol('VMC')),
                       (symbol('XOM'), symbol('CVX')),
-                      (symbol('PT'), symbol('TEF')),
-                      (symbol('BHP'), symbol('BBL')),
-                      (symbol('ABGB'), symbol('FSLR')),
-                      (symbol('CSUN'), symbol('ASTI'))]
-
+                      (symbol('JPM'), symbol('C')),
+                      (symbol('AON'), symbol('MMC')),
+                      (symbol('COP'), symbol('CVX'))]
+#[30947102, 31169147]
 REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30947102, 30946101, 30948103, 
                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
                  10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
@@ -45,7 +44,7 @@ RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
-RUN_CORRELATION_TEST      = True
+RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
@@ -56,15 +55,15 @@ RUN_LJUNGBOX_TEST         = True
 #Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
 #                            'half-life', 'hurst h-value', 'sw p-value'
 RANK_BY         = 'half-life'
-DESIRED_PVALUE  = 0.05
+DESIRED_PVALUE  = 0.01
 TEST_PARAMS     = {
-            'Correlation':      {'lookback': 730, 'min': 0.00,           'max': 1.00,           'pvalue': False},
-            'Cointegration':    {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': True },
-            'ADFuller':         {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': False},
-            'Hurst':            {'lookback': 730, 'min': 0.00,           'max': 0.20,           'pvalue': False},
-            'Half-life':        {'lookback': 730, 'min': 0,              'max': 999,            'pvalue': False},
-            'Shapiro-Wilke':    {'lookback': 730, 'min': DESIRED_PVALUE, 'max': 1.00,           'pvalue': False},
-            'Ljung-Box':        {'lookback': 730, 'min': 0.00,           'max': DESIRED_PVALUE, 'pvalue': False}
+            'Correlation':      {'lookback': 730, 'min': 0.95,          'max': 1.00,           'pvalue': False},
+            'Cointegration':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': True },
+            'ADFuller':         {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
+            'Hurst':            {'lookback': 730, 'min': 0.00,          'max': 0.50,           'pvalue': False},
+            'Half-life':        {'lookback': 730, 'min': 0,             'max': 999,            'pvalue': False},
+            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
+            'Ljung-Box':        {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False}
                   }
 
 def initialize(context):
@@ -196,9 +195,9 @@ def get_stored_spreads(context, data, s1_price, s2_price, lookback):
 def hedge_ratio(Y, X, add_const=True):
     if add_const:
         X = sm.add_constant(X)
-        model = sm.OLS(Y, X).fit()
+        model = sm.OLS(Y, X).fit_regularized()
         return model.params[1]
-    model = sm.OLS(Y, X).fit()
+    model = sm.OLS(Y, X).fit_regularized()
     return model.params.values 
 
 def get_current_portfolio_weights(context, data):  
@@ -247,7 +246,7 @@ def get_half_life(spreads):
     ret[0] = 0
     lag2 = sm.add_constant(lag)
     model = sm.OLS(ret, lag2)
-    res = model.fit()
+    res = model.fit_regularized()
     return (-np.log(2) / res.params[1])
 
 def get_hurst_hvalue(spreads):
@@ -490,7 +489,7 @@ def choose_pairs(context, data):
                 if passed_all_tests(context, data, s2, s1):
                     context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
-    rev = (RANK_BY == 'corr')
+    rev = (RANK_BY == 'correlation' or RANK_BY == 'half-life')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
 
