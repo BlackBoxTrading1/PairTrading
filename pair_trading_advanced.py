@@ -34,11 +34,16 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('JPM'), symbol('C')),
                       (symbol('AON'), symbol('MMC')),
                       (symbol('COP'), symbol('CVX'))]
-#[30947102, 31169147]
-REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30947102, 30946101, 30948103, 
-                 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-                 10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
-                 31167142, 31167143]
+
+#[10428070, 10320051, 10428069, 20744096, 31165131] #30947102, 31169147
+
+REAL_UNIVERSE = [30947102, 31169147]
+    
+    
+    # 10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 
+    #              30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
+    #              10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
+    #              31167142, 31167143]
 
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
@@ -50,7 +55,7 @@ RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
-RUN_LJUNGBOX_TEST         = True
+RUN_LJUNGBOX_TEST         = False
 
 #Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
 #                            'half-life', 'hurst h-value', 'sw p-value'
@@ -65,7 +70,7 @@ TEST_PARAMS     = {
             'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
             'Ljung-Box':        {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False}
                   }
-
+    
 def initialize(context):
 
     set_slippage(slippage.FixedBasisPointsSlippage())
@@ -138,12 +143,7 @@ def initialize(context):
                                                                                                    minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
-    for hours_offset in range(7):  
-        schedule_function(  
-            check_pair_status,  
-            date_rules.every_day(),  
-            time_rules.market_open(hours=hours_offset, minutes=10),  
-            half_days = True)
+    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
     context.coint_data = {}
@@ -392,7 +392,7 @@ def sample_comparison_test(context, data):
             context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
 
     context.target_weights = get_current_portfolio_weights(context, data)
-    rev = (RANK_BY == 'corr')
+    rev = (RANK_BY == 'half-life')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
     temp_real_yield_keys = context.real_yield_keys
@@ -489,7 +489,7 @@ def choose_pairs(context, data):
                 if passed_all_tests(context, data, s2, s1):
                     context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
-    rev = (RANK_BY == 'correlation' or RANK_BY == 'half-life')
+    rev = (RANK_BY == 'half-life')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
 
