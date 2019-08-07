@@ -34,6 +34,7 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('JPM'), symbol('C')),
                       (symbol('AON'), symbol('MMC')),
                       (symbol('COP'), symbol('CVX'))]
+<<<<<<< HEAD
 
 #[10428070, 10320051, 10428069, 20744096, 31165131] #30947102, 31169147
 
@@ -44,6 +45,13 @@ REAL_UNIVERSE = [30947102, 31169147]
     #              30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
     #              10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
     #              31167142, 31167143]
+=======
+# REAL_UNIVERSE = [30947102, 31169147]
+REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30947102, 30946101, 30948103, 
+                 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
+                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
+                 31169147]
+>>>>>>> 90489164ea188548eec4b9c9ba50c36e11e06a50
 
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
@@ -143,6 +151,15 @@ def initialize(context):
                                                                                                    minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+<<<<<<< HEAD
+=======
+    # for hours_offset in range(7):  
+    #     schedule_function(  
+    #         check_pair_status,  
+    #         date_rules.every_day(),  
+    #         time_rules.market_open(hours=hours_offset, minutes=10),  
+    #         half_days = True)
+>>>>>>> 90489164ea188548eec4b9c9ba50c36e11e06a50
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
@@ -283,7 +300,7 @@ def passed_all_tests(context, data, s1, s2):
         except:
             corr = 'N/A'
         context.coint_data[(s1,s2)]['correlation'] = corr
-        if not run_test('Correlation', corr) and (not RUN_SAMPLE_PAIRS 
+        if not run_test('Correlation', corr) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
             return False
     if RUN_COINTEGRATION_TEST:
@@ -492,8 +509,11 @@ def choose_pairs(context, data):
     rev = (RANK_BY == 'half-life')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
-
-    temp_real_yield_keys = context.real_yield_keys
+    #print (context.real_yield_keys)
+    temp_real_yield_keys = []
+    for k in context.real_yield_keys:
+        temp_real_yield_keys.append(k)
+    #print (temp_real_yield_keys)
     for pair in temp_real_yield_keys:
         if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
             context.real_yield_keys.remove(pair)
