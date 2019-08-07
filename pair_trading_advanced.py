@@ -21,10 +21,10 @@ LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
 INTERVAL           = 5
 DESIRED_PAIRS      = 2
-HEDGE_LOOKBACK     = 30 # used for regression
-Z_WINDOW           = 30 # used for zscore calculation, must be <= HEDGE_LOOKBACK
+HEDGE_LOOKBACK     = 20 # used for regression
+Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY              = 1.0
-EXIT               = 0.2
+EXIT               = 0.1
 RECORD_LEVERAGE    = True
 
 SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
@@ -34,24 +34,13 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('JPM'), symbol('C')),
                       (symbol('AON'), symbol('MMC')),
                       (symbol('COP'), symbol('CVX'))]
-<<<<<<< HEAD
 
-#[10428070, 10320051, 10428069, 20744096, 31165131] #30947102, 31169147
-
-REAL_UNIVERSE = [30947102, 31169147]
-    
-    
-    # 10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30947102, 30948103, 
-    #              30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-    #              10428069, 10428070, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 
-    #              31167142, 31167143]
-=======
 # REAL_UNIVERSE = [30947102, 31169147]
-REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30947102, 30946101, 30948103, 
+# REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
+
+REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
-                 31169147]
->>>>>>> 90489164ea188548eec4b9c9ba50c36e11e06a50
+                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
 
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
@@ -67,18 +56,18 @@ RUN_LJUNGBOX_TEST         = False
 
 #Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
 #                            'half-life', 'hurst h-value', 'sw p-value'
-RANK_BY         = 'half-life'
+RANK_BY         = 'hurst h-value'
 DESIRED_PVALUE  = 0.01
 TEST_PARAMS     = {
             'Correlation':      {'lookback': 730, 'min': 0.95,          'max': 1.00,           'pvalue': False},
             'Cointegration':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': True },
-            'ADFuller':         {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
-            'Hurst':            {'lookback': 730, 'min': 0.00,          'max': 0.50,           'pvalue': False},
-            'Half-life':        {'lookback': 730, 'min': 0,             'max': 999,            'pvalue': False},
+            'ADFuller':         {'lookback': 63,  'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
+            'Hurst':            {'lookback': 126, 'min': 0.00,          'max': 0.25,           'pvalue': False},
+            'Half-life':        {'lookback': 126, 'min': 0,             'max': 25,             'pvalue': False},
             'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
             'Ljung-Box':        {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False}
                   }
-    
+
 def initialize(context):
 
     set_slippage(slippage.FixedBasisPointsSlippage())
@@ -151,15 +140,13 @@ def initialize(context):
                                                                                                    minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
-<<<<<<< HEAD
-=======
-    # for hours_offset in range(7):  
+    # hrs = [3,6]
+    # for hours_offset in hr:  
     #     schedule_function(  
     #         check_pair_status,  
     #         date_rules.every_day(),  
     #         time_rules.market_open(hours=hours_offset, minutes=10),  
     #         half_days = True)
->>>>>>> 90489164ea188548eec4b9c9ba50c36e11e06a50
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
@@ -269,8 +256,8 @@ def get_half_life(spreads):
 def get_hurst_hvalue(spreads):
     lags = range(2, 100)
     tau = [np.sqrt(np.std(np.subtract(spreads[lag:], spreads[:-lag]))) for lag in lags]
-    poly = np.polyfit(np.log10(lags), np.log10(tau), 1)
-    return poly[0]*2.0
+    poly = np.polynomial.polynomial.polyfit(np.log10(lags), np.log10(tau), 1)
+    return poly[1]*2.0
 
 def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
@@ -409,7 +396,7 @@ def sample_comparison_test(context, data):
             context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
 
     context.target_weights = get_current_portfolio_weights(context, data)
-    rev = (RANK_BY == 'half-life')
+    rev = (RANK_BY == 'corr')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
     temp_real_yield_keys = context.real_yield_keys
@@ -506,7 +493,7 @@ def choose_pairs(context, data):
                 if passed_all_tests(context, data, s2, s1):
                     context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
-    rev = (RANK_BY == 'half-life')
+    rev = (RANK_BY == 'correlation' or RANK_BY == 'half-life')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
     #print (context.real_yield_keys)
