@@ -112,7 +112,9 @@ def initialize(context):
     for test in TEST_PARAMS.keys():
         if TEST_PARAMS[test]['pvalue']:
             num_pvalue_tests = num_pvalue_tests + 1
-    new_p = DESIRED_PVALUE / num_pvalue_tests
+    new_p = DESIRED_PVALUE
+    if num_pvalue_tests:
+        new_p = DESIRED_PVALUE / num_pvalue_tests
     for test in TEST_PARAMS.keys():
         if TEST_PARAMS[test]['pvalue']:
             if test == 'Shapiro-Wilke':
