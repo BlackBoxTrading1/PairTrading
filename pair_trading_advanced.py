@@ -19,7 +19,7 @@ import math
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 5
+INTERVAL           = 6
 DESIRED_PAIRS      = 2
 HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
@@ -102,7 +102,7 @@ def initialize(context):
 
     context.target_weights = {}
 
-    context.interval_mod = -1
+    context.curr_month = -1
     
     context.curr_price_history = ()
     context.spreads = {}
@@ -376,10 +376,12 @@ def passed_all_tests(context, data, s1, s2):
 #*****************************************************************************************
 def sample_comparison_test(context, data):
     this_month = get_datetime('US/Eastern').month
-    if context.interval_mod < 0:
-        context.interval_mod = this_month % INTERVAL
-    if (this_month % INTERVAL) != context.interval_mod:
+    if context.curr_month < 0:
+        context.curr_month = this_month
+    context.next_month = context.curr_month + INTERVAL - 12*(context.curr_month + INTERVAL > 12)
+    if (this_month != context.curr_month):
         return
+    context.curr_month = context.next_month
 
     context.num_pairs = DESIRED_PAIRS
     if (DESIRED_PAIRS > len(SAMPLE_UNIVERSE)):
@@ -435,16 +437,21 @@ def sample_comparison_test(context, data):
 
 def choose_pairs(context, data):
     this_month = get_datetime('US/Eastern').month 
-    if context.interval_mod < 0:
-        context.interval_mod = this_month % INTERVAL
-    if (this_month % INTERVAL) != context.interval_mod:
+    if context.curr_month < 0:
+        context.curr_month = this_month
+    context.next_month = context.curr_month + INTERVAL - 12*(context.curr_month + INTERVAL > 12)
+    if (this_month != context.curr_month):
         return
-
+    context.curr_month = context.next_month
+    
     #context.num_pairs = DESIRED_PAIRS
     context.num_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
     context.num_pairs = int(round(context.num_pairs))
     
     empty_data(context)
+    empty_target_weights(context)
+    context.target_weights = get_current_portfolio_weights(context, data)
+    
     size_str = ""
     usizes = []
     for code in context.codes:
@@ -464,13 +471,11 @@ def choose_pairs(context, data):
         comps+=i
     comps = comps*2
     print ("CHOOSING " + str(context.num_pairs) +" PAIRS...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
-           + "\nTotal comparisons: " + str(comps))
+           + "\nProcessed pairs: " + str(comps))
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
-
-    context.target_weights = get_current_portfolio_weights(context, data)
-    empty_target_weights(context)
+    
     #context.spread = np.ndarray((context.num_pairs, 0))
     
     max_lookback = 0
@@ -514,7 +519,7 @@ def choose_pairs(context, data):
     #select top num_pairs pairs
     if (context.num_pairs > len(context.real_yield_keys)):
         context.num_pairs = len(context.real_yield_keys)
-    print ("Found " + str(context.num_pairs) + " pairs")
+    print ("Pairs found: " + str(context.num_pairs))
     for i in range(context.num_pairs):
         context.top_yield_pairs.append(context.real_yield_keys[i])
         u_code = 0
@@ -536,11 +541,17 @@ def choose_pairs(context, data):
 def check_pair_status(context, data):
     if (not context.universe_set):
         return
-
+    
     new_spreads = np.ndarray((context.num_pairs, 1))
     numPairs = context.num_pairs
+    temp_top_pairs = []
+    for pair in context.top_yield_pairs:
+        temp_top_pairs.append(pair)
+    
     for i in range(numPairs):
-        pair = context.top_yield_pairs[i]
+        if (i == len(temp_top_pairs)):
+            break
+        pair = temp_top_pairs[i]
         # print pair
         s1 = pair[0]
         s2 = pair[1]
@@ -659,5 +670,6 @@ def allocate(context, data):
 
 def handle_data(context, data):
     pass
+    #check_pair_status(context, data)
     # if context.account.leverage>LEVERAGE or context.account.leverage < 0:
     #     warn_leverage(context, data)
