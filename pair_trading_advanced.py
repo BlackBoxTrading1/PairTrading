@@ -16,15 +16,16 @@ import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
 
+
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 6
+INTERVAL           = 5
 DESIRED_PAIRS      = 2
 HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
-ENTRY              = 1.0
-EXIT               = 0.1
+ENTRY              = 1.5
+EXIT               = 0.2
 RECORD_LEVERAGE    = True
 
 SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
@@ -36,11 +37,11 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('COP'), symbol('CVX'))]
 
 # REAL_UNIVERSE = [30947102, 31169147]
-# REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
+REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
 
-REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
-                 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-                 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
+#                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
+#                  31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
 
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
@@ -62,8 +63,8 @@ TEST_PARAMS     = { #Used when choosing pairs
             'Correlation':      {'lookback': 730, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 63,  'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.25,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 126, 'min': 0,    'max': 25,             'key': 'half-life'    },
+            'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
+            'Half-life':        {'lookback': 126, 'min': 15,    'max': 35,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
     
@@ -76,7 +77,7 @@ LOOSE_PARAMS    = { #Used when checking pair quality
             'Half-life':        {'min': 0,    'max': 25,   'run': False},
             'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00, 'run': False},
             'Ljung-Box':        {'min': 0.00, 'max': 1.00, 'run': False}
-                  }
+
 
 def initialize(context):
 
@@ -144,6 +145,7 @@ def initialize(context):
     #         date_rules.every_day(),  
     #         time_rules.market_open(hours=hours_offset, minutes=10),  
     #         half_days = True)
+    
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
@@ -249,12 +251,18 @@ def get_half_life(spreads):
     res = model.fit_regularized()
     return (-np.log(2) / res.params[1])
 
-def get_hurst_hvalue(spreads):
+def get_hurst_hvalue(ts):
+    ts = np.asarray(ts)
+    lagvec = []
+    tau = []
     lags = range(2, 100)
-    tau = [np.sqrt(np.std(np.subtract(spreads[lag:], spreads[:-lag]))) for lag in lags]
-    poly = np.polynomial.polynomial.polyfit(np.log10(lags), np.log10(tau), 1)
-    return poly[1]*2.0
-
+    for lag in lags:
+        pdiff = np.subtract(ts[lag:],ts[:-lag])
+        lagvec.append(lag)
+        tau.append(np.sqrt(np.std(pdiff)))
+    m = np.polynomial.polynomial.polyfit(np.log10(np.asarray(lagvec)), np.log10(np.asarray(tau).clip(min=0.0000000001)), 1)
+    return m[1]*2.0
+    
 def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
     return p
@@ -502,7 +510,7 @@ def choose_pairs(context, data):
                 if passed_all_tests(context, data, s2, s1):
                     context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
-    rev = (RANK_BY == 'correlation' or RANK_BY == 'half-life')
+    rev = (RANK_BY == 'correlation')
     context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
                                      reverse=rev)
     #print (context.real_yield_keys)
