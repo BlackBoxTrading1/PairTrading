@@ -55,7 +55,7 @@ RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
 RUN_LJUNGBOX_TEST         = False
 
-#Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
+# Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
 #                            'half-life', 'hurst h-value', 'sw p-value'
 RANK_BY         = 'hurst h-value'
 DESIRED_PVALUE  = 0.01
@@ -64,20 +64,20 @@ TEST_PARAMS     = { #Used when choosing pairs
             'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 63,  'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
             'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 126, 'min': 15,    'max': 35,             'key': 'half-life'    },
+            'Half-life':        {'lookback': 126, 'min': 15,   'max': 35,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
-    
+
                   }
 LOOSE_PARAMS    = { #Used when checking pair quality
-            'Correlation':      {'min': 0.95, 'max': 1.00, 'run': True },
+            'Correlation':      {'min': 0.95, 'max': 1.00, 'run': False},
             'Cointegration':    {'min': 0.00, 'max': 0.05, 'run': True },
-            'ADFuller':         {'min': 0.00, 'max': 0.05, 'run': True },
-            'Hurst':            {'min': 0.00, 'max': 0.50, 'run': False},
-            'Half-life':        {'min': 0,    'max': 25,   'run': False},
+            'ADFuller':         {'min': 0.00, 'max': 0.05, 'run': False},
+            'Hurst':            {'min': 0.00, 'max': 0.50, 'run': True },
+            'Half-life':        {'min': 0,    'max': 100,  'run': False},
             'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00, 'run': False},
             'Ljung-Box':        {'min': 0.00, 'max': 1.00, 'run': False}
-
+                  }
 
 def initialize(context):
 
@@ -499,10 +499,10 @@ def choose_pairs(context, data):
             for j in range (i+1, context.universes[code]['size']):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
-                
+
                 s1_price = get_price_history(data, s1, max_lookback)
                 s2_price = get_price_history(data, s2, max_lookback)
-                
+
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
                     context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
