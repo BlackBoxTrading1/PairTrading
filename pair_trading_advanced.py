@@ -58,14 +58,24 @@ RUN_LJUNGBOX_TEST         = False
 #                            'half-life', 'hurst h-value', 'sw p-value'
 RANK_BY         = 'hurst h-value'
 DESIRED_PVALUE  = 0.01
-TEST_PARAMS     = {
-            'Correlation':      {'lookback': 730, 'min': 0.95,          'max': 1.00,           'pvalue': False},
-            'Cointegration':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': True },
-            'ADFuller':         {'lookback': 63,  'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
-            'Hurst':            {'lookback': 126, 'min': 0.00,          'max': 0.25,           'pvalue': False},
-            'Half-life':        {'lookback': 126, 'min': 0,             'max': 25,             'pvalue': False},
-            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False},
-            'Ljung-Box':        {'lookback': 730, 'min': 0.00,          'max': DESIRED_PVALUE, 'pvalue': False}
+TEST_PARAMS     = { #Used when choosing pairs
+            'Correlation':      {'lookback': 730, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
+            'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
+            'ADFuller':         {'lookback': 63,  'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
+            'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.25,           'key': 'hurst h-value'},
+            'Half-life':        {'lookback': 126, 'min': 0,    'max': 25,             'key': 'half-life'    },
+            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
+            'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
+    
+                  }
+LOOSE_PARAMS    = { #Used when checking pair quality
+            'Correlation':      {'min': 0.95, 'max': 1.00, 'run': True },
+            'Cointegration':    {'min': 0.00, 'max': 0.05, 'run': True },
+            'ADFuller':         {'min': 0.00, 'max': 0.05, 'run': True },
+            'Hurst':            {'min': 0.00, 'max': 0.50, 'run': False},
+            'Half-life':        {'min': 0,    'max': 25,   'run': False},
+            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00, 'run': False},
+            'Ljung-Box':        {'min': 0.00, 'max': 1.00, 'run': False}
                   }
 
 def initialize(context):
@@ -108,21 +118,6 @@ def initialize(context):
     context.spreads = {}
     context.spread_lookbacks = []
     
-    num_pvalue_tests = 0
-    for test in TEST_PARAMS.keys():
-        if TEST_PARAMS[test]['pvalue']:
-            num_pvalue_tests = num_pvalue_tests + 1
-    new_p = DESIRED_PVALUE
-    if num_pvalue_tests:
-        new_p = DESIRED_PVALUE / num_pvalue_tests
-    for test in TEST_PARAMS.keys():
-        if TEST_PARAMS[test]['pvalue']:
-            if test == 'Shapiro-Wilke':
-                TEST_PARAMS[test]['min'] = new_p
-            else:
-                TEST_PARAMS[test]['max'] = new_p
-    print(str(num_pvalue_tests) + " p-value tests --> New target p-value = " + str(round(new_p,4)))
-    
     if (RANK_BY == 'coint' or RANK_BY == 'adf p-value' or RANK_BY == 'sw p-value'):
         log.warn("Ranking by p-value is undefined. Rank by different metric")
     
@@ -159,7 +154,6 @@ def empty_data(context):
     context.total_stock_list = []
 
 def empty_target_weights(context):
-    print ("Emptying target weights...")
     for s in context.target_weights.keys():
         context.target_weights.loc[s] = 0.0
     for equity in context.portfolio.positions:  
@@ -272,105 +266,113 @@ def get_ljung_pvalue(spreads):
             count += 1
     return (count / 40.0)
 
-def run_test(test, value):
+def run_test(test, value, loose_screens):
+    if loose_screens:  
+        return (value != 'N/A' and value >= LOOSE_PARAMS[test]['min'] and value <= LOOSE_PARAMS[test]['max'])
     return (value != 'N/A' and value >= TEST_PARAMS[test]['min'] and value <= TEST_PARAMS[test]['max'])
 
-def passed_all_tests(context, data, s1, s2):
+def passed_all_tests(context, data, s1, s2, loose_screens=False):
     context.spreads = {}
     context.spread_lookbacks = []
     context.coint_data[(s1,s2)] = {}
     
     if RUN_CORRELATION_TEST:
-        lookback = TEST_PARAMS['Correlation']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        corr = 'N/A'
-        try:
-            corr = s1_price.corr(s2_price)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Correlation']['run']):
+            lookback = TEST_PARAMS['Correlation']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
             corr = 'N/A'
-        context.coint_data[(s1,s2)]['correlation'] = corr
-        if not run_test('Correlation', corr) and (not RUN_SAMPLE_PAIRS
+            try:
+                corr = s1_price.corr(s2_price)
+            except:
+                corr = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Correlation']['key']] = corr
+            if not run_test('Correlation', corr, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+                return False
     if RUN_COINTEGRATION_TEST:
-
-        lookback = TEST_PARAMS['Cointegration']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        coint = 'N/A'
-        try:
-            coint = get_cointegration(s1_price,s2_price)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Cointegration']['run']):
+            lookback = TEST_PARAMS['Cointegration']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
             coint = 'N/A'
-        context.coint_data[(s1,s2)]['coint p-value'] = coint
-        if not run_test('Cointegration', coint) and (not RUN_SAMPLE_PAIRS 
-                                                     or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+            try:
+                coint = get_cointegration(s1_price,s2_price)
+            except:
+                coint = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
+            if not run_test('Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS 
+                                                         or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
 
     if RUN_ADFULLER_TEST:
-        lookback = TEST_PARAMS['ADFuller']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        adf = 'N/A'
-        try:
-            adf = get_adf_pvalue(spreads)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['ADFuller']['run']):
+            lookback = TEST_PARAMS['ADFuller']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
             adf = 'N/A'
-        context.coint_data[(s1,s2)]['adf p-value'] = adf
-        if not run_test('ADFuller', adf) and (not RUN_SAMPLE_PAIRS 
-                                              or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+            try:
+                adf = get_adf_pvalue(spreads)
+            except:
+                adf = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['ADFuller']['key']] = adf
+            if not run_test('ADFuller', adf, loose_screens) and (not RUN_SAMPLE_PAIRS 
+                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     if RUN_HURST_TEST:
-        lookback = TEST_PARAMS['Hurst']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        hurst = 'N/A'
-        try:
-            hurst = get_hurst_hvalue(spreads)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Hurst']['run']):
+            lookback = TEST_PARAMS['Hurst']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
             hurst = 'N/A'
-        context.coint_data[(s1,s2)]['hurst h-value'] = hurst
-        if not run_test('Hurst', hurst) and (not RUN_SAMPLE_PAIRS 
-                                             or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+            try:
+                hurst = get_hurst_hvalue(spreads)
+            except:
+                hurst = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
+            if not run_test('Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS 
+                                                 or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     if RUN_HALF_LIFE_TEST:
-        lookback = TEST_PARAMS['Half-life']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        hl = 'N/A'
-        try:
-            hl = get_half_life(spreads)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Half-life']['run']):
+            lookback = TEST_PARAMS['Half-life']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
             hl = 'N/A'
-        context.coint_data[(s1,s2)]['half-life'] = hl
-        if not run_test('Half-life', hl) and (not RUN_SAMPLE_PAIRS 
-                                              or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+            try:
+                hl = get_half_life(spreads)
+            except:
+                hl = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
+            if not run_test('Half-life', hl, loose_screens) and (not RUN_SAMPLE_PAIRS 
+                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     if RUN_SHAPIROWILKE_TEST:
-        lookback = TEST_PARAMS['Shapiro-Wilke']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        sw = 'N/A'
-        try:
-            sw = get_shapiro_pvalue(spreads)
-        except:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Shapiro-Wilke']['run']):
+            lookback = TEST_PARAMS['Shapiro-Wilke']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
             sw = 'N/A'
-        context.coint_data[(s1,s2)]['sw p-value'] = sw
-        if not run_test('Shapiro-Wilke', sw) and (not RUN_SAMPLE_PAIRS 
-                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+            try:
+                sw = get_shapiro_pvalue(spreads)
+            except:
+                sw = 'N/A'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
+            if not run_test('Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
+                                                      or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     if RUN_LJUNGBOX_TEST:
-        lookback = TEST_PARAMS['Ljung-Box']['lookback']
-        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        lb = 'N/A'
-        try:
-            lb = get_ljung_pvalue(spreads)
-        except:
-            lb = 'N'
-        context.coint_data[(s1,s2)]['lb p-value'] = lb
-        if not run_test('Ljung-Box', lb) and (not RUN_SAMPLE_PAIRS
-                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-            return False
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['Ljung-Box']['run']):
+            lookback = TEST_PARAMS['Ljung-Box']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+            lb = 'N/A'
+            try:
+                lb = get_ljung_pvalue(spreads)
+            except:
+                lb = 'N'
+            context.coint_data[(s1,s2)][TEST_PARAMS['Ljung-Box']['key']] = lb
+            if not run_test('Ljung-Box', lb, loose_screens) and (not RUN_SAMPLE_PAIRS
+                                                      or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     return True
 
 #*****************************************************************************************
@@ -549,12 +551,42 @@ def check_pair_status(context, data):
         temp_top_pairs.append(pair)
     
     for i in range(numPairs):
-        if (i == len(temp_top_pairs)):
+        if (len(temp_top_pairs) == 0):
+            context.curr_month = get_datetime('US/Eastern').month + 1
+            context.universe_set = False
+            break
+        elif (i == len(temp_top_pairs)):
             break
         pair = temp_top_pairs[i]
         # print pair
         s1 = pair[0]
         s2 = pair[1]
+        
+        max_lookback = 0
+        for test in TEST_PARAMS:
+            if TEST_PARAMS[test]['lookback'] > max_lookback:
+                max_lookback = TEST_PARAMS[test]['lookback']
+        
+        s1_price_test = get_price_history(data, s1, max_lookback)
+        s2_price_test = get_price_history(data, s2, max_lookback)
+        context.curr_price_history = (s1_price_test, s2_price_test)
+        if not passed_all_tests(context, data, s1, s2, loose_screens=True):
+            summary = "Closing " + str((s1,s2)) + "\n\t\t\tSummary below:"
+            for val in context.coint_data[(s1,s2)].keys():
+                end = ""
+                for t in TEST_PARAMS:
+                    if (TEST_PARAMS[t]['key'] == val):
+                        if context.coint_data[(s1,s2)][val] > LOOSE_PARAMS[t]['max']:
+                            end = "> " + str(LOOSE_PARAMS[t]['max']) + " --> FAILED"
+                        elif context.coint_data[(s1,s2)][val] < LOOSE_PARAMS[t]['min']:
+                            end = "< " + str(LOOSE_PARAMS[t]['min']) + " --> FAILED"
+                summary += "\n\t\t\t" + str(val) + ": \t" + str(context.coint_data[(s1,s2)][val]) + " " + end
+            print (summary)
+            context.top_yield_pairs.remove(pair)
+            #context.num_pairs = context.num_pairs - 1
+            order_target_percent(s1, 0)
+            order_target_percent(s2, 0)
+            continue
 
         s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
         s2_price = data.history(s2, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
