@@ -494,9 +494,6 @@ def choose_pairs(context, data):
 
                 s1_price = get_price_history(data, s1, max_lookback)
                 if RUN_KALMAN_FILTER:
-                    temp_s1 = s1_price.values
-                    if (i == 0 and j == 1):
-                        print(s1_price.values)
                     kf_s1 = KalmanFilter(transition_matrices = [1],
                                       observation_matrices = [1],
                                       initial_state_mean = s1_price.values[0],
@@ -506,9 +503,6 @@ def choose_pairs(context, data):
 
                     s1_price,_ = kf_s1.filter(s1_price.values)
                     s1_price = s1_price.flatten()
-                    if (i == 0 and j == 1):
-                        print(s1_price)
-                        print (np.corrcoef(temp_s1, s1_price))
                 
                 s2_price = get_price_history(data, s2, max_lookback)
                 if RUN_KALMAN_FILTER:
