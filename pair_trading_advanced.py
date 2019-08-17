@@ -533,6 +533,7 @@ def choose_pairs(context, data):
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
 
+    context.num_remaining_pairs = context.num_pairs
     context.spread = np.ndarray((context.num_pairs, 0))
 
 def check_pair_status(context, data):
@@ -577,7 +578,7 @@ def check_pair_status(context, data):
                 summary += "\n\t\t\t" + str(val) + ": \t" + str(context.test_data[(s1,s2)][val]) + " " + end
             print (summary)
             context.top_yield_pairs.remove(pair)
-            #context.num_pairs = context.num_pairs - 1
+            context.num_remaining_pairs = context.num_remaining_pairs - 1
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
             continue
@@ -627,8 +628,8 @@ def check_pair_status(context, data):
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
@@ -643,8 +644,8 @@ def check_pair_status(context, data):
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
