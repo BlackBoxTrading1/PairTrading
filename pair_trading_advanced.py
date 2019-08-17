@@ -16,7 +16,6 @@ import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
 
-
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
@@ -55,8 +54,7 @@ RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
 RUN_LJUNGBOX_TEST         = False
 
-# Rank pairs by (select key): 'cointegration', 'adf p-value', 'correlation', 
-#                            'half-life', 'hurst h-value', 'sw p-value'
+#Ranking metric: select key from TEST_PARAMS
 RANK_BY         = 'hurst h-value'
 DESIRED_PVALUE  = 0.01
 TEST_PARAMS     = { #Used when choosing pairs
@@ -104,9 +102,8 @@ def initialize(context):
     context.top_yield_pairs = []
     context.universe_set = False
 
-    context.coint_data = {}
-    context.coint_pairs = {}
-    context.real_yield_keys = []
+    context.test_data = {}
+    context.passing_pairs = {}
     context.pair_status = {}
     context.total_stock_list = []
     context.universe_pool = []
@@ -138,20 +135,11 @@ def initialize(context):
                                                                                                    minutes=1))
     else:
         schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
-    # hrs = [3,6]
-    # for hours_offset in hr:  
-    #     schedule_function(  
-    #         check_pair_status,  
-    #         date_rules.every_day(),  
-    #         time_rules.market_open(hours=hours_offset, minutes=10),  
-    #         half_days = True)
-    
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
-    context.coint_data = {}
-    context.coint_pairs = {}
-    context.real_yield_keys = []
+    context.test_data = {}
+    context.passing_pairs = {}
     context.top_yield_pairs = []
     context.total_stock_list = []
 
@@ -163,7 +151,7 @@ def empty_target_weights(context):
 
 def get_stock_partner(context, stock):
     partner = 0
-    for pair in context.coint_pairs.keys():
+    for pair in context.passing_pairs.keys():
         if stock == pair[0]:
             partner = pair[1]
         elif stock == pair[1]:
@@ -282,7 +270,7 @@ def run_test(test, value, loose_screens):
 def passed_all_tests(context, data, s1, s2, loose_screens=False):
     context.spreads = {}
     context.spread_lookbacks = []
-    context.coint_data[(s1,s2)] = {}
+    context.test_data[(s1,s2)] = {}
     
     if RUN_CORRELATION_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Correlation']['run']):
@@ -293,7 +281,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 corr = s1_price.corr(s2_price)
             except:
                 corr = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Correlation']['key']] = corr
+            context.test_data[(s1,s2)][TEST_PARAMS['Correlation']['key']] = corr
             if not run_test('Correlation', corr, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -306,7 +294,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 coint = get_cointegration(s1_price,s2_price)
             except:
                 coint = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
+            context.test_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
             if not run_test('Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                          or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -321,7 +309,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 adf = get_adf_pvalue(spreads)
             except:
                 adf = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['ADFuller']['key']] = adf
+            context.test_data[(s1,s2)][TEST_PARAMS['ADFuller']['key']] = adf
             if not run_test('ADFuller', adf, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -335,7 +323,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 hurst = get_hurst_hvalue(spreads)
             except:
                 hurst = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
+            context.test_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
             if not run_test('Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -349,7 +337,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 hl = get_half_life(spreads)
             except:
                 hl = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
+            context.test_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
             if not run_test('Half-life', hl, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -363,7 +351,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 sw = get_shapiro_pvalue(spreads)
             except:
                 sw = 'N/A'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
+            context.test_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
             if not run_test('Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -377,7 +365,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 lb = get_ljung_pvalue(spreads)
             except:
                 lb = 'N'
-            context.coint_data[(s1,s2)][TEST_PARAMS['Ljung-Box']['key']] = lb
+            context.test_data[(s1,s2)][TEST_PARAMS['Ljung-Box']['key']] = lb
             if not run_test('Ljung-Box', lb, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
@@ -405,36 +393,36 @@ def sample_comparison_test(context, data):
     for pair in SAMPLE_UNIVERSE:
         context.universe_pool = context.universe_pool.append(pd.Index([pair[0], pair[1]]))
         if passed_all_tests(context, data, pair[0], pair[1]):
-            context.coint_pairs[(pair[0],pair[1])] = context.coint_data[(pair[0],pair[1])]
+            context.passing_pairs[(pair[0],pair[1])] = context.test_data[(pair[0],pair[1])]
         if passed_all_tests(context, data, pair[1], pair[0]):
-            context.coint_pairs[(pair[1],pair[0])] = context.coint_data[(pair[1],pair[0])]
+            context.passing_pairs[(pair[1],pair[0])] = context.test_data[(pair[1],pair[0])]
 
     context.target_weights = get_current_portfolio_weights(context, data)
     rev = (RANK_BY == 'corr')
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
+    passing_pair_keys = sorted(context.passing_pairs, key=lambda kv: context.passing_pairs[kv][RANK_BY],
                                      reverse=rev)
-    temp_real_yield_keys = context.real_yield_keys
+    temp_real_yield_keys = passing_pair_keys
     if TEST_SAMPLE_PAIRS:
         for pair in temp_real_yield_keys:
             if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
-                context.real_yield_keys.remove(pair)
-                del context.coint_pairs[pair]
+                passing_pair_keys.remove(pair)
+                del context.passing_pairs[pair]
             else:
                 context.total_stock_list.append(pair[0])
                 context.total_stock_list.append(pair[1])
 
 
     #select top num_pairs pairs
-    if (context.num_pairs > len(context.real_yield_keys)):
-        context.num_pairs = len(context.real_yield_keys)
+    if (context.num_pairs > len(passing_pair_keys)):
+        context.num_pairs = len(passing_pair_keys)
     if not TEST_SAMPLE_PAIRS:
         context.num_pairs = len(SAMPLE_UNIVERSE)
-        context.real_yield_keys = SAMPLE_UNIVERSE
+        passing_pair_keys = SAMPLE_UNIVERSE
     for i in range(context.num_pairs):
-        context.top_yield_pairs.append(context.real_yield_keys[i])
-        report = "TOP PAIR "+str(i+1)+": "+str(context.real_yield_keys[i])
-        for test in context.coint_pairs[context.real_yield_keys[i]]:
-            report += "\n\t\t\t" + str(test) + ": \t" + str(context.coint_pairs[context.real_yield_keys[i]][test])
+        context.top_yield_pairs.append(passing_pair_keys[i])
+        report = "TOP PAIR "+str(i+1)+": "+str(passing_pair_keys[i])
+        for test in context.passing_pairs[passing_pair_keys[i]]:
+            report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
 
     for pair in context.top_yield_pairs:
@@ -505,40 +493,39 @@ def choose_pairs(context, data):
 
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
-                    context.coint_pairs[(s1,s2)] = context.coint_data[(s1,s2)]
+                    context.passing_pairs[(s1,s2)] = context.test_data[(s1,s2)]
                 context.curr_price_history = (s2_price, s1_price)
                 if passed_all_tests(context, data, s2, s1):
-                    context.coint_pairs[(s2,s1)] = context.coint_data[(s2,s1)]
+                    context.passing_pairs[(s2,s1)] = context.test_data[(s2,s1)]
     #sort pairs from highest to lowest cointegrations
     rev = (RANK_BY == 'correlation')
-    context.real_yield_keys = sorted(context.coint_pairs, key=lambda kv: context.coint_pairs[kv][RANK_BY],
+    passing_pair_keys = sorted(context.passing_pairs, key=lambda kv: context.passing_pairs[kv][RANK_BY],
                                      reverse=rev)
-    #print (context.real_yield_keys)
     temp_real_yield_keys = []
-    for k in context.real_yield_keys:
+    for k in passing_pair_keys:
         temp_real_yield_keys.append(k)
     #print (temp_real_yield_keys)
     for pair in temp_real_yield_keys:
         if (pair[0] in context.total_stock_list) or (pair[1] in context.total_stock_list):
-            context.real_yield_keys.remove(pair)
-            del context.coint_pairs[pair]
+            passing_pair_keys.remove(pair)
+            del context.passing_pairs[pair]
         else:
             context.total_stock_list.append(pair[0])
             context.total_stock_list.append(pair[1])
 
     #select top num_pairs pairs
-    if (context.num_pairs > len(context.real_yield_keys)):
-        context.num_pairs = len(context.real_yield_keys)
+    if (context.num_pairs > len(passing_pair_keys)):
+        context.num_pairs = len(passing_pair_keys)
     print ("Pairs found: " + str(context.num_pairs))
     for i in range(context.num_pairs):
-        context.top_yield_pairs.append(context.real_yield_keys[i])
+        context.top_yield_pairs.append(passing_pair_keys[i])
         u_code = 0
         for code in context.codes:
-            if context.real_yield_keys[i][0] in context.universes[code]['universe']:
+            if passing_pair_keys[i][0] in context.universes[code]['universe']:
                 u_code = code
-        report = "TOP PAIR "+str(i+1)+": "+str(context.real_yield_keys[i])+"\n\t\t\tsector: \t"+str(u_code)
-        for test in context.coint_pairs[context.real_yield_keys[i]]:
-            report += "\n\t\t\t" + str(test) + ": \t" + str(context.coint_pairs[context.real_yield_keys[i]][test])
+        report = "TOP PAIR "+str(i+1)+": "+str(passing_pair_keys[i])+"\n\t\t\tsector: \t"+str(u_code)
+        for test in context.passing_pairs[passing_pair_keys[i]]:
+            report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
 
     for pair in context.top_yield_pairs:
@@ -546,6 +533,7 @@ def choose_pairs(context, data):
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
 
+    context.num_remaining_pairs = context.num_pairs
     context.spread = np.ndarray((context.num_pairs, 0))
 
 def check_pair_status(context, data):
@@ -553,12 +541,11 @@ def check_pair_status(context, data):
         return
     
     new_spreads = np.ndarray((context.num_pairs, 1))
-    numPairs = context.num_pairs
     temp_top_pairs = []
     for pair in context.top_yield_pairs:
         temp_top_pairs.append(pair)
     
-    for i in range(numPairs):
+    for i in range(context.num_pairs):
         if (len(temp_top_pairs) == 0):
             context.curr_month = get_datetime('US/Eastern').month + 1
             context.universe_set = False
@@ -580,18 +567,18 @@ def check_pair_status(context, data):
         context.curr_price_history = (s1_price_test, s2_price_test)
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
             summary = "Closing " + str((s1,s2)) + "\n\t\t\tSummary below:"
-            for val in context.coint_data[(s1,s2)].keys():
+            for val in context.test_data[(s1,s2)].keys():
                 end = ""
                 for t in TEST_PARAMS:
                     if (TEST_PARAMS[t]['key'] == val):
-                        if context.coint_data[(s1,s2)][val] > LOOSE_PARAMS[t]['max']:
+                        if context.test_data[(s1,s2)][val] > LOOSE_PARAMS[t]['max']:
                             end = "> " + str(LOOSE_PARAMS[t]['max']) + " --> FAILED"
-                        elif context.coint_data[(s1,s2)][val] < LOOSE_PARAMS[t]['min']:
+                        elif context.test_data[(s1,s2)][val] < LOOSE_PARAMS[t]['min']:
                             end = "< " + str(LOOSE_PARAMS[t]['min']) + " --> FAILED"
-                summary += "\n\t\t\t" + str(val) + ": \t" + str(context.coint_data[(s1,s2)][val]) + " " + end
+                summary += "\n\t\t\t" + str(val) + ": \t" + str(context.test_data[(s1,s2)][val]) + " " + end
             print (summary)
             context.top_yield_pairs.remove(pair)
-            #context.num_pairs = context.num_pairs - 1
+            context.num_remaining_pairs = context.num_remaining_pairs - 1
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
             continue
@@ -641,8 +628,8 @@ def check_pair_status(context, data):
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
@@ -657,8 +644,8 @@ def check_pair_status(context, data):
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_pairs)
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
