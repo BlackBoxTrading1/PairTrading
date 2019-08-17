@@ -15,6 +15,7 @@ import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
+from pykalman import KalmanFilter
 
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
@@ -37,6 +38,7 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
 
 # REAL_UNIVERSE = [30947102, 31169147]
 REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
+# REAL_UNIVERSE = [10320051]
 
 # REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
 #                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
@@ -46,6 +48,7 @@ RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
+RUN_KALMAN_FILTER         = False
 RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
@@ -56,7 +59,7 @@ RUN_LJUNGBOX_TEST         = False
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY         = 'hurst h-value'
-DESIRED_PVALUE  = 0.01
+DESIRED_PVALUE  = 0.05
 TEST_PARAMS     = { #Used when choosing pairs
             'Correlation':      {'lookback': 730, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
@@ -67,14 +70,15 @@ TEST_PARAMS     = { #Used when choosing pairs
             'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
                   }
+LOOSE_PVALUE    = 0.05
 LOOSE_PARAMS    = { #Used when checking pair quality
-            'Correlation':      {'min': 0.95, 'max': 1.00, 'run': False},
-            'Cointegration':    {'min': 0.00, 'max': 0.05, 'run': True },
-            'ADFuller':         {'min': 0.00, 'max': 0.05, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.50, 'run': True },
-            'Half-life':        {'min': 0,    'max': 100,  'run': False},
-            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00, 'run': False},
-            'Ljung-Box':        {'min': 0.00, 'max': 1.00, 'run': False}
+            'Correlation':      {'min': 0.95, 'max': 1.00,         'run': False},
+            'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True },
+            'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
+            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False},
+            'Half-life':        {'min': 0,    'max': 100,          'run': False},
+            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': False},
+            'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
                   }
 
 def initialize(context):
@@ -213,7 +217,7 @@ def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
 
 def get_spreads(data, s1_price, s2_price, length):
     try:
-        hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
+        hedge = hedge_ratio(s1_price, s2_price, add_const=True)
     except ValueError as e:
         log.debug(e)
         return
@@ -324,7 +328,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 hurst = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
-            if not run_test('Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS 
+            if not run_test('Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_HALF_LIFE_TEST:
@@ -489,7 +493,33 @@ def choose_pairs(context, data):
                 s2 = context.universes[code]['universe'][j]
 
                 s1_price = get_price_history(data, s1, max_lookback)
+                if RUN_KALMAN_FILTER:
+                    temp_s1 = s1_price.values
+                    if (i == 0 and j == 1):
+                        print(s1_price.values)
+                    kf_s1 = KalmanFilter(transition_matrices = [1],
+                                      observation_matrices = [1],
+                                      initial_state_mean = s1_price.values[0],
+                                      initial_state_covariance = 1,
+                                      observation_covariance=1,
+                                      transition_covariance=.01)
+
+                    s1_price,_ = kf_s1.filter(s1_price.values)
+                    s1_price = s1_price.flatten()
+                    if (i == 0 and j == 1):
+                        print(s1_price)
+                        print (np.corrcoef(temp_s1, s1_price))
+                
                 s2_price = get_price_history(data, s2, max_lookback)
+                if RUN_KALMAN_FILTER:
+                    kf_s2 = KalmanFilter(transition_matrices = [1],
+                                      observation_matrices = [1],
+                                      initial_state_mean = s2_price.values[0],
+                                      initial_state_covariance = 1,
+                                      observation_covariance=1,
+                                      transition_covariance=.01)
+                    s2_price,_ = kf_s2.filter(s2_price.values)
+                    s2_price = s2_price.flatten()
 
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
@@ -547,7 +577,8 @@ def check_pair_status(context, data):
     
     for i in range(context.num_pairs):
         if (len(temp_top_pairs) == 0):
-            context.curr_month = get_datetime('US/Eastern').month + 1
+            month = get_datetime('US/Eastern').month
+            context.curr_month = month + 1 - 12*(month == 12)
             context.universe_set = False
             break
         elif (i == len(temp_top_pairs)):
