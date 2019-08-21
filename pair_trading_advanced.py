@@ -20,12 +20,12 @@ from pykalman import KalmanFilter
 COMMISSION         = 0.005
 LEVERAGE           = 1.0
 MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 5
+INTERVAL           = 3
 DESIRED_PAIRS      = 2
 HEDGE_LOOKBACK     = 20 # used for regression
 Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY              = 1.5
-EXIT               = 0.2
+EXIT               = 0.1
 RECORD_LEVERAGE    = True
 
 SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
@@ -37,8 +37,8 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('COP'), symbol('CVX'))]
 
 # REAL_UNIVERSE = [30947102, 31169147]
-REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
-# REAL_UNIVERSE = [10320051]
+# REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
+REAL_UNIVERSE = [10320051, 10209017, 10209019, 10209020]
 
 # REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
 #                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
@@ -48,7 +48,7 @@ RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
-RUN_KALMAN_FILTER         = False
+RUN_KALMAN_FILTER         = True
 RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
@@ -59,25 +59,25 @@ RUN_LJUNGBOX_TEST         = False
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY         = 'hurst h-value'
-DESIRED_PVALUE  = 0.05
+DESIRED_PVALUE  = 0.01
 TEST_PARAMS     = { #Used when choosing pairs
-            'Correlation':      {'lookback': 730, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
-            'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
-            'ADFuller':         {'lookback': 63,  'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 126, 'min': 15,   'max': 35,             'key': 'half-life'    },
-            'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
-            'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
+            'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
+            'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
+            'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': 0.05,           'key': 'adf p-value'  },
+            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
+            'Half-life':        {'lookback': 365, 'min': 0,    'max': 99,             'key': 'half-life'    },
+            'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
+            'Ljung-Box':        {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
                   }
-LOOSE_PVALUE    = 0.05
+LOOSE_PVALUE    = 0.10
 LOOSE_PARAMS    = { #Used when checking pair quality
             'Correlation':      {'min': 0.95, 'max': 1.00,         'run': False},
-            'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True },
+            'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False},
-            'Half-life':        {'min': 0,    'max': 100,          'run': False},
-            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': False},
+            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': True },
+            'Half-life':        {'min': 0,    'max': 100,          'run': True },
+            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': True },
             'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
                   }
 
