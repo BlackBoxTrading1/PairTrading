@@ -48,7 +48,7 @@ RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
-RUN_KALMAN_FILTER         = False
+RUN_KALMAN_FILTER         = True
 RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
@@ -65,7 +65,7 @@ TEST_PARAMS     = { #Used when choosing pairs
             'Cointegration':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 63,  'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
             'Hurst':            {'lookback': 126, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 126, 'min': 15,   'max': 35,             'key': 'half-life'    },
+            'Half-life':        {'lookback': 126, 'min': 0,    'max': 999,             'key': 'half-life'   },
             'Shapiro-Wilke':    {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'Ljung-Box':        {'lookback': 730, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
@@ -73,7 +73,7 @@ TEST_PARAMS     = { #Used when choosing pairs
 LOOSE_PVALUE    = 0.05
 LOOSE_PARAMS    = { #Used when checking pair quality
             'Correlation':      {'min': 0.95, 'max': 1.00,         'run': False},
-            'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True },
+            'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False },
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False},
             'Half-life':        {'min': 0,    'max': 100,          'run': False},
@@ -116,6 +116,7 @@ def initialize(context):
 
     context.curr_month = -1
     
+    context.price_histories = {}
     context.curr_price_history = ()
     context.spreads = {}
     context.spread_lookbacks = []
@@ -144,6 +145,7 @@ def initialize(context):
 def empty_data(context):
     context.test_data = {}
     context.passing_pairs = {}
+    context.price_histories = {}
     context.top_yield_pairs = []
     context.total_stock_list = []
 
@@ -477,43 +479,34 @@ def choose_pairs(context, data):
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
-    
     #context.spread = np.ndarray((context.num_pairs, 0))
     
     max_lookback = 0
     for test in TEST_PARAMS:
         if TEST_PARAMS[test]['lookback'] > max_lookback:
             max_lookback = TEST_PARAMS[test]['lookback']
+    
+    for i in range(total):
+        price_history = get_price_history(data, context.universe_pool[i], max_lookback)
+        if RUN_KALMAN_FILTER:
+            kf_stock = KalmanFilter(transition_matrices = [1],
+                                 observation_matrices = [1],
+                                 initial_state_mean = price_history.values[0],
+                                 initial_state_covariance = 1,
+                                 observation_covariance=1,
+                                 transition_covariance=.01)
 
+            price_history,_ = kf_stock.filter(price_history.values)
+            price_history = price_history.flatten()
+        context.price_histories[context.universe_pool[i]] = price_history
     #SCREENING
     for code in context.codes:
         for i in range (context.universes[code]['size']):
             for j in range (i+1, context.universes[code]['size']):
                 s1 = context.universes[code]['universe'][i]
                 s2 = context.universes[code]['universe'][j]
-
-                s1_price = get_price_history(data, s1, max_lookback)
-                if RUN_KALMAN_FILTER:
-                    kf_s1 = KalmanFilter(transition_matrices = [1],
-                                      observation_matrices = [1],
-                                      initial_state_mean = s1_price.values[0],
-                                      initial_state_covariance = 1,
-                                      observation_covariance=1,
-                                      transition_covariance=.01)
-
-                    s1_price,_ = kf_s1.filter(s1_price.values)
-                    s1_price = s1_price.flatten()
-                
-                s2_price = get_price_history(data, s2, max_lookback)
-                if RUN_KALMAN_FILTER:
-                    kf_s2 = KalmanFilter(transition_matrices = [1],
-                                      observation_matrices = [1],
-                                      initial_state_mean = s2_price.values[0],
-                                      initial_state_covariance = 1,
-                                      observation_covariance=1,
-                                      transition_covariance=.01)
-                    s2_price,_ = kf_s2.filter(s2_price.values)
-                    s2_price = s2_price.flatten()
+                s1_price = context.price_histories[s1]
+                s2_price = context.price_histories[s2]
 
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
