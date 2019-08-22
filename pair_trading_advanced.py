@@ -474,7 +474,8 @@ def choose_pairs(context, data):
       for i in range (size+1):
         comps+=i
     comps = comps*2
-    print ("CHOOSING " + str(context.num_pairs) +" PAIRS...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
+    print ("CHOOSING " + str(context.num_pairs) +" PAIRS" + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
+           "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
            + "\nProcessed pairs: " + str(comps))
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
@@ -490,11 +491,11 @@ def choose_pairs(context, data):
         price_history = get_price_history(data, context.universe_pool[i], max_lookback)
         if RUN_KALMAN_FILTER:
             kf_stock = KalmanFilter(transition_matrices = [1],
-                                 observation_matrices = [1],
-                                 initial_state_mean = price_history.values[0],
-                                 initial_state_covariance = 1,
-                                 observation_covariance=1,
-                                 transition_covariance=.01)
+                                    observation_matrices = [1],
+                                    initial_state_mean = price_history.values[0],
+                                    initial_state_covariance = 1,
+                                    observation_covariance=1,
+                                    transition_covariance=.05)
 
             price_history,_ = kf_stock.filter(price_history.values)
             price_history = price_history.flatten()
