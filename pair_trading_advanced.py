@@ -36,13 +36,13 @@ SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
                       (symbol('AON'), symbol('MMC')),
                       (symbol('COP'), symbol('CVX'))]
 
-# REAL_UNIVERSE = [30947102, 31169147]
+REAL_UNIVERSE = [30947102, 31169147]
 # REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131]
-REAL_UNIVERSE = [10320051, 10209017, 10209019, 10209020]
+# REAL_UNIVERSE = [10320051, 10209017, 10209019, 10209020]
 
-# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 
-#                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-#                  31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103,
+#                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068,
+#                  31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143] 
 
 
 RUN_SAMPLE_PAIRS   = False
@@ -55,18 +55,18 @@ RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
-RUN_SHAPIROWILKE_TEST     = True
+RUN_SHAPIROWILKE_TEST     = False
 RUN_LJUNGBOX_TEST         = False
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY         = 'hurst h-value'
-DESIRED_PVALUE  = 0.01
+DESIRED_PVALUE  = 0.01/3
 TEST_PARAMS     = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
-            'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': 0.05,           'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 365, 'min': 0,    'max': 99,             'key': 'half-life'    },
+            'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
+            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.25,           'key': 'hurst h-value'},
+            'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'Ljung-Box':        {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
@@ -76,7 +76,7 @@ LOOSE_PARAMS    = { #Used when checking pair quality
             'Correlation':      {'min': 0.95, 'max': 1.00,         'run': False},
             'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': True },
+            'Hurst':            {'min': 0.00, 'max': 0.49,         'run': True },
             'Half-life':        {'min': 0,    'max': 100,          'run': True },
             'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': True },
             'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
