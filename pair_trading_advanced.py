@@ -44,6 +44,7 @@ REAL_UNIVERSE = [10320051, 10209017, 10209019, 10209020]
 #                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
 #                  31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
 
+
 RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
@@ -105,6 +106,7 @@ def initialize(context):
     context.num_pairs = DESIRED_PAIRS
     context.top_yield_pairs = []
     context.universe_set = False
+    context.pairs_chosen = False
 
     context.test_data = {}
     context.passing_pairs = {}
@@ -126,7 +128,7 @@ def initialize(context):
     
     if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf p-value') 
         or (not RUN_HURST_TEST and RANK_BY == 'hurst h-value')
-        or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life') 
+        or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life')
         or (not RUN_SHAPIROWILKE_TEST and RANK_BY == 'sw p-value')
         or (not RUN_CORRELATION_TEST and RANK_BY == 'correlation')
         or (not RUN_COINTEGRATION_TEST and RANK_BY == 'cointegration')):
@@ -139,7 +141,8 @@ def initialize(context):
         schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0,
                                                                                                    minutes=1))
     else:
-        schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+        schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=30))
+    schedule_function(set_universe, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
@@ -301,7 +304,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 coint = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
-            if not run_test('Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS 
+            if not run_test('Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                          or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
 
@@ -438,8 +441,8 @@ def sample_comparison_test(context, data):
     context.universe_set = True
     context.spread = np.ndarray((context.num_pairs, 0))
 #*************************************************************************************************************
-
-def choose_pairs(context, data):
+    
+def set_universe(context, data):
     this_month = get_datetime('US/Eastern').month 
     if context.curr_month < 0:
         context.curr_month = this_month
@@ -448,7 +451,6 @@ def choose_pairs(context, data):
         return
     context.curr_month = context.next_month
     
-    #context.num_pairs = DESIRED_PAIRS
     context.num_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
     context.num_pairs = int(round(context.num_pairs))
     
@@ -466,7 +468,7 @@ def choose_pairs(context, data):
             context.universe_set = True
         size_str = size_str + " " + str(context.universes[code]['size'])
         usizes.append(context.universes[code]['size'])
-    #usizes = [100]
+        
     comps = 0
     total = 0
     for size in usizes:
@@ -474,13 +476,12 @@ def choose_pairs(context, data):
       for i in range (size+1):
         comps+=i
     comps = comps*2
-    print ("CHOOSING " + str(context.num_pairs) +" PAIRS" + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
+    print ("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
            "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
            + "\nProcessed pairs: " + str(comps))
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
-    #context.spread = np.ndarray((context.num_pairs, 0))
     
     max_lookback = 0
     for test in TEST_PARAMS:
@@ -499,8 +500,14 @@ def choose_pairs(context, data):
 
             price_history,_ = kf_stock.filter(price_history.values)
             price_history = price_history.flatten()
-        context.price_histories[context.universe_pool[i]] = price_history
-    #SCREENING
+        context.price_histories[context.universe_pool[i]] = price_history    
+    
+def choose_pairs(context, data):
+    if not context.universe_set:
+        return
+    context.universe_set = False
+
+    print ("CHOOSING " + str(context.num_pairs) + " PAIRS")
     for code in context.codes:
         for i in range (context.universes[code]['size']):
             for j in range (i+1, context.universes[code]['size']):
@@ -545,6 +552,7 @@ def choose_pairs(context, data):
         for test in context.passing_pairs[passing_pair_keys[i]]:
             report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
+    context.pairs_chosen = True
 
     for pair in context.top_yield_pairs:
         context.pair_status[pair] = {}
@@ -555,7 +563,7 @@ def choose_pairs(context, data):
     context.spread = np.ndarray((context.num_pairs, 0))
 
 def check_pair_status(context, data):
-    if (not context.universe_set):
+    if (not context.pairs_chosen):
         return
     
     new_spreads = np.ndarray((context.num_pairs, 1))
@@ -568,6 +576,7 @@ def check_pair_status(context, data):
             month = get_datetime('US/Eastern').month
             context.curr_month = month + 1 - 12*(month == 12)
             context.universe_set = False
+            context.pairs_chosen = False
             break
         elif (i == len(temp_top_pairs)):
             break
