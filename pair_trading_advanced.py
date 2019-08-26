@@ -49,7 +49,6 @@ RUN_SAMPLE_PAIRS   = False
 TEST_SAMPLE_PAIRS  = False
 
 #Choose tests
-RUN_KALMAN_FILTER         = True
 RUN_CORRELATION_TEST      = False
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
@@ -58,9 +57,13 @@ RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = False
 RUN_LJUNGBOX_TEST         = False
 
+RUN_BONFERRONI_CORRECTION = False
+RUN_KALMAN_FILTER         = True
+
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY         = 'hurst h-value'
-DESIRED_PVALUE  = 0.01/3
+DESIRED_PVALUE  = 0.01
+PVALUE_TESTS = ['Cointegration','ADFuller','Shapiro-Wilke']
 TEST_PARAMS     = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
@@ -90,6 +93,7 @@ def initialize(context):
     context.industry_code = ms.asset_classification.morningstar_industry_code.latest
     context.codes = REAL_UNIVERSE
     context.num_universes = len(context.codes)
+    context.num_pvalue_tests = len(PVALUE_TESTS)
     context.universes = {}
 
     context.initial_portfolio_value = context.portfolio.portfolio_value
@@ -271,10 +275,15 @@ def get_ljung_pvalue(spreads):
             count += 1
     return (count / 40.0)
 
-def run_test(test, value, loose_screens):
-    if loose_screens:  
-        return (value != 'N/A' and value >= LOOSE_PARAMS[test]['min'] and value <= LOOSE_PARAMS[test]['max'])
-    return (value != 'N/A' and value >= TEST_PARAMS[test]['min'] and value <= TEST_PARAMS[test]['max'])
+def run_test(context, test, value, loose_screens):
+    upper_bound = TEST_PARAMS[test]['max']
+    if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
+        upper_bound /= context.num_pvalue_tests
+    lower_bound = TEST_PARAMS[test]['min']
+    if loose_screens:
+        upper_bound = LOOSE_PARAMS[test]['max']
+        lower_bound = LOOSE_PARAMS[test]['min']
+    return (value != 'N/A' and value >= lower_bound and value <= upper_bound)
 
 def passed_all_tests(context, data, s1, s2, loose_screens=False):
     context.spreads = {}
@@ -291,7 +300,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 corr = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Correlation']['key']] = corr
-            if not run_test('Correlation', corr, loose_screens) and (not RUN_SAMPLE_PAIRS
+            if not run_test(context, 'Correlation', corr, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_COINTEGRATION_TEST:
@@ -304,7 +313,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 coint = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
-            if not run_test('Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS
+            if not run_test(context, 'Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                          or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
 
@@ -319,7 +328,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 adf = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['ADFuller']['key']] = adf
-            if not run_test('ADFuller', adf, loose_screens) and (not RUN_SAMPLE_PAIRS 
+            if not run_test(context, 'ADFuller', adf, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_HURST_TEST:
@@ -333,7 +342,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 hurst = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
-            if not run_test('Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS
+            if not run_test(context, 'Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_HALF_LIFE_TEST:
@@ -347,7 +356,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 hl = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
-            if not run_test('Half-life', hl, loose_screens) and (not RUN_SAMPLE_PAIRS 
+            if not run_test(context, 'Half-life', hl, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_SHAPIROWILKE_TEST:
@@ -361,7 +370,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 sw = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
-            if not run_test('Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
+            if not run_test(context, 'Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     if RUN_LJUNGBOX_TEST:
@@ -375,7 +384,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             except:
                 lb = 'N'
             context.test_data[(s1,s2)][TEST_PARAMS['Ljung-Box']['key']] = lb
-            if not run_test('Ljung-Box', lb, loose_screens) and (not RUN_SAMPLE_PAIRS
+            if not run_test(context, 'Ljung-Box', lb, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
     return True
