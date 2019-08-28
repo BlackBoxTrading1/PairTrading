@@ -54,8 +54,8 @@ RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = False
-RUN_KPSS_TEST             = False
-RUN_LJUNGBOX_TEST         = False
+RUN_KPSS_TEST             = False # NOT WORKING
+RUN_LJUNGBOX_TEST         = False # NOT WORKING
 
 RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
@@ -685,6 +685,8 @@ def check_pair_status(context, data):
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
 
+                
+                
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
