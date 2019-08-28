@@ -55,6 +55,7 @@ RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = False
+RUN_KPSS_TEST             = False
 RUN_LJUNGBOX_TEST         = False
 
 RUN_BONFERRONI_CORRECTION = False
@@ -71,6 +72,7 @@ TEST_PARAMS     = { #Used when choosing pairs
             'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.25,           'key': 'hurst h-value'},
             'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
+            'KPSS':             {'lookback': 365, 'min': 0.05, 'max': 1.00,           'key': 'kpss p-value' },
             'Ljung-Box':        {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
                   }
@@ -82,6 +84,7 @@ LOOSE_PARAMS    = { #Used when checking pair quality
             'Hurst':            {'min': 0.00, 'max': 0.49,         'run': True },
             'Half-life':        {'min': 0,    'max': 100,          'run': True },
             'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': True },
+            'KPSS':             {'min': 0.05, 'max': 1.00,         'run': False},
             'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
                   }
 
@@ -268,6 +271,10 @@ def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
     return p
 
+def get_kpss_pvalue(spreads):
+    kpss_stat, pvalue, lags, crit, resstore = sm.kpss(spreads)
+    return pvalue
+
 def get_ljung_pvalue(spreads):
     count = 0
     for p in sd.acorr_ljungbox(spreads)[1]:
@@ -373,6 +380,20 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
+    if RUN_KPSS_TEST:
+        if not loose_screens or (loose_screens and LOOSE_PARAMS['KPSS']['run']):
+            lookback = TEST_PARAMS['KPSS']['lookback']
+            s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+            spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+            kp = 'N/A'
+            try:
+                kp = get_kpss_pvalue(spreads)
+            except:
+                kp = 'N/A'
+            context.test_data[(s1,s2)][TEST_PARAMS['KPSS']['key']] = kp
+            if not run_test(context, 'KPSS', kp, loose_screens) and (not RUN_SAMPLE_PAIRS
+                                                      or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
+                return False
     if RUN_LJUNGBOX_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Ljung-Box']['run']):
             lookback = TEST_PARAMS['Ljung-Box']['lookback']
@@ -382,7 +403,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             try:
                 lb = get_ljung_pvalue(spreads)
             except:
-                lb = 'N'
+                lb = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Ljung-Box']['key']] = lb
             if not run_test(context, 'Ljung-Box', lb, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
