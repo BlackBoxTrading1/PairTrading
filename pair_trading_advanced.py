@@ -17,35 +17,39 @@ from scipy.stats import shapiro
 import math
 from pykalman import KalmanFilter
 
-COMMISSION         = 0.005
-LEVERAGE           = 1.0
-MAX_GROSS_EXPOSURE = LEVERAGE
-INTERVAL           = 3
-DESIRED_PAIRS      = 2
-HEDGE_LOOKBACK     = 20 # used for regression
-Z_WINDOW           = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
-ENTRY              = 1.5
-EXIT               = 0.1
-RECORD_LEVERAGE    = True
+COMMISSION             = 0.005
+LEVERAGE               = 1.0
+MAX_GROSS_EXPOSURE     = LEVERAGE
+INTERVAL               = 3
+DESIRED_PAIRS          = 2
+MAX_PROCESSABLE_PAIRS  = 12000
+HEDGE_LOOKBACK         = 20 # used for regression
+Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
+ENTRY                  = 1.5
+EXIT                   = 0.1
+RECORD_LEVERAGE        = True
 
-SAMPLE_UNIVERSE    = [(symbol('STX'), symbol('WDC')),
-                      (symbol('CBI'), symbol('JEC')),
-                      (symbol('MAS'), symbol('VMC')),
-                      (symbol('XOM'), symbol('CVX')),
-                      (symbol('JPM'), symbol('C')),
-                      (symbol('AON'), symbol('MMC')),
-                      (symbol('COP'), symbol('CVX'))]
+SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
+                             (symbol('CBI'), symbol('JEC')),
+                             (symbol('MAS'), symbol('VMC')),
+                             (symbol('XOM'), symbol('CVX')),
+                             (symbol('JPM'), symbol('C')),
+                             (symbol('AON'), symbol('MMC')),
+                             (symbol('COP'), symbol('CVX'))]
 
-# REAL_UNIVERSE = [30947102, 31169147]
-REAL_UNIVERSE = [10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147]
+# REAL_UNIVERSE             = [30947102, 31169147]
+REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147]
 
-# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103,
-#                  30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-#                  31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143]
+# REAL_UNIVERSE             = [
+#                              10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103,
+#                              30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
+#                              31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
+#                              10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147
+#                             ]
 
 
-RUN_SAMPLE_PAIRS   = False
-TEST_SAMPLE_PAIRS  = False
+RUN_SAMPLE_PAIRS          = False
+TEST_SAMPLE_PAIRS         = False
 
 #Choose tests
 RUN_CORRELATION_TEST      = False
@@ -61,10 +65,10 @@ RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY         = 'hurst h-value'
-DESIRED_PVALUE  = 0.01
-PVALUE_TESTS = ['Cointegration','ADFuller','Shapiro-Wilke']
-TEST_PARAMS     = { #Used when choosing pairs
+RANK_BY                   = 'hurst h-value'
+DESIRED_PVALUE            = 0.01
+PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
+TEST_PARAMS               = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
@@ -74,9 +78,9 @@ TEST_PARAMS     = { #Used when choosing pairs
             'KPSS':             {'lookback': 365, 'min': 0.05, 'max': 1.00,           'key': 'kpss p-value' },
             'Ljung-Box':        {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'lb-pvalue'    }
 
-                  }
-LOOSE_PVALUE    = 0.10
-LOOSE_PARAMS    = { #Used when checking pair quality
+                             }
+LOOSE_PVALUE              = 0.10
+LOOSE_PARAMS              = { #Used when checking pair quality
             'Correlation':      {'min': 0.95, 'max': 1.00,         'run': False},
             'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
@@ -85,7 +89,7 @@ LOOSE_PARAMS    = { #Used when checking pair quality
             'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': True },
             'KPSS':             {'min': 0.05, 'max': 1.00,         'run': False},
             'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
-                  }
+                             }
 
 def initialize(context):
 
@@ -218,6 +222,25 @@ def get_current_portfolio_weights(context, data):
     #return current_weights.reindex(positions_index.union(context.universe), fill_value=0.0)
     return current_weights.reindex(positions_index.union(context.universe_pool), fill_value=0.0)
 
+def get_allocated_stocks(context, target_weights):
+    current_weights = []
+    for k in target_weights.keys():
+        if target_weights.loc[k] != 0:
+            current_weights.append(k)
+            partner = get_stock_partner(context, k)
+            if target_weights.loc[partner] == 0:
+                current_weights.append(partner)
+    return current_weights
+
+def scale_stock_to_leverage(context, stock, pair_weight):
+    partner = get_stock_partner(context, stock)
+    stock_weight = context.target_weights[stock]
+    partner_weight = context.target_weights[partner]
+    total = abs(stock_weight) + abs(partner_weight)
+    if total != LEVERAGE*pair_weight:
+        context.target_weights[stock] = LEVERAGE * pair_weight * stock_weight / total
+        context.target_weights[partner] = LEVERAGE * pair_weight * partner_weight / total
+
 def computeHoldingsPct(yShares, xShares, yPrice, xPrice):
     yDol = yShares * yPrice
     xDol = xShares * xPrice
@@ -309,6 +332,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'Correlation', corr, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
+            
     if RUN_COINTEGRATION_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Cointegration']['run']):
             lookback = TEST_PARAMS['Cointegration']['lookback']
@@ -322,7 +346,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'Cointegration', coint, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                          or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
-
+            
     if RUN_ADFULLER_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['ADFuller']['run']):
             lookback = TEST_PARAMS['ADFuller']['lookback']
@@ -337,6 +361,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'ADFuller', adf, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
+    
     if RUN_HURST_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Hurst']['run']):
             lookback = TEST_PARAMS['Hurst']['lookback']
@@ -350,7 +375,8 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
             if not run_test(context, 'Hurst', hurst, loose_screens) and (not RUN_SAMPLE_PAIRS
                                                  or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-                return False
+                return False 
+    
     if RUN_HALF_LIFE_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Half-life']['run']):
             lookback = TEST_PARAMS['Half-life']['lookback']
@@ -365,6 +391,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'Half-life', hl, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                   or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
                 return False
+    
     if RUN_SHAPIROWILKE_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Shapiro-Wilke']['run']):
             lookback = TEST_PARAMS['Shapiro-Wilke']['lookback']
@@ -378,7 +405,8 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
             if not run_test(context, 'Shapiro-Wilke', sw, loose_screens) and (not RUN_SAMPLE_PAIRS 
                                                       or (RUN_SAMPLE_PAIRS and TEST_SAMPLE_PAIRS)):
-                return False
+                return False       
+    
     if RUN_KPSS_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['KPSS']['run']):
             lookback = TEST_PARAMS['KPSS']['lookback']
@@ -505,18 +533,21 @@ def set_universe(context, data):
       for i in range (size+1):
         comps+=i
     comps = comps*2
+    valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS)
     print ("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
            "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
-           + "\nProcessed pairs: " + str(comps))
+           + "\nProcessed pairs: " + str(comps) + (" > " + str(MAX_PROCESSABLE_PAIRS)
+           + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps))
+
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']
-    
+
     max_lookback = 0
     for test in TEST_PARAMS:
         if TEST_PARAMS[test]['lookback'] > max_lookback:
             max_lookback = TEST_PARAMS[test]['lookback']
-    
+
     for i in range(total):
         price_history = get_price_history(data, context.universe_pool[i], max_lookback)
         if RUN_KALMAN_FILTER:
@@ -529,14 +560,16 @@ def set_universe(context, data):
 
             price_history,_ = kf_stock.filter(price_history.values)
             price_history = price_history.flatten()
-        context.price_histories[context.universe_pool[i]] = price_history    
-    
+        context.price_histories[context.universe_pool[i]] = price_history
+
 def choose_pairs(context, data):
     if not context.universe_set:
         return
     context.universe_set = False
 
     print ("CHOOSING " + str(context.num_pairs) + " PAIRS")
+
+    pair_counter = 0
     for code in context.codes:
         for i in range (context.universes[code]['size']):
             for j in range (i+1, context.universes[code]['size']):
@@ -545,12 +578,20 @@ def choose_pairs(context, data):
                 s1_price = context.price_histories[s1]
                 s2_price = context.price_histories[s2]
 
+                if pair_counter > MAX_PROCESSABLE_PAIRS:
+                    break
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
                     context.passing_pairs[(s1,s2)] = context.test_data[(s1,s2)]
+                pair_counter += 1
+
+                if pair_counter > MAX_PROCESSABLE_PAIRS:
+                    break
                 context.curr_price_history = (s2_price, s1_price)
                 if passed_all_tests(context, data, s2, s1):
                     context.passing_pairs[(s2,s1)] = context.test_data[(s2,s1)]
+                pair_counter += 1
+
     #sort pairs from highest to lowest cointegrations
     rev = (RANK_BY == 'correlation')
     passing_pair_keys = sorted(context.passing_pairs, key=lambda kv: context.passing_pairs[kv][RANK_BY],
@@ -644,7 +685,7 @@ def check_pair_status(context, data):
         s2_price = data.history(s2, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
 
         try:
-            hedge = hedge_ratio(s1_price, s2_price, add_const=True)      
+            hedge = hedge_ratio(s1_price, s2_price, add_const=True)
         except ValueError as e:
             log.debug(e)
             return
@@ -657,6 +698,15 @@ def check_pair_status(context, data):
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
             if context.pair_status[pair]['currently_short'] and zscore < EXIT:
+                stocks = get_allocated_stocks(context, context.target_weights)
+                n = float(len(stocks))
+                for stock in stocks:
+                    if stock != s1 and stock != s2:
+                        context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
+                for stock in stocks:
+                    if stock != s1 and stock != s2:
+                        scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
+                        
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -668,6 +718,15 @@ def check_pair_status(context, data):
                 return
 
             if context.pair_status[pair]['currently_long'] and zscore > -EXIT:
+                stocks = get_allocated_stocks(context, context.target_weights)
+                n = float(len(stocks))
+                for stock in stocks:
+                    if stock != s1 and stock != s2:
+                        context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
+                for stock in stocks:
+                    if stock != s1 and stock != s2:
+                        scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
+                        
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -684,11 +743,19 @@ def check_pair_status(context, data):
                 y_target_shares = 1
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-
                 
+                stocks = get_allocated_stocks(context, context.target_weights)
+                n = float(len(stocks))
+                for stock in stocks:
+                    context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
+                for stock in stocks:
+                    scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
+                        
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
                 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
+                # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
@@ -702,9 +769,19 @@ def check_pair_status(context, data):
                 y_target_shares = -1
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
+                
+                stocks = get_allocated_stocks(context, context.target_weights)
+                n = float(len(stocks))
+                for stock in stocks:
+                    context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
+                for stock in stocks:
+                    scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
+                
+                context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
+                context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
-                context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
-                context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
+                # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
+                # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
