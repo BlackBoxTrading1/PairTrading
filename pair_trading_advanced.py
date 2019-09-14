@@ -20,14 +20,20 @@ from pykalman import KalmanFilter
 COMMISSION             = 0.005
 LEVERAGE               = 1.0
 MAX_GROSS_EXPOSURE     = LEVERAGE
+MARKET_CAP             = 1000000000
 INTERVAL               = 3
 DESIRED_PAIRS          = 2
-MAX_PROCESSABLE_PAIRS  = 12000
 HEDGE_LOOKBACK         = 20 # used for regression
 Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY                  = 1.5
 EXIT                   = 0.1
 RECORD_LEVERAGE        = True
+
+# Quantopian constraints
+SET_PAIR_LIMIT         = True
+SET_KALMAN_LIMIT       = True
+MAX_PROCESSABLE_PAIRS  = 12000
+MAX_KALMAN_STOCKS      = 300
 
 SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('CBI'), symbol('JEC')),
@@ -46,7 +52,6 @@ REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 3
 #                              31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
 #                              10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147
 #                             ]
-
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -72,7 +77,7 @@ TEST_PARAMS               = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.49,           'key': 'hurst h-value'},
+            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.3,           'key': 'hurst h-value' },
             'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'KPSS':             {'lookback': 365, 'min': 0.05, 'max': 1.00,           'key': 'kpss p-value' },
@@ -86,7 +91,7 @@ LOOSE_PARAMS              = { #Used when checking pair quality
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'Hurst':            {'min': 0.00, 'max': 0.49,         'run': True },
             'Half-life':        {'min': 0,    'max': 100,          'run': True },
-            'Shapiro-Wilke':    {'min': 0.00, 'max': 1.00,         'run': True },
+            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True },
             'KPSS':             {'min': 0.05, 'max': 1.00,         'run': False},
             'Ljung-Box':        {'min': 0.00, 'max': 1.00,         'run': False}
                              }
@@ -111,7 +116,7 @@ def initialize(context):
             context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'],
                                                           name = str(code))
             context.universes[code]['pipe'].set_screen(QTradableStocksUS() &
-                                    context.industry_code.eq(code))
+                                    context.industry_code.eq(code) & (ms.valuation.market_cap.latest > MARKET_CAP))
 
     context.num_pairs = DESIRED_PAIRS
     context.top_yield_pairs = []
@@ -516,7 +521,7 @@ def set_universe(context, data):
     context.target_weights = get_current_portfolio_weights(context, data)
     
     size_str = ""
-    usizes = []
+    total = 0
     for code in context.codes:
         context.universes[code]['universe'] = algo.pipeline_output(str(code))
         context.universes[code]['universe'] = context.universes[code]['universe'].index
@@ -524,31 +529,48 @@ def set_universe(context, data):
         if context.universes[code]['size'] > 1:
             context.universe_set = True
         size_str = size_str + " " + str(context.universes[code]['size'])
-        usizes.append(context.universes[code]['size'])
-        
+        total += context.universes[code]['size']
+    
+    diff = total-MAX_KALMAN_STOCKS
+    kalman_overflow = (SET_KALMAN_LIMIT and diff > 0)
+    sorted_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
+    while (SET_KALMAN_LIMIT and diff > 0):
+        diff = diff - context.universes[sorted_codes[0]]['size']
+        del context.universes[sorted_codes[0]]
+        sorted_codes.pop(0) 
+    context.codes = sorted_codes
+    
+    updated_sizes_str = ""
+    new_sizes = []
+    for code in context.codes:
+        if kalman_overflow:
+            updated_sizes_str = updated_sizes_str + " " + str(context.universes[code]['size'])
+        new_sizes.append(context.universes[code]['size'])
+    
     comps = 0
-    total = 0
-    for size in usizes:
-      total += size
-      for i in range (size+1):
-        comps+=i
-    comps = comps*2
-    valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS)
+    for size in new_sizes:
+        for i in range(size+1):
+            comps += i
+    comps = comps * 2
+    valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS or (not SET_PAIR_LIMIT))
+    
     print ("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
            "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
+           + (" > " + str(MAX_KALMAN_STOCKS) + " --> removing smallest universes" 
+           + "\nUniverse sizes: " + str(updated_sizes_str))*(kalman_overflow)
            + "\nProcessed pairs: " + str(comps) + (" > " + str(MAX_PROCESSABLE_PAIRS)
            + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps))
 
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
-        context.universe_pool = context.universe_pool | context.universes[code]['universe']
-
+        context.universe_pool = context.universe_pool | context.universes[code]['universe']    
+        
     max_lookback = 0
     for test in TEST_PARAMS:
         if TEST_PARAMS[test]['lookback'] > max_lookback:
             max_lookback = TEST_PARAMS[test]['lookback']
 
-    for i in range(total):
+    for i in range(MAX_KALMAN_STOCKS+diff):
         price_history = get_price_history(data, context.universe_pool[i], max_lookback)
         if RUN_KALMAN_FILTER:
             kf_stock = KalmanFilter(transition_matrices = [1],
@@ -578,14 +600,14 @@ def choose_pairs(context, data):
                 s1_price = context.price_histories[s1]
                 s2_price = context.price_histories[s2]
 
-                if pair_counter > MAX_PROCESSABLE_PAIRS:
+                if (SET_PAIR_LIMIT and pair_counter > MAX_PROCESSABLE_PAIRS):
                     break
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
                     context.passing_pairs[(s1,s2)] = context.test_data[(s1,s2)]
                 pair_counter += 1
 
-                if pair_counter > MAX_PROCESSABLE_PAIRS:
+                if (SET_PAIR_LIMIT and pair_counter > MAX_PROCESSABLE_PAIRS):
                     break
                 context.curr_price_history = (s2_price, s1_price)
                 if passed_all_tests(context, data, s2, s1):
@@ -677,6 +699,18 @@ def check_pair_status(context, data):
             print (summary)
             context.top_yield_pairs.remove(pair)
             context.num_remaining_pairs = context.num_remaining_pairs - 1
+            
+            # stocks = get_allocated_stocks(context, context.target_weights)
+            # n = float(len(stocks))
+            # for stock in stocks:
+            #     if stock != s1 and stock != s2:
+            #         context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
+            # for stock in stocks:
+            #     if stock != s1 and stock != s2:
+            #         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
+            # context.target_weights[s1] = 0.0
+            # context.target_weights[s2] = 0.0
+            # allocate(context, data)
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
             continue
