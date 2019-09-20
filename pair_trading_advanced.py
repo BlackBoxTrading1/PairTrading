@@ -4,6 +4,7 @@ import quantopian.algorithm as algo
 import quantopian.optimize as opt
 from quantopian.pipeline import Pipeline,CustomFactor
 from quantopian.pipeline.data.builtin import USEquityPricing
+from quantopian.pipeline.factors import SimpleMovingAverage
 from quantopian.pipeline.filters import QTradableStocksUS
 from quantopian.pipeline.data import Fundamentals
 import quantopian.pipeline.classifiers.morningstar
@@ -16,6 +17,7 @@ import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
 from pykalman import KalmanFilter
+from quantopian.pipeline.filters.morningstar import IsPrimaryShare
 
 COMMISSION             = 0.005
 LEVERAGE               = 1.0
@@ -33,7 +35,7 @@ RECORD_LEVERAGE        = True
 SET_PAIR_LIMIT         = True
 SET_KALMAN_LIMIT       = True
 MAX_PROCESSABLE_PAIRS  = 12000
-MAX_KALMAN_STOCKS      = 300
+MAX_KALMAN_STOCKS      = 425
 
 SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('CBI'), symbol('JEC')),
@@ -101,7 +103,6 @@ def initialize(context):
     set_slippage(slippage.FixedBasisPointsSlippage())
     set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=1))
     set_benchmark(symbol('SPY'))
-    context.industry_code = ms.asset_classification.morningstar_industry_code.latest
     context.codes = REAL_UNIVERSE
     context.num_universes = len(context.codes)
     context.num_pvalue_tests = len(PVALUE_TESTS)
@@ -110,13 +111,21 @@ def initialize(context):
     context.initial_portfolio_value = context.portfolio.portfolio_value
     
     if not RUN_SAMPLE_PAIRS:
+        industry_code = ms.asset_classification.morningstar_industry_code.latest
+        sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+        security_type = ms.share_class_reference.security_type.latest
         for code in context.codes:
             context.universes[code] = {}
             context.universes[code]['pipe'] = Pipeline()
             context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'],
                                                           name = str(code))
-            context.universes[code]['pipe'].set_screen(QTradableStocksUS() &
-                                    context.industry_code.eq(code) & (ms.valuation.market_cap.latest > MARKET_CAP))
+            context.universes[code]['pipe'].set_screen(QTradableStocksUS() 
+                                                       & industry_code.eq(code) 
+                                                       & (ms.valuation.market_cap.latest > MARKET_CAP)
+                                                       & (sma_short > 1.0)
+                                                       & security_type.eq('ST00000001')
+                                                       & IsPrimaryShare()
+                                                      )
 
     context.num_pairs = DESIRED_PAIRS
     context.top_yield_pairs = []
