@@ -17,25 +17,24 @@ import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 import math
 from pykalman import KalmanFilter
-from quantopian.pipeline.filters.morningstar import IsPrimaryShare
 
 COMMISSION             = 0.005
 LEVERAGE               = 1.0
 MAX_GROSS_EXPOSURE     = LEVERAGE
-MARKET_CAP             = 1000000000
+MARKET_CAP             = 0
 INTERVAL               = 3
 DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 20 # used for regression
 Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY                  = 1.5
-EXIT                   = 0.1
+EXIT                   = 0.2
 RECORD_LEVERAGE        = True
 
 # Quantopian constraints
 SET_PAIR_LIMIT         = True
 SET_KALMAN_LIMIT       = True
-MAX_PROCESSABLE_PAIRS  = 12000
-MAX_KALMAN_STOCKS      = 425
+MAX_PROCESSABLE_PAIRS  = 19000
+MAX_KALMAN_STOCKS      = 375
 
 SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('CBI'), symbol('JEC')),
@@ -54,6 +53,8 @@ REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 3
 #                              31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
 #                              10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147
 #                             ]
+
+# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165132, 31165133, 31165134, 31166135, 31168144, 31169145, 31169146, 31169148]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -79,7 +80,7 @@ TEST_PARAMS               = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.3,           'key': 'hurst h-value' },
+            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.30,           'key': 'hurst h-value' },
             'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'KPSS':             {'lookback': 365, 'min': 0.05, 'max': 1.00,           'key': 'kpss p-value' },
@@ -113,7 +114,6 @@ def initialize(context):
     if not RUN_SAMPLE_PAIRS:
         industry_code = ms.asset_classification.morningstar_industry_code.latest
         sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
-        security_type = ms.share_class_reference.security_type.latest
         for code in context.codes:
             context.universes[code] = {}
             context.universes[code]['pipe'] = Pipeline()
@@ -123,8 +123,6 @@ def initialize(context):
                                                        & industry_code.eq(code) 
                                                        & (ms.valuation.market_cap.latest > MARKET_CAP)
                                                        & (sma_short > 1.0)
-                                                       & security_type.eq('ST00000001')
-                                                       & IsPrimaryShare()
                                                       )
 
     context.num_pairs = DESIRED_PAIRS
@@ -548,6 +546,7 @@ def set_universe(context, data):
         del context.universes[sorted_codes[0]]
         sorted_codes.pop(0) 
     context.codes = sorted_codes
+    context.codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=True)
     
     updated_sizes_str = ""
     new_sizes = []
@@ -597,9 +596,8 @@ def choose_pairs(context, data):
     if not context.universe_set:
         return
     context.universe_set = False
-
     print ("CHOOSING " + str(context.num_pairs) + " PAIRS")
-
+    
     pair_counter = 0
     for code in context.codes:
         for i in range (context.universes[code]['size']):

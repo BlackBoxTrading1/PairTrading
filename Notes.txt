@@ -1,0 +1,12 @@
+what filters do we need
+
+QTradable filters
+
+1. 200 day median daily dollar volume > $2.5M
+2. The stock must have a valid close price for 180 days out of last 200 days AND have price in each of the last 20 days.
+3. The stock must not be an active M&A target. Equities with IsAnnouncedAcquisitionTarget() are screened out.
+
+
+filter out universes with size 1 or 0
+
+max pairs = off kalman
