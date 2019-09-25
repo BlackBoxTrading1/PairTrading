@@ -549,6 +549,10 @@ def set_universe(context, data):
         sorted_codes.pop(0) 
     context.codes = sorted_codes
     
+    while (context.universes[context.codes[0]]['size'] < 2):
+        del context.universes[context.codes[0]]
+        context.codes.pop(0)
+    
     updated_sizes_str = ""
     new_sizes = []
     for code in context.codes:
@@ -666,12 +670,12 @@ def choose_pairs(context, data):
 def check_pair_status(context, data):
     if (not context.pairs_chosen):
         return
-    
+
     new_spreads = np.ndarray((context.num_pairs, 1))
     temp_top_pairs = []
     for pair in context.top_yield_pairs:
         temp_top_pairs.append(pair)
-    
+
     for i in range(context.num_pairs):
         if (len(temp_top_pairs) == 0):
             month = get_datetime('US/Eastern').month
@@ -685,12 +689,12 @@ def check_pair_status(context, data):
         # print pair
         s1 = pair[0]
         s2 = pair[1]
-        
+
         max_lookback = 0
         for test in TEST_PARAMS:
             if TEST_PARAMS[test]['lookback'] > max_lookback:
                 max_lookback = TEST_PARAMS[test]['lookback']
-        
+
         s1_price_test = get_price_history(data, s1, max_lookback)
         s2_price_test = get_price_history(data, s2, max_lookback)
         context.curr_price_history = (s1_price_test, s2_price_test)
@@ -708,7 +712,7 @@ def check_pair_status(context, data):
             print (summary)
             context.top_yield_pairs.remove(pair)
             context.num_remaining_pairs = context.num_remaining_pairs - 1
-            
+
             # stocks = get_allocated_stocks(context, context.target_weights)
             # n = float(len(stocks))
             # for stock in stocks:
@@ -749,7 +753,7 @@ def check_pair_status(context, data):
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
-                        
+
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -769,7 +773,7 @@ def check_pair_status(context, data):
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
-                        
+
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -786,17 +790,17 @@ def check_pair_status(context, data):
                 y_target_shares = 1
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-                
+
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
                     context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
-                        
+
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
-                
+
                 # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
                 # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
@@ -812,14 +816,14 @@ def check_pair_status(context, data):
                 y_target_shares = -1
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-                
+
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
                     context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
-                
+
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
