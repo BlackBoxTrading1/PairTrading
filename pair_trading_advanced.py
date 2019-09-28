@@ -34,7 +34,7 @@ RECORD_LEVERAGE        = True
 SET_PAIR_LIMIT         = True
 SET_KALMAN_LIMIT       = True
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 375
+MAX_KALMAN_STOCKS      = 275
 
 SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('CBI'), symbol('JEC')),
@@ -45,7 +45,7 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('COP'), symbol('CVX'))]
 
 # REAL_UNIVERSE             = [30947102, 31169147]
-REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147]
+# REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147]
 
 # REAL_UNIVERSE             = [
 #                              10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103,
@@ -75,6 +75,11 @@ REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 3
 #                                31062127, 31063128, 31064129, 31165130, 31165132, 31165133, 31165134, 31166135, 
 #                                31168144, 31169145, 31169146, 31169148
 #                               ]
+
+REAL_UNIVERSE             = [
+                               31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125,
+                                31062126, 31062127, 31063128, 31064129
+                            ]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -568,6 +573,7 @@ def set_universe(context, data):
     context.codes = sorted_codes
     
     while (context.universes[context.codes[0]]['size'] < 2):
+        diff = diff - context.universes[context.codes[0]]['size']
         del context.universes[context.codes[0]]
         context.codes.pop(0)
         
@@ -622,7 +628,7 @@ def choose_pairs(context, data):
         return
     context.universe_set = False
     print ("CHOOSING " + str(context.num_pairs) + " PAIRS")
-    
+
     pair_counter = 0
     for code in context.codes:
         for i in range (context.universes[code]['size']):
