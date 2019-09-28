@@ -54,7 +54,27 @@ REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 3
 #                              10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147
 #                             ]
 
-# REAL_UNIVERSE = [10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165132, 31165133, 31165134, 31166135, 31168144, 31169145, 31169146, 31169148]
+# REAL_UNIVERSE             = [
+#                                10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 30949104,   
+#                                30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 31167136, 
+#                                31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 10428070, 
+#                                10320051, 10428069, 20744096, 31165131, 30947102, 31169147, 10101001, 10102002, 
+#                                10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
+#                                10106011, 10106012, 10107013, 10208014, 10208015, 10210021, 10210022, 10210023, 
+#                                10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 
+#                                10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 
+#                                10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 
+#                                10320048, 10320049, 10320050, 10320052, 10321053, 10321054, 10321055, 10322056, 
+#                                10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 
+#                                20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 
+#                                20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 
+#                                20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 
+#                                20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 
+#                                31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118,
+#                                31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 
+#                                31062127, 31063128, 31064129, 31165130, 31165132, 31165133, 31165134, 31166135, 
+#                                31168144, 31169145, 31169146, 31169148
+#                               ]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -546,13 +566,18 @@ def set_universe(context, data):
         del context.universes[sorted_codes[0]]
         sorted_codes.pop(0) 
     context.codes = sorted_codes
+    
+    while (context.universes[context.codes[0]]['size'] < 2):
+        del context.universes[context.codes[0]]
+        context.codes.pop(0)
+        
     context.codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=True)
     
     updated_sizes_str = ""
     new_sizes = []
     for code in context.codes:
         if kalman_overflow:
-            updated_sizes_str = updated_sizes_str + " " + str(context.universes[code]['size'])
+            updated_sizes_str = updated_sizes_str + str(code) + " (" + str(context.universes[code]['size']) + ")  "
         new_sizes.append(context.universes[code]['size'])
     
     comps = 0
@@ -664,12 +689,12 @@ def choose_pairs(context, data):
 def check_pair_status(context, data):
     if (not context.pairs_chosen):
         return
-    
+
     new_spreads = np.ndarray((context.num_pairs, 1))
     temp_top_pairs = []
     for pair in context.top_yield_pairs:
         temp_top_pairs.append(pair)
-    
+
     for i in range(context.num_pairs):
         if (len(temp_top_pairs) == 0):
             month = get_datetime('US/Eastern').month
@@ -683,12 +708,12 @@ def check_pair_status(context, data):
         # print pair
         s1 = pair[0]
         s2 = pair[1]
-        
+
         max_lookback = 0
         for test in TEST_PARAMS:
             if TEST_PARAMS[test]['lookback'] > max_lookback:
                 max_lookback = TEST_PARAMS[test]['lookback']
-        
+
         s1_price_test = get_price_history(data, s1, max_lookback)
         s2_price_test = get_price_history(data, s2, max_lookback)
         context.curr_price_history = (s1_price_test, s2_price_test)
@@ -706,7 +731,7 @@ def check_pair_status(context, data):
             print (summary)
             context.top_yield_pairs.remove(pair)
             context.num_remaining_pairs = context.num_remaining_pairs - 1
-            
+
             # stocks = get_allocated_stocks(context, context.target_weights)
             # n = float(len(stocks))
             # for stock in stocks:
@@ -723,7 +748,29 @@ def check_pair_status(context, data):
             continue
 
         s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
+        if RUN_KALMAN_FILTER:
+            kf_stock = KalmanFilter(transition_matrices = [1],
+                                    observation_matrices = [1],
+                                    initial_state_mean = s1_price.values[0],
+                                    initial_state_covariance = 1,
+                                    observation_covariance=1,
+                                    transition_covariance=.05)
+
+            price_history,_ = kf_stock.filter(s1_price.values)
+            price_history = price_history.flatten()
+            s1_price = price_history
         s2_price = data.history(s2, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
+        if RUN_KALMAN_FILTER:
+            kf_stock = KalmanFilter(transition_matrices = [1],
+                                    observation_matrices = [1],
+                                    initial_state_mean = s2_price.values[0],
+                                    initial_state_covariance = 1,
+                                    observation_covariance=1,
+                                    transition_covariance=.05)
+
+            price_history,_ = kf_stock.filter(s2_price.values)
+            price_history = price_history.flatten()
+            s2_price = price_history
 
         try:
             hedge = hedge_ratio(s1_price, s2_price, add_const=True)
@@ -747,7 +794,7 @@ def check_pair_status(context, data):
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
-                        
+
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -767,7 +814,7 @@ def check_pair_status(context, data):
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
-                        
+
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -784,17 +831,17 @@ def check_pair_status(context, data):
                 y_target_shares = 1
                 X_target_shares = -hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-                
+
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
                     context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
-                        
+
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
-                
+
                 # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
                 # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
 
@@ -810,14 +857,14 @@ def check_pair_status(context, data):
                 y_target_shares = -1
                 X_target_shares = hedge
                 (y_target_pct, x_target_pct) = computeHoldingsPct( y_target_shares, X_target_shares, s1_price[-1], s2_price[-1] )
-                
+
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
                     context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
-                
+
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
