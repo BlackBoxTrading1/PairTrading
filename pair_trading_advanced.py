@@ -41,7 +41,6 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('MAS'), symbol('VMC')),
                              (symbol('XOM'), symbol('CVX')),
                              (symbol('JPM'), symbol('C')),
-                             (symbol('AON'), symbol('MMC')),
                              (symbol('COP'), symbol('CVX'))]
 
 # REAL_UNIVERSE             = [30947102, 31169147]
@@ -76,9 +75,19 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
 #                                31168144, 31169145, 31169146, 31169148
 #                               ]
 
+# REAL_UNIVERSE             = [
+#                                31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125,
+#                                 31062126, 31062127, 31063128, 31064129
+#                             ]
+
 REAL_UNIVERSE             = [
-                               31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125,
-                                31062126, 31062127, 31063128, 31064129
+                               30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
+                                31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
+                                31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
+                                20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
+                                10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
+                                10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
+                                30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
                             ]
 
 RUN_SAMPLE_PAIRS          = False
@@ -135,7 +144,7 @@ def initialize(context):
     context.universes = {}
 
     context.initial_portfolio_value = context.portfolio.portfolio_value
-    
+
     if not RUN_SAMPLE_PAIRS:
         industry_code = ms.asset_classification.morningstar_industry_code.latest
         sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
@@ -147,8 +156,7 @@ def initialize(context):
             context.universes[code]['pipe'].set_screen(QTradableStocksUS() 
                                                        & industry_code.eq(code) 
                                                        & (ms.valuation.market_cap.latest > MARKET_CAP)
-                                                       & (sma_short > 1.0)
-                                                      )
+                                                       & (sma_short > 1.0))
 
     context.num_pairs = DESIRED_PAIRS
     context.top_yield_pairs = []
@@ -184,12 +192,14 @@ def initialize(context):
         log.debug("2. Set the test of RANK_BY value to True")
         return
 
+    day = get_datetime('US/Eastern').day
+    day = day - 2*day/7
     if RUN_SAMPLE_PAIRS:
         schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0,
                                                                                                    minutes=1))
     else:
-        schedule_function(choose_pairs, date_rules.month_start(), time_rules.market_open(hours=0, minutes=30))
-    schedule_function(set_universe, date_rules.month_start(), time_rules.market_open(hours=0, minutes=1))
+        schedule_function(choose_pairs, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=30))
+    schedule_function(set_universe, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def empty_data(context):
