@@ -575,7 +575,6 @@ def set_universe(context, data):
             context.universe_set = True
         size_str = size_str + " " + str(context.universes[code]['size'])
         total += context.universes[code]['size']
-    print(size_str)
     
     diff = total-MAX_KALMAN_STOCKS
     kalman_overflow = (SET_KALMAN_LIMIT and diff > 0)
