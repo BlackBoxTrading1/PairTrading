@@ -192,8 +192,11 @@ def initialize(context):
         log.debug("2. Set the test of RANK_BY value to True")
         return
 
-    day = get_datetime('US/Eastern').day
-    day = day - 2*day/7
+    day = get_datetime().day
+    print("DAY # " + str(day) + " OF MONTH")
+    day = day - 2*day/7 - 3
+    day = 0 if (day < 0 or day > 19) else day
+
     if RUN_SAMPLE_PAIRS:
         schedule_function(sample_comparison_test, date_rules.month_start(), time_rules.market_open(hours=0,
                                                                                                    minutes=1))
