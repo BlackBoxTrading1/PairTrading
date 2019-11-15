@@ -18,7 +18,7 @@ from scipy.stats import shapiro
 import math
 from pykalman import KalmanFilter
 
-COMMISSION             = 0.005
+COMMISSION             = 0
 LEVERAGE               = 1.0
 MAX_GROSS_EXPOSURE     = LEVERAGE
 MARKET_CAP             = 0
@@ -43,52 +43,27 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('JPM'), symbol('C')),
                              (symbol('COP'), symbol('CVX'))]
 
-# REAL_UNIVERSE             = [30947102, 31169147]
-# REAL_UNIVERSE             = [10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147]
-
 # REAL_UNIVERSE             = [
-#                              10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103,
-#                              30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 
-#                              31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143,
-#                              10428070, 10320051, 10428069, 20744096, 31165131, 30947102, 31169147
+#                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
+#                                 31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
+#                                 31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
+#                                 20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
+#                                 10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
+#                                 10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
+#                                 30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
 #                             ]
 
-# REAL_UNIVERSE             = [
-#                                10209016, 10209017, 10209018, 10209019, 10209020, 30946101, 30948103, 30949104,   
-#                                30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 31167136, 
-#                                31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 10428070, 
-#                                10320051, 10428069, 20744096, 31165131, 30947102, 31169147, 10101001, 10102002, 
-#                                10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
-#                                10106011, 10106012, 10107013, 10208014, 10208015, 10210021, 10210022, 10210023, 
-#                                10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 
-#                                10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 
-#                                10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 
-#                                10320048, 10320049, 10320050, 10320052, 10321053, 10321054, 10321055, 10322056, 
-#                                10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 
-#                                20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 
-#                                20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 
-#                                20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 
-#                                20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 
-#                                31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118,
-#                                31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 
-#                                31062127, 31063128, 31064129, 31165130, 31165132, 31165133, 31165134, 31166135, 
-#                                31168144, 31169145, 31169146, 31169148
-#                               ]
-
-# REAL_UNIVERSE             = [
-#                                31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125,
-#                                 31062126, 31062127, 31063128, 31064129
+# REAL_UNIVERSE             = [   
+#                                 30910020, 31130020, 10420060, 10340020, 10330010, 10420040, 30910060,
+#                                 31110020, 31010010, 10320020, 20645030, 20720020, 31120010, 30830010,
+#                                 20610010, 10340060, 20620020, 20630010, 20540010, 10360010, 10130020,
+#                                 10280010, 10240030, 30920010, 10290020, 10230010, 10240020, 10150030,
+#                                 10270010, 10420050, 10200030, 10280060, 10220010, 10150040, 20720030,
+#                                 20670010, 10120010, 30810010, 20650020, 31040010, 31080030, 31080040,
+#                                 30910050, 10420010
 #                             ]
 
-REAL_UNIVERSE             = [
-                               30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
-                                31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
-                                31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
-                                20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
-                                10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
-                                10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
-                                30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
-                            ]
+REAL_UNIVERSE             = [ 30910020, 31130020]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -114,7 +89,7 @@ TEST_PARAMS               = { #Used when choosing pairs
             'Correlation':      {'lookback': 365, 'min': 0.95, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.30,           'key': 'hurst h-value' },
+            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.30,           'key': 'hurst h-value'},
             'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
             'KPSS':             {'lookback': 365, 'min': 0.05, 'max': 1.00,           'key': 'kpss p-value' },
@@ -136,24 +111,24 @@ LOOSE_PARAMS              = { #Used when checking pair quality
 def initialize(context):
 
     set_slippage(slippage.FixedBasisPointsSlippage())
-    set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=1))
+    set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=0))
     set_benchmark(symbol('SPY'))
-    context.codes = REAL_UNIVERSE
-    context.num_universes = len(context.codes)
+    # context.codes = REAL_UNIVERSE
+    context.num_universes = len(REAL_UNIVERSE)
     context.num_pvalue_tests = len(PVALUE_TESTS)
-    context.universes = {}
+    context.initial_universes = {}
 
     context.initial_portfolio_value = context.portfolio.portfolio_value
 
     if not RUN_SAMPLE_PAIRS:
         industry_code = ms.asset_classification.morningstar_industry_code.latest
         sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
-        for code in context.codes:
-            context.universes[code] = {}
-            context.universes[code]['pipe'] = Pipeline()
-            context.universes[code]['pipe'] = algo.attach_pipeline(context.universes[code]['pipe'],
+        for code in REAL_UNIVERSE:
+            context.initial_universes[code] = {}
+            context.initial_universes[code]['pipe'] = Pipeline()
+            context.initial_universes[code]['pipe'] = algo.attach_pipeline(context.initial_universes[code]['pipe'],
                                                           name = str(code))
-            context.universes[code]['pipe'].set_screen(QTradableStocksUS() 
+            context.initial_universes[code]['pipe'].set_screen(QTradableStocksUS() 
                                                        & industry_code.eq(code) 
                                                        & (ms.valuation.market_cap.latest > MARKET_CAP)
                                                        & (sma_short > 1.0))
@@ -168,6 +143,7 @@ def initialize(context):
     context.pair_status = {}
     context.total_stock_list = []
     context.universe_pool = []
+    context.universes = {}
 
     context.target_weights = {}
 
@@ -211,6 +187,7 @@ def empty_data(context):
     context.price_histories = {}
     context.top_yield_pairs = []
     context.total_stock_list = []
+    context.universes = {}
 
 def empty_target_weights(context):
     for s in context.target_weights.keys():
@@ -259,7 +236,7 @@ def hedge_ratio(Y, X, add_const=True):
     model = sm.OLS(Y, X).fit_regularized()
     return model.params.values 
 
-def get_current_portfolio_weights(context, data):  
+def get_current_portfolio_weights(context, data):
     positions = context.portfolio.positions  
     positions_index = pd.Index(positions)  
     share_counts = pd.Series(  
@@ -567,7 +544,8 @@ def set_universe(context, data):
     
     size_str = ""
     total = 0
-    for code in context.codes:
+    for code in REAL_UNIVERSE:
+        context.universes[code] = {}
         context.universes[code]['universe'] = algo.pipeline_output(str(code))
         context.universes[code]['universe'] = context.universes[code]['universe'].index
         context.universes[code]['size'] = len(context.universes[code]['universe'])
@@ -579,16 +557,22 @@ def set_universe(context, data):
     diff = total-MAX_KALMAN_STOCKS
     kalman_overflow = (SET_KALMAN_LIMIT and diff > 0)
     sorted_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
+    
     while (SET_KALMAN_LIMIT and diff > 0):
         diff = diff - context.universes[sorted_codes[0]]['size']
         del context.universes[sorted_codes[0]]
-        sorted_codes.pop(0) 
+        sorted_codes.pop(0)
     context.codes = sorted_codes
     
-    while (context.universes[context.codes[0]]['size'] < 2):
+    while (context.universes and context.universes[context.codes[0]]['size'] < 2):
         diff = diff - context.universes[context.codes[0]]['size']
         del context.universes[context.codes[0]]
         context.codes.pop(0)
+        
+    if (not context.universes):
+        print("No substantial universe found. Waiting until next cycle")
+        context.universe_set = False
+        return
         
     context.codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=True)
     
