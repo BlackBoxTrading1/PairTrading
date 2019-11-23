@@ -43,15 +43,15 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('JPM'), symbol('C')),
                              (symbol('COP'), symbol('CVX'))]
 
-# REAL_UNIVERSE             = [
-#                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
-#                                 31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
-#                                 31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
-#                                 20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
-#                                 10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
-#                                 10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
-#                                 30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
-#                             ]
+REAL_UNIVERSE             = [
+                               30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
+                                31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
+                                31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
+                                20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
+                                10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
+                                10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
+                                30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
+                            ]
 
 # REAL_UNIVERSE             = [   
 #                                 30910020, 31130020, 10420060, 10340020, 10330010, 10420040, 30910060,
@@ -63,7 +63,7 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
 #                                 30910050, 10420010
 #                             ]
 
-REAL_UNIVERSE             = [ 30910020, 31130020]
+# REAL_UNIVERSE             = [ 30910020, 31130020]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -169,7 +169,7 @@ def initialize(context):
         return
 
     day = get_datetime().day
-    print("DAY # " + str(day) + " OF MONTH")
+    print(("DAY # " + str(day) + " OF MONTH"))
     day = day - 2*day/7 - 3
     day = 0 if (day < 0 or day > 19) else day
 
@@ -190,14 +190,14 @@ def empty_data(context):
     context.universes = {}
 
 def empty_target_weights(context):
-    for s in context.target_weights.keys():
+    for s in list(context.target_weights.keys()):
         context.target_weights.loc[s] = 0.0
     for equity in context.portfolio.positions:  
         order_target_percent(equity, 0)
 
 def get_stock_partner(context, stock):
     partner = 0
-    for pair in context.passing_pairs.keys():
+    for pair in list(context.passing_pairs.keys()):
         if stock == pair[0]:
             partner = pair[1]
         elif stock == pair[1]:
@@ -251,7 +251,7 @@ def get_current_portfolio_weights(context, data):
 
 def get_allocated_stocks(context, target_weights):
     current_weights = []
-    for k in target_weights.keys():
+    for k in list(target_weights.keys()):
         if target_weights.loc[k] != 0:
             current_weights.append(k)
             partner = get_stock_partner(context, k)
@@ -308,7 +308,7 @@ def get_hurst_hvalue(ts):
     ts = np.asarray(ts)
     lagvec = []
     tau = []
-    lags = range(2, 100)
+    lags = list(range(2, 100))
     for lag in lags:
         pdiff = np.subtract(ts[lag:],ts[:-lag])
         lagvec.append(lag)
@@ -590,12 +590,12 @@ def set_universe(context, data):
     comps = comps * 2
     valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS or (not SET_PAIR_LIMIT))
     
-    print ("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
+    print(("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
            "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
            + (" > " + str(MAX_KALMAN_STOCKS) + " --> removing smallest universes" 
            + "\nUniverse sizes: " + str(updated_sizes_str))*(kalman_overflow)
            + "\nProcessed pairs: " + str(comps) + (" > " + str(MAX_PROCESSABLE_PAIRS)
-           + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps))
+           + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps)))
 
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
@@ -624,7 +624,7 @@ def choose_pairs(context, data):
     if not context.universe_set:
         return
     context.universe_set = False
-    print ("CHOOSING " + str(context.num_pairs) + " PAIRS")
+    print(("CHOOSING " + str(context.num_pairs) + " PAIRS"))
 
     pair_counter = 0
     for code in context.codes:
@@ -668,7 +668,7 @@ def choose_pairs(context, data):
     #select top num_pairs pairs
     if (context.num_pairs > len(passing_pair_keys)):
         context.num_pairs = len(passing_pair_keys)
-    print ("Pairs found: " + str(context.num_pairs))
+    print(("Pairs found: " + str(context.num_pairs)))
     for i in range(context.num_pairs):
         context.top_yield_pairs.append(passing_pair_keys[i])
         u_code = 0
@@ -722,7 +722,7 @@ def check_pair_status(context, data):
         context.curr_price_history = (s1_price_test, s2_price_test)
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
             summary = "Closing " + str((s1,s2)) + "\n\t\t\tSummary below:"
-            for val in context.test_data[(s1,s2)].keys():
+            for val in list(context.test_data[(s1,s2)].keys()):
                 end = ""
                 for t in TEST_PARAMS:
                     if (TEST_PARAMS[t]['key'] == val):
@@ -748,6 +748,8 @@ def check_pair_status(context, data):
             # allocate(context, data)
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
+            context.target_weights = context.target_weights.drop([s1,s2])
+            context.universe_pool = context.universe_pool.drop([s1,s2])
             continue
 
         s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
@@ -886,7 +888,7 @@ def allocate(context, data):
     if RECORD_LEVERAGE:
         record(market_exposure=context.account.net_leverage, leverage=context.account.leverage)
     print ("ALLOCATING...")
-    for s in context.target_weights.keys():
+    for s in list(context.target_weights.keys()):
         error = ""
         if not (s in context.target_weights):
             continue
@@ -897,17 +899,19 @@ def allocate(context, data):
         if error:
             print(error)
             partner = get_stock_partner(context, s)
+            
             context.target_weights = context.target_weights.drop([s])
             context.universe_pool = context.universe_pool.drop([s])
+            
             if partner in context.target_weights:
                 context.target_weights = context.target_weights.drop([partner])
                 context.universe_pool = context.universe_pool.drop([partner])
-                print("--> Removed partner " + str(partner))
+                print(("--> Removed partner " + str(partner)))
 
     print ("Target weights:")
-    for s in context.target_weights.keys():
+    for s in list(context.target_weights.keys()):
         if context.target_weights.loc[s] != 0:
-            print ("\t" + str(s) + ":\t" + str(round(context.target_weights.loc[s],3)))
+            print(("\t" + str(s) + ":\t" + str(round(context.target_weights.loc[s],3))))
     # print(context.target_weights.keys())
     objective = opt.TargetWeights(context.target_weights)
 
