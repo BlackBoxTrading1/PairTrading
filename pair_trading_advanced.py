@@ -43,15 +43,15 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
                              (symbol('JPM'), symbol('C')),
                              (symbol('COP'), symbol('CVX'))]
 
-# REAL_UNIVERSE             = [
-#                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
-#                                 31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
-#                                 31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
-#                                 20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
-#                                 10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
-#                                 10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
-#                                 30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
-#                             ]
+REAL_UNIVERSE             = [
+                               30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
+                                31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
+                                31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
+                                20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
+                                10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
+                                10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
+                                30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
+                            ]
 
 # REAL_UNIVERSE             = [   
 #                                 30910020, 31130020, 10420060, 10340020, 10330010, 10420040, 30910060,
@@ -63,7 +63,7 @@ SAMPLE_UNIVERSE           = [(symbol('STX'), symbol('WDC')),
 #                                 30910050, 10420010
 #                             ]
 
-REAL_UNIVERSE             = [ 30910020, 31130020]
+# REAL_UNIVERSE             = [ 30910020, 31130020]
 
 RUN_SAMPLE_PAIRS          = False
 TEST_SAMPLE_PAIRS         = False
@@ -748,6 +748,8 @@ def check_pair_status(context, data):
             # allocate(context, data)
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
+            context.target_weights = context.target_weights.drop([s1,s2])
+            context.universe_pool = context.universe_pool.drop([s1,s2])
             continue
 
         s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
@@ -897,8 +899,10 @@ def allocate(context, data):
         if error:
             print(error)
             partner = get_stock_partner(context, s)
+            
             context.target_weights = context.target_weights.drop([s])
             context.universe_pool = context.universe_pool.drop([s])
+            
             if partner in context.target_weights:
                 context.target_weights = context.target_weights.drop([partner])
                 context.universe_pool = context.universe_pool.drop([partner])
