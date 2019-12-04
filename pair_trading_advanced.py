@@ -128,7 +128,7 @@ def initialize(context):
             context.initial_universes[code]['pipe'] = Pipeline()
             context.initial_universes[code]['pipe'] = algo.attach_pipeline(context.initial_universes[code]['pipe'],
                                                           name = str(code))
-            context.initial_universes[code]['pipe'].set_screen(QTradableStocksUS() 
+            context.initial_universes[code]['pipe'].set_screen(QTradableStocksUS()
                                                        & industry_code.eq(code) 
                                                        & (ms.valuation.market_cap.latest > MARKET_CAP)
                                                        & (sma_short > 1.0))
@@ -253,9 +253,11 @@ def get_allocated_stocks(context, target_weights):
     current_weights = []
     for k in list(target_weights.keys()):
         if target_weights.loc[k] != 0:
-            current_weights.append(k)
             partner = get_stock_partner(context, k)
-            if target_weights.loc[partner] == 0:
+            if not partner in target_weights:
+                continue
+            current_weights.append(k)
+            if not partner in current_weights:
                 current_weights.append(partner)
     return current_weights
 
@@ -734,22 +736,13 @@ def check_pair_status(context, data):
             print (summary)
             context.top_yield_pairs.remove(pair)
             context.num_remaining_pairs = context.num_remaining_pairs - 1
-
-            # stocks = get_allocated_stocks(context, context.target_weights)
-            # n = float(len(stocks))
-            # for stock in stocks:
-            #     if stock != s1 and stock != s2:
-            #         context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
-            # for stock in stocks:
-            #     if stock != s1 and stock != s2:
-            #         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
-            # context.target_weights[s1] = 0.0
-            # context.target_weights[s2] = 0.0
-            # allocate(context, data)
+            
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
-            context.target_weights = context.target_weights.drop([s1,s2])
-            context.universe_pool = context.universe_pool.drop([s1,s2])
+            context.target_weights.loc[s1] = 0.0
+            context.target_weights.loc[s2] = 0.0
+            #context.target_weights = context.target_weights.drop([s1,s2])
+            #context.universe_pool = context.universe_pool.drop([s1,s2])
             continue
 
         s1_price = data.history(s1, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::]
@@ -784,6 +777,9 @@ def check_pair_status(context, data):
             return
 
         context.target_weights = get_current_portfolio_weights(context, data)
+        for k in context.target_weights.keys():
+            if not data.can_trade(k):
+                context.target_weights = context.target_weights.drop([k])
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]
         if context.spread.shape[1] > Z_WINDOW:
 
@@ -899,10 +895,10 @@ def allocate(context, data):
         if error:
             print(error)
             partner = get_stock_partner(context, s)
-            
             context.target_weights = context.target_weights.drop([s])
             context.universe_pool = context.universe_pool.drop([s])
-            
+            if partner:
+                del context.passing_pairs[(s, partner)]
             if partner in context.target_weights:
                 context.target_weights = context.target_weights.drop([partner])
                 context.universe_pool = context.universe_pool.drop([partner])
@@ -919,7 +915,6 @@ def allocate(context, data):
     # Define constraints
     constraints = []
     constraints.append(opt.MaxGrossExposure(MAX_GROSS_EXPOSURE))
-    #print(context.target_weights)
     algo.order_optimal_portfolio(
         objective=objective,
         constraints=constraints,
