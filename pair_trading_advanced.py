@@ -630,6 +630,7 @@ def choose_pairs(context, data):
 
     pair_counter = 0
     for code in context.codes:
+        #code_found = False
         for i in range (context.universes[code]['size']):
             for j in range (i+1, context.universes[code]['size']):
                 s1 = context.universes[code]['universe'][i]
@@ -642,6 +643,7 @@ def choose_pairs(context, data):
                 context.curr_price_history = (s1_price, s2_price)
                 if passed_all_tests(context, data, s1, s2):
                     context.passing_pairs[(s1,s2)] = context.test_data[(s1,s2)]
+                    #code_found = True
                 pair_counter += 1
 
                 if (SET_PAIR_LIMIT and pair_counter > MAX_PROCESSABLE_PAIRS):
@@ -649,7 +651,12 @@ def choose_pairs(context, data):
                 context.curr_price_history = (s2_price, s1_price)
                 if passed_all_tests(context, data, s2, s1):
                     context.passing_pairs[(s2,s1)] = context.test_data[(s2,s1)]
+                    #code_found = True
                 pair_counter += 1
+                #if code_found:
+                #    break
+            #if code_found:
+            #    break
 
     #sort pairs from highest to lowest cointegrations
     rev = (RANK_BY == 'correlation')
