@@ -97,7 +97,7 @@ def initialize(context):
     set_slippage(slippage.FixedBasisPointsSlippage())
     set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=0))
     set_benchmark(symbol('SPY'))
-    # context.codes = REAL_UNIVERSE
+
     context.num_universes = len(REAL_UNIVERSE)
     context.num_pvalue_tests = len(PVALUE_TESTS)
     context.initial_universes = {}
@@ -107,25 +107,19 @@ def initialize(context):
     industry_code = ms.asset_classification.morningstar_industry_code.latest
     sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
     for code in REAL_UNIVERSE:
-        context.initial_universes[code] = {}
-        context.initial_universes[code]['pipe'] = Pipeline()
-        context.initial_universes[code]['pipe'] = algo.attach_pipeline(context.initial_universes[code]['pipe'],
-                                                      name = str(code))
-        context.initial_universes[code]['pipe'].set_screen(QTradableStocksUS()
-                                                   & industry_code.eq(code) 
-                                                   & (ms.valuation.market_cap.latest > MARKET_CAP)
-                                                   & (sma_short > 1.0))
+        pipe = Pipeline()
+        pipe = algo.attach_pipeline(pipe, name = str(code))
+        pipe.set_screen(QTradableStocksUS() 
+                        & industry_code.eq(code) 
+                        & (ms.valuation.market_cap.latest > MARKET_CAP) 
+                        & (sma_short > 1.0))
 
     context.num_pairs = DESIRED_PAIRS
-    context.top_yield_pairs = []
     context.universe_set = False
     context.pairs_chosen = False
 
-    context.test_data = {}
-    context.passing_pairs = {}
     context.pair_status = {}
     context.universe_pool = []
-    context.universes = {}
 
     context.target_weights = {}
 
@@ -135,6 +129,11 @@ def initialize(context):
     context.curr_price_history = ()
     context.spreads = {}
     context.spread_lookbacks = []
+    
+    context.max_lookback = 0
+    for test in TEST_PARAMS:
+        if TEST_PARAMS[test]['lookback'] > context.max_lookback:
+            context.max_lookback = TEST_PARAMS[test]['lookback']
     
     if (RANK_BY == 'coint' or RANK_BY == 'adf p-value' or RANK_BY == 'sw p-value'):
         log.warn("Ranking by p-value is undefined. Rank by different metric")
@@ -158,13 +157,6 @@ def initialize(context):
     schedule_function(choose_pairs, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=30))
     schedule_function(set_universe, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
-
-def empty_data(context):
-    context.test_data = {}
-    context.passing_pairs = {}
-    context.price_histories = {}
-    context.top_yield_pairs = []
-    context.universes = {}
 
 def empty_target_weights(context):
     for s in list(context.target_weights.keys()):
@@ -326,7 +318,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Correlation']['key']] = corr
             if not run_test(context, 'Correlation', corr, loose_screens):
                 return False
-            
+
     if RUN_COINTEGRATION_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Cointegration']['run']):
             lookback = TEST_PARAMS['Cointegration']['lookback']
@@ -410,10 +402,11 @@ def set_universe(context, data):
     context.num_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
     context.num_pairs = int(round(context.num_pairs))
     
-    empty_data(context)
     empty_target_weights(context)
     context.target_weights = get_current_portfolio_weights(context, data)
     
+    context.universes = {}
+    context.price_histories = {}
     size_str = ""
     total = 0
     for code in REAL_UNIVERSE:
@@ -428,11 +421,18 @@ def set_universe(context, data):
     
     diff = total-MAX_KALMAN_STOCKS
     kalman_overflow = (SET_KALMAN_LIMIT and diff > 0)
-    sorted_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
+    context.remaining_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
     
+    sorted_codes = context.remaining_codes
+    context.remaining_codes = []
+    total = 0
+    for code in sorted_codes:
+        total += context.universes[code]['size']
+    diff = total-MAX_KALMAN_STOCKS
     while (SET_KALMAN_LIMIT and diff > 0):
         diff = diff - context.universes[sorted_codes[0]]['size']
         del context.universes[sorted_codes[0]]
+        context.remaining_codes.append(sorted_codes[0])
         sorted_codes.pop(0)
     context.codes = sorted_codes
     
@@ -472,14 +472,9 @@ def set_universe(context, data):
     context.universe_pool = context.universes[context.codes[0]]['universe']
     for code in context.codes:
         context.universe_pool = context.universe_pool | context.universes[code]['universe']    
-        
-    max_lookback = 0
-    for test in TEST_PARAMS:
-        if TEST_PARAMS[test]['lookback'] > max_lookback:
-            max_lookback = TEST_PARAMS[test]['lookback']
 
     for i in range(MAX_KALMAN_STOCKS+diff):
-        price_history = get_price_history(data, context.universe_pool[i], max_lookback)
+        price_history = get_price_history(data, context.universe_pool[i], context.max_lookback)
         if RUN_KALMAN_FILTER:
             kf_stock = KalmanFilter(transition_matrices = [1],
                                     observation_matrices = [1],
@@ -495,9 +490,13 @@ def set_universe(context, data):
 def choose_pairs(context, data):
     if not context.universe_set:
         return
+    
     context.universe_set = False
     print(("CHOOSING " + str(context.num_pairs) + " PAIRS"))
-
+    context.test_data = {}
+    context.passing_pairs = {}
+    context.pairs = []
+    
     pair_counter = 0
     for code in context.codes:
         for i in range (context.universes[code]['size']):
@@ -527,84 +526,64 @@ def choose_pairs(context, data):
     rev = (RANK_BY == 'correlation')
     passing_pair_keys = sorted(context.passing_pairs, key=lambda kv: context.passing_pairs[kv][RANK_BY],
                                      reverse=rev)
-    temp_real_yield_keys = []
+    passing_pair_list = []
     for k in passing_pair_keys:
-        temp_real_yield_keys.append(k)
-        
+        passing_pair_list.append(k)
+
     total_code_list = []
-    for pair in temp_real_yield_keys:
+    for pair in passing_pair_list:
         if (context.passing_pairs[pair]['code'] in total_code_list):
             passing_pair_keys.remove(pair)
             del context.passing_pairs[pair]
         else:
-            total_code_list.append(context.passing_pairs[pair]['code'])
-            
+            total_code_list.append(context.passing_pairs[pair]['code'])          
 
     #select top num_pairs pairs
     if (context.num_pairs > len(passing_pair_keys)):
         context.num_pairs = len(passing_pair_keys)
     print(("Pairs found: " + str(context.num_pairs)))
     for i in range(context.num_pairs):
-        context.top_yield_pairs.append(passing_pair_keys[i])
+        context.pairs.append(passing_pair_keys[i])
         report = "TOP PAIR "+str(i+1)+": "+str(passing_pair_keys[i])
         for test in context.passing_pairs[passing_pair_keys[i]]:
             report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
     context.pairs_chosen = True
 
-    for pair in context.top_yield_pairs:
+    for pair in context.pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
 
-    context.num_remaining_pairs = context.num_pairs
     context.spread = np.ndarray((context.num_pairs, 0))
 
 def check_pair_status(context, data):
     if (not context.pairs_chosen):
         return
+    
+    
 
     new_spreads = np.ndarray((context.num_pairs, 1))
-    temp_top_pairs = []
-    for pair in context.top_yield_pairs:
-        temp_top_pairs.append(pair)
 
     for i in range(context.num_pairs):
-        if (len(temp_top_pairs) == 0):
+        if (len(context.pairs) == 0):
             month = get_datetime('US/Eastern').month
             context.curr_month = month + 1 - 12*(month == 12)
             context.universe_set = False
             context.pairs_chosen = False
             break
-        elif (i == len(temp_top_pairs)):
+        elif (i == len(context.pairs)):
             break
-        pair = temp_top_pairs[i]
-        # print pair
+        pair = context.pairs[i]
         s1 = pair[0]
         s2 = pair[1]
 
-        max_lookback = 0
-        for test in TEST_PARAMS:
-            if TEST_PARAMS[test]['lookback'] > max_lookback:
-                max_lookback = TEST_PARAMS[test]['lookback']
-
-        s1_price_test = get_price_history(data, s1, max_lookback)
-        s2_price_test = get_price_history(data, s2, max_lookback)
+        s1_price_test = get_price_history(data, s1, context.max_lookback)
+        s2_price_test = get_price_history(data, s2, context.max_lookback)
         context.curr_price_history = (s1_price_test, s2_price_test)
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
-            summary = "Closing " + str((s1,s2)) + "\n\t\t\tSummary below:"
-            for val in list(context.test_data[(s1,s2)].keys()):
-                end = ""
-                for t in TEST_PARAMS:
-                    if (TEST_PARAMS[t]['key'] == val):
-                        if context.test_data[(s1,s2)][val] > LOOSE_PARAMS[t]['max']:
-                            end = "> " + str(LOOSE_PARAMS[t]['max']) + " --> FAILED"
-                        elif context.test_data[(s1,s2)][val] < LOOSE_PARAMS[t]['min']:
-                            end = "< " + str(LOOSE_PARAMS[t]['min']) + " --> FAILED"
-                summary += "\n\t\t\t" + str(val) + ": \t" + str(context.test_data[(s1,s2)][val]) + " " + end
-            print (summary)
-            context.top_yield_pairs.remove(pair)
-            context.num_remaining_pairs = context.num_remaining_pairs - 1
+            print("Closing " + str((s1,s2)) + ". Failed tests.")
+            context.pairs.remove(pair)
             
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
@@ -669,7 +648,7 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
-                #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
+
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
                 allocate(context, data)
@@ -689,7 +668,7 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
-                #set_pair_status(context, data, s1,s2,s1_price,s2_price, 0, 0, False, False)
+
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
                 allocate(context, data)
@@ -712,12 +691,9 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
-                # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
-                # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
-
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
-                #set_pair_status(context,s1,s2,s1_price,s2_price, 1, -hedge, True, False)
+
                 allocate(context, data)
                 return
 
@@ -738,12 +714,9 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
-                # context.target_weights[s1] = LEVERAGE * y_target_pct * (1.0/context.num_remaining_pairs)
-                # context.target_weights[s2] = LEVERAGE * x_target_pct * (1.0/context.num_remaining_pairs)
-
                 if not RECORD_LEVERAGE:
                     record(Y_pct=y_target_pct, X_pct=x_target_pct)
-                #set_pair_status(context,s1,s2,s1_price,s2_price, -1, hedge, False, True)
+
                 allocate(context, data)
                 return
 
