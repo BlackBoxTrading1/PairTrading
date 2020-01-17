@@ -34,7 +34,9 @@ RECORD_LEVERAGE        = True
 SET_PAIR_LIMIT         = True
 SET_KALMAN_LIMIT       = True
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 275
+MAX_KALMAN_STOCKS      = 150
+
+# REAL_UNIVERSE = [30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147, 31169148]
 
 REAL_UNIVERSE             = [
                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
@@ -64,7 +66,7 @@ RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
-RUN_SHAPIROWILKE_TEST     = False
+RUN_SHAPIROWILKE_TEST     = True
 
 RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
@@ -89,7 +91,7 @@ LOOSE_PARAMS              = { #Used when checking pair quality
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'Hurst':            {'min': 0.00, 'max': 0.49,         'run': True }, #true
             'Half-life':        {'min': 0,    'max': 100,          'run': True }, #true
-            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True } #true
+            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False } #true
                              }
 
 def initialize(context):
@@ -395,6 +397,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
 def calculate_price_histories(context, data):
     sorted_codes = context.remaining_codes
     if not context.remaining_codes:
+        context.desired_pairs = 0
         return
     context.remaining_codes = []
     total = 0
@@ -423,9 +426,8 @@ def calculate_price_histories(context, data):
     
     comps = 0
     for size in new_sizes:
-        for i in range(size+1):
-            comps += i
-    comps = comps * 2
+        comps += size*(size+1)
+    
     valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS or (not SET_PAIR_LIMIT))
     
     print(("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
@@ -466,6 +468,9 @@ def set_universe(context, data):
     context.desired_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
     context.desired_pairs = int(round(context.desired_pairs))
     
+    context.passing_pairs = {}
+    context.pairs = []
+    
     empty_target_weights(context)
     context.target_weights = get_current_portfolio_weights(context, data)
     
@@ -489,64 +494,7 @@ def set_universe(context, data):
         context.universe_set = False
         return
     
-    # diff = total-MAX_KALMAN_STOCKS
     context.remaining_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
-    
-    # sorted_codes = context.remaining_codes
-    # context.remaining_codes = []
-    # total = 0
-    # for code in sorted_codes:
-    #     total += context.universes[code]['size']
-    # diff = total-MAX_KALMAN_STOCKS
-    # kalman_overflow = (SET_KALMAN_LIMIT and diff > 0)
-    # while (SET_KALMAN_LIMIT and diff > 0):
-    #     diff = diff - context.universes[sorted_codes[0]]['size']
-    #     #del context.universes[sorted_codes[0]]
-    #     context.remaining_codes.append(sorted_codes[0])
-    #     sorted_codes.pop(0)
-    # context.codes = sorted_codes
-        
-    # #context.codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=True)
-    # context.codes.reverse()
-    
-    # updated_sizes_str = ""
-    # new_sizes = []
-    # for code in context.codes:
-    #     if kalman_overflow:
-    #         updated_sizes_str = updated_sizes_str + str(code) + " (" + str(context.universes[code]['size']) + ")  "
-    #     new_sizes.append(context.universes[code]['size'])
-    
-    # comps = 0
-    # for size in new_sizes:
-    #     for i in range(size+1):
-    #         comps += i
-    # comps = comps * 2
-    # valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS or (not SET_PAIR_LIMIT))
-    
-    # print(("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
-    #        "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
-    #        + (" > " + str(MAX_KALMAN_STOCKS) + " --> removing smallest universes" 
-    #        + "\nUniverse sizes: " + str(updated_sizes_str))*(kalman_overflow)
-    #        + "\nProcessed pairs: " + str(comps) + (" > " + str(MAX_PROCESSABLE_PAIRS)
-    #        + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps)))
-
-    # context.universe_pool = context.universes[context.codes[0]]['universe']
-    # for code in context.codes:
-    #     context.universe_pool = context.universe_pool | context.universes[code]['universe']
-
-    # for i in range(MAX_KALMAN_STOCKS+diff):
-    #     price_history = get_price_history(data, context.universe_pool[i], context.max_lookback)
-    #     if RUN_KALMAN_FILTER:
-    #         kf_stock = KalmanFilter(transition_matrices = [1],
-    #                                 observation_matrices = [1],
-    #                                 initial_state_mean = price_history.values[0],
-    #                                 initial_state_covariance = 1,
-    #                                 observation_covariance=1,
-    #                                 transition_covariance=.05)
-
-    #         price_history,_ = kf_stock.filter(price_history.values)
-    #         price_history = price_history.flatten()
-    #     context.price_histories[context.universe_pool[i]] = price_history
     
     calculate_price_histories(context, data)
 
@@ -557,8 +505,6 @@ def choose_pairs(context, data):
     context.universe_set = False
     print(("CHOOSING " + str(context.desired_pairs) + " PAIRS"))
     context.test_data = {}
-    context.passing_pairs = {}
-    context.pairs = []
     
     pair_counter = 0
     for code in context.codes:
@@ -595,6 +541,10 @@ def choose_pairs(context, data):
 
     total_code_list = []
     for pair in passing_pair_list:
+        if pair in context.pairs:
+            passing_pair_keys.remove(pair)
+            continue
+        
         if (context.passing_pairs[pair]['code'] in total_code_list):
             passing_pair_keys.remove(pair)
             del context.passing_pairs[pair]
@@ -605,6 +555,8 @@ def choose_pairs(context, data):
     context.num_pairs = len(passing_pair_keys)
     if (context.num_pairs > context.desired_pairs):
         context.num_pairs = context.desired_pairs
+    context.desired_pairs = context.desired_pairs - context.num_pairs
+    
     print(("Pairs found: " + str(context.num_pairs)))
     for i in range(context.num_pairs):
         context.pairs.append(passing_pair_keys[i])
@@ -613,7 +565,8 @@ def choose_pairs(context, data):
             report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
     context.pairs_chosen = True
-
+    context.num_pairs = len(context.pairs)
+    
     for pair in context.pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
@@ -625,14 +578,14 @@ def check_pair_status(context, data):
     if (not context.pairs_chosen):
         return
 
-    if (context.num_pairs == 0):
+    if (context.desired_pairs != 0):
         calculate_price_histories(context, data)
         choose_pairs(context, data)
         return
     
 
     new_spreads = np.ndarray((context.num_pairs, 1))
-
+    
     for i in range(context.num_pairs):
         if (len(context.pairs) == 0):
             month = get_datetime('US/Eastern').month
