@@ -37,7 +37,7 @@ MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 150
 
 # REAL_UNIVERSE = [30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147, 31169148]
-
+ 
 REAL_UNIVERSE             = [
                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
                                 31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
@@ -47,6 +47,50 @@ REAL_UNIVERSE             = [
                                 10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
                                 30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
                             ]
+
+# REAL_UNIVERSE = [
+
+
+
+#     # 10110010, 10120010, 10130010, 10130020, 10140010, 10140020, 10150010, 10150020, 10150030,
+#     # 10150040, 10150050, 10150060, 10160010, 10160020, 10200010, 10200020, 10200030, 10200040,
+#     # 10220010, 10230010, 10240010, 10240020, 10240030, 10250010, 10260010, 10270010, 10280010,
+#     # 10280020, 10280030, 10280040, 10280050, 10280060, 10290010, 10290020, 10290030, 10290040,
+#     # 10290050, 10310010, 10320010, 10320020, 10320030, 10330010, 10330020, 10340010, 10340020,
+#     # 10340030, 10340040, 10340050, 10340060, 10350010, 10350020, 10360010, 10410010, 10410020,
+#     # 10410030, 10420010, 10420020, 10420030, 10420040, 10420050, 10420060, 10420070, 10420080,
+#     # 10420090, 20510010, 20510020, 20520010, 20525010, 20525020, 20525030, 20525040, 20540010,
+#     # 20550010, 20550020, 20550030, 20560010, 20610010, 20620010, 20620020, 20630010, 20645010,
+#     # 20645020, 20645030, 20650010, 20650020, 20660010, 20670010, 20710010, 20710020, 20720010,
+#     # 20720020, 20720030, 20720040, 30810010, 30820010, 30820020, 30820030, 30820040, 30830010,
+#     # 30830020, 30910010, 30910020, 30910030, 30910040, 30910050, 30910060, 30920010, 30920020,
+#     # 31010010, 31020010, 31020020, 31020030, 31020040, 31020050, 31030010, 31040010, 31040020, 
+#     # 31040030, 31050010, 31060010, 31070010, 31070020, 31070030, 31070040, 31070050, 31070060,
+#     # 31080010, 31080020, 31080030, 31080040, 31080050, 31080060, 31090010, 31110010, 31110020,
+#     # 31110030, 31120010, 31120020, 31120030, 31120040, 31120050, 31120060, 31130010, 31130020,
+#     # 31130030
+
+ 
+
+#     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009,
+#     10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018,
+#     10209019, 10209020, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027,
+#     10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036,
+#     10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045,
+#     10320046, 10320047, 10320048, 10320049, 10320050, 10320051, 10320052, 10321053, 10321054,
+#     10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063,
+#     10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 20529071, 20529072,
+#     20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081,
+#     20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090,
+#     20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099,
+#     30845100, 30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 31052107, 31053108,
+#     31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117,
+#     31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126,
+#     31062127, 31063128, 31064129, 31165130, 31165131, 31165132, 31165133, 31165134, 31166135,
+#     31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 31168144,
+#     31169145, 31169146, 31169147
+
+#     ]
 
 # REAL_UNIVERSE             = [   
 #                                 30910020, 31130020, 10420060, 10340020, 10330010, 10420040, 30910060,
@@ -58,7 +102,7 @@ REAL_UNIVERSE             = [
 #                                 30910050, 10420010
 #                             ]
 
-# REAL_UNIVERSE             = [ 30947102, 31169147]
+# REAL_UNIVERSE             = [ 30947102, 31169147, 10428070, 10325059 ]
 
 #Choose tests
 RUN_CORRELATION_TEST      = False
@@ -106,15 +150,19 @@ def initialize(context):
 
     context.initial_portfolio_value = context.portfolio.portfolio_value
 
-    industry_code = ms.asset_classification.morningstar_industry_code.latest
-    sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
-    for code in REAL_UNIVERSE:
-        pipe = Pipeline()
-        pipe = algo.attach_pipeline(pipe, name = str(code))
-        pipe.set_screen(QTradableStocksUS() 
-                        & industry_code.eq(code) 
-                        & (ms.valuation.market_cap.latest > MARKET_CAP) 
-                        & (sma_short > 1.0))
+
+    my_pipe = make_pipeline()
+    algo.attach_pipeline(my_pipe, 'my_pipeline')
+    
+    # industry_code = ms.asset_classification.morningstar_industry_code.latest
+    # sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
+    # for code in REAL_UNIVERSE:
+    #     pipe = Pipeline()
+    #     pipe = algo.attach_pipeline(pipe, name = str(code))
+    #     pipe.set_screen(QTradableStocksUS() 
+    #                     & industry_code.eq(code) 
+    #                     & (ms.valuation.market_cap.latest > MARKET_CAP) 
+    #                     & (sma_short > 1.0))
 
     context.num_pairs = DESIRED_PAIRS
     context.universe_set = False
@@ -160,6 +208,24 @@ def initialize(context):
     schedule_function(set_universe, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
+def make_pipeline():
+
+    # Base universe set to the QTradableStocksUS
+    base_universe = QTradableStocksUS()
+    industry_code = ms.asset_classification.morningstar_industry_code.latest
+    sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
+    
+    columns = {}
+    securities = (ms.valuation.market_cap.latest < 0 )
+    for universe in REAL_UNIVERSE:
+        columns[str(universe)] = (sma_short>1) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>0 )
+        securities = securities | columns[str(universe)]
+
+    return Pipeline(
+        columns = columns,
+        screen=(securities),
+    )
+    
 def empty_target_weights(context):
     for s in list(context.target_weights.keys()):
         context.target_weights.loc[s] = 0.0
@@ -437,9 +503,11 @@ def calculate_price_histories(context, data):
            + "\nProcessed pairs: " + str(comps) + (" > " + str(MAX_PROCESSABLE_PAIRS)
            + " --> processing first " + str(MAX_PROCESSABLE_PAIRS) + " pairs") * (not valid_num_comps)))
 
-    context.universe_pool = context.universes[context.codes[0]]['universe']
+    # context.universe_pool = context.universes[context.codes[0]]['universe']
+    context.universe_pool = []
     for code in context.codes:
-        context.universe_pool = context.universe_pool | context.universes[code]['universe']
+        # context.universe_pool = context.universe_pool | context.universes[code]['universe']
+        context.universe_pool = context.universe_pool + context.universes[code]['universe']
 
     for i in range(MAX_KALMAN_STOCKS+diff):
         price_history = get_price_history(data, context.universe_pool[i], context.max_lookback)
@@ -476,11 +544,11 @@ def set_universe(context, data):
     
     context.universes = {}
     context.price_histories = {}
+    pipe_output = algo.pipeline_output('my_pipeline')
     total = 0
     for code in REAL_UNIVERSE:
         context.universes[code] = {}
-        context.universes[code]['universe'] = algo.pipeline_output(str(code))
-        context.universes[code]['universe'] = context.universes[code]['universe'].index
+        context.universes[code]['universe'] = pipe_output[pipe_output[str(code)]].index.tolist()
         context.universes[code]['size'] = len(context.universes[code]['universe'])
         if context.universes[code]['size'] > 1:
             context.universe_set = True
@@ -582,7 +650,6 @@ def check_pair_status(context, data):
         calculate_price_histories(context, data)
         choose_pairs(context, data)
         return
-    
 
     new_spreads = np.ndarray((context.num_pairs, 1))
     
