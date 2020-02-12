@@ -29,6 +29,7 @@ Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOK
 ENTRY                  = 1.5
 EXIT                   = 0.2
 RECORD_LEVERAGE        = True
+STOPLOSS               = 0.5
 
 # Quantopian constraints
 SET_PAIR_LIMIT         = True
@@ -36,17 +37,17 @@ SET_KALMAN_LIMIT       = True
 MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 150
 
-# REAL_UNIVERSE = [30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068,10428069, 10428070, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147, 31169148]
- 
-REAL_UNIVERSE             = [
-                               30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
-                                31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
-                                31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
-                                20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
-                                10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
-                                10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
-                                30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
-                            ]
+REAL_UNIVERSE = [30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 10428064, 10428065, 10428066, 10428067, 10428068,10428069, 10428070, 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 10326061, 10427062, 10427063, 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 31052107, 31053108, 31054109, 31055110, 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147, 31169148]
+
+# REAL_UNIVERSE             = [
+#                                30947102, 31169147, 10428070, 10325059, 10321053, 10428068, 30951106,
+#                                 31165133, 31052107, 10320050, 31061119, 31054109, 31165131, 20744096,
+#                                 31166135, 31168144, 20635084, 10323057, 20636086, 20637087, 10320051,
+#                                 20532078, 10322056, 10103004, 10217033, 10212027, 10104005, 10218039,
+#                                 10211024, 10212026, 10106011, 10210023, 10216032, 10428069, 10209018,
+#                                 10217037, 10212028, 10106010, 20744097, 20641092, 31167140, 10102002,
+#                                 30845100, 20642093, 31058114, 31062125, 31062126, 30950105, 10428065
+#                             ]
 
 # REAL_UNIVERSE = [
 
@@ -70,7 +71,7 @@ REAL_UNIVERSE             = [
 #     # 31110030, 31120010, 31120020, 31120030, 31120040, 31120050, 31120060, 31130010, 31130020,
 #     # 31130030
 
- 
+
 
 #     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009,
 #     10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018,
@@ -151,18 +152,14 @@ def initialize(context):
     context.initial_portfolio_value = context.portfolio.portfolio_value
 
 
-    my_pipe = make_pipeline()
-    algo.attach_pipeline(my_pipe, 'my_pipeline')
+    # my_pipe = make_pipeline()
+    # algo.attach_pipeline(my_pipe, 'my_pipeline')
     
-    # industry_code = ms.asset_classification.morningstar_industry_code.latest
-    # sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30)
-    # for code in REAL_UNIVERSE:
-    #     pipe = Pipeline()
-    #     pipe = algo.attach_pipeline(pipe, name = str(code))
-    #     pipe.set_screen(QTradableStocksUS() 
-    #                     & industry_code.eq(code) 
-    #                     & (ms.valuation.market_cap.latest > MARKET_CAP) 
-    #                     & (sma_short > 1.0))
+    context.num_pipes = (int)(len(REAL_UNIVERSE)/50) + (len(REAL_UNIVERSE)%50 > 0)*1
+    for i in range(context.num_pipes):
+        pipe = make_pipeline(50*i, 50*i+50)
+        algo.attach_pipeline(pipe, "pipe" + str(i))
+    
 
     context.num_pairs = DESIRED_PAIRS
     context.universe_set = False
@@ -174,20 +171,20 @@ def initialize(context):
     context.target_weights = {}
 
     context.curr_month = -1
-    
+
     context.price_histories = {}
     context.curr_price_history = ()
     context.spreads = {}
     context.spread_lookbacks = []
-    
+
     context.max_lookback = 0
     for test in TEST_PARAMS:
         if TEST_PARAMS[test]['lookback'] > context.max_lookback:
             context.max_lookback = TEST_PARAMS[test]['lookback']
-    
+
     if (RANK_BY == 'coint' or RANK_BY == 'adf p-value' or RANK_BY == 'sw p-value'):
         log.warn("Ranking by p-value is undefined. Rank by different metric")
-    
+
     if ((not RUN_ADFULLER_TEST and RANK_BY == 'adf p-value') 
         or (not RUN_HURST_TEST and RANK_BY == 'hurst h-value')
         or (not RUN_HALF_LIFE_TEST and RANK_BY == 'half-life')
@@ -208,24 +205,32 @@ def initialize(context):
     schedule_function(set_universe, date_rules.month_start(day), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
-def make_pipeline():
+def make_pipeline(start, end):
 
     # Base universe set to the QTradableStocksUS
     base_universe = QTradableStocksUS()
     industry_code = ms.asset_classification.morningstar_industry_code.latest
     sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
-    
+
     columns = {}
     securities = (ms.valuation.market_cap.latest < 0 )
-    for universe in REAL_UNIVERSE:
-        columns[str(universe)] = (sma_short>1) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>0 )
+
+    # for universe in REAL_UNIVERSE:
+    #     columns[str(universe)] = (sma_short<15) & industry_code.eq(universe) & (ms.valuation.market_cap.latest<1000000000)
+    #     securities = securities | columns[str(universe)]
+    
+    for i in range(start, end):
+        if (i >= len(REAL_UNIVERSE)):
+            continue
+        universe = REAL_UNIVERSE[i]
+        columns[str(universe)] = (sma_short>5) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>1000000000)
         securities = securities | columns[str(universe)]
 
     return Pipeline(
         columns = columns,
         screen=(securities),
     )
-    
+
 def empty_target_weights(context):
     for s in list(context.target_weights.keys()):
         context.target_weights.loc[s] = 0.0
@@ -291,8 +296,6 @@ def get_allocated_stocks(context, target_weights):
     for k in list(target_weights.keys()):
         if target_weights.loc[k] != 0:
             partner = get_stock_partner(context, k)
-            if not partner in target_weights:
-                continue
             if not k in current_weights:
                 current_weights.append(k)
             if not partner in current_weights:
@@ -301,8 +304,12 @@ def get_allocated_stocks(context, target_weights):
 
 def scale_stock_to_leverage(context, stock, pair_weight):
     partner = get_stock_partner(context, stock)
-    stock_weight = context.target_weights[stock]
-    partner_weight = context.target_weights[partner]
+    stock_weight = 0
+    if stock in context.target_weights.keys():
+        stock_weight = context.target_weights.loc[stock]
+    partner_weight = 0
+    if partner in context.target_weights.keys():
+        partner_weight = context.target_weights.loc[partner]
     total = abs(stock_weight) + abs(partner_weight)
     if total != LEVERAGE*pair_weight:
         context.target_weights[stock] = LEVERAGE * pair_weight * stock_weight / total
@@ -355,7 +362,7 @@ def get_hurst_hvalue(ts):
         tau.append(np.sqrt(np.std(pdiff)))
     m = np.polynomial.polynomial.polyfit(np.log10(np.asarray(lagvec)), np.log10(np.asarray(tau).clip(min=0.0000000001)), 1)
     return m[1]*2.0
-    
+
 def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
     return p
@@ -374,7 +381,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
     context.spreads = {}
     context.spread_lookbacks = []
     context.test_data[(s1,s2)] = {}
-    
+
     if RUN_CORRELATION_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Correlation']['run']):
             lookback = TEST_PARAMS['Correlation']['lookback']
@@ -401,7 +408,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Cointegration']['key']] = coint
             if not run_test(context, 'Cointegration', coint, loose_screens):
                 return False
-            
+
     if RUN_ADFULLER_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['ADFuller']['run']):
             lookback = TEST_PARAMS['ADFuller']['lookback']
@@ -415,7 +422,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['ADFuller']['key']] = adf
             if not run_test(context, 'ADFuller', adf, loose_screens):
                 return False
-    
+
     if RUN_HURST_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Hurst']['run']):
             lookback = TEST_PARAMS['Hurst']['lookback']
@@ -429,7 +436,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Hurst']['key']] = hurst
             if not run_test(context, 'Hurst', hurst, loose_screens):
                 return False 
-    
+
     if RUN_HALF_LIFE_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Half-life']['run']):
             lookback = TEST_PARAMS['Half-life']['lookback']
@@ -443,7 +450,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
             if not run_test(context, 'Half-life', hl, loose_screens):
                 return False
-    
+
     if RUN_SHAPIROWILKE_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Shapiro-Wilke']['run']):
             lookback = TEST_PARAMS['Shapiro-Wilke']['lookback']
@@ -457,10 +464,10 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             context.test_data[(s1,s2)][TEST_PARAMS['Shapiro-Wilke']['key']] = sw
             if not run_test(context, 'Shapiro-Wilke', sw, loose_screens):
                 return False       
-          
+
     return True
-    
-    
+
+
 def calculate_price_histories(context, data):
     sorted_codes = context.remaining_codes
     if not context.remaining_codes:
@@ -480,23 +487,23 @@ def calculate_price_histories(context, data):
         context.remaining_codes.append(sorted_codes[0])
         sorted_codes.pop(0)
     context.codes = sorted_codes
-        
+
     #context.codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=True)
     context.codes.reverse()
-    
+
     updated_sizes_str = ""
     new_sizes = []
     for code in context.codes:
         if kalman_overflow:
             updated_sizes_str = updated_sizes_str + str(code) + " (" + str(context.universes[code]['size']) + ")  "
         new_sizes.append(context.universes[code]['size'])
-    
+
     comps = 0
     for size in new_sizes:
         comps += size*(size+1)
-    
+
     valid_num_comps = (comps <= MAX_PROCESSABLE_PAIRS or (not SET_PAIR_LIMIT))
-    
+
     print(("SETTING UNIVERSE " + " (running Kalman Filters)"*RUN_KALMAN_FILTER + 
            "...\nUniverse sizes:" + size_str + "\nTotal stocks: " + str(total)
            + (" > " + str(MAX_KALMAN_STOCKS) + " --> removing smallest universes" 
@@ -524,7 +531,7 @@ def calculate_price_histories(context, data):
             price_history = price_history.flatten()
         context.price_histories[context.universe_pool[i]] = price_history
     context.universe_set = True ##########################REVISIT##############################
-    
+
 def set_universe(context, data):
     this_month = get_datetime('US/Eastern').month 
     if context.curr_month < 0:
@@ -533,20 +540,28 @@ def set_universe(context, data):
     if (this_month != context.curr_month):
         return
     context.curr_month = context.next_month
-    
+
     context.pairs_chosen = False
     context.desired_pairs = DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)
     context.desired_pairs = int(round(context.desired_pairs))
-    
+
     context.passing_pairs = {}
     context.pairs = []
-    
+
+    context.purchase_prices = {}
+
     empty_target_weights(context)
     context.target_weights = get_current_portfolio_weights(context, data)
-    
+
     context.universes = {}
     context.price_histories = {}
-    pipe_output = algo.pipeline_output('my_pipeline')
+    #pipe_output = algo.pipeline_output('my_pipeline')
+    
+    pipe_output = algo.pipeline_output('pipe0')
+    for i in range(1, context.num_pipes):
+        pipe_output = pipe_output.append(algo.pipeline_output("pipe"+str(i)))
+    pipe_output = pipe_output.fillna(False)
+    
     total = 0
     for code in REAL_UNIVERSE:
         context.universes[code] = {}
@@ -558,24 +573,24 @@ def set_universe(context, data):
             del context.universes[code]
             continue
         total += context.universes[code]['size']
-    
+
     if (not context.universes):
         print("No substantial universe found. Waiting until next cycle")
         context.universe_set = False
         return
-    
+
     context.remaining_codes = sorted(context.universes, key=lambda kv: context.universes[kv]['size'], reverse=False)
-    
+
     calculate_price_histories(context, data)
 
 def choose_pairs(context, data):
     if not context.universe_set:
         return
-    
+
     context.universe_set = False
     print(("CHOOSING " + str(context.desired_pairs) + " PAIRS"))
     context.test_data = {}
-    
+
     pair_counter = 0
     for code in context.codes:
         for i in range (context.universes[code]['size']):
@@ -614,7 +629,7 @@ def choose_pairs(context, data):
         if pair in context.pairs:
             passing_pair_keys.remove(pair)
             continue
-        
+
         if (context.passing_pairs[pair]['code'] in total_code_list):
             passing_pair_keys.remove(pair)
             del context.passing_pairs[pair]
@@ -626,7 +641,7 @@ def choose_pairs(context, data):
     if (context.num_pairs > context.desired_pairs):
         context.num_pairs = context.desired_pairs
     context.desired_pairs = context.desired_pairs - context.num_pairs
-    
+
     print(("Pairs found: " + str(context.num_pairs)))
     for i in range(context.num_pairs):
         context.pairs.append(passing_pair_keys[i])
@@ -634,9 +649,11 @@ def choose_pairs(context, data):
         for test in context.passing_pairs[passing_pair_keys[i]]:
             report += "\n\t\t\t" + str(test) + ": \t" + str(context.passing_pairs[passing_pair_keys[i]][test])
         print(report)
+        context.purchase_prices[passing_pair_keys[i][0]] = {'price': 0, 'long': False}
+        context.purchase_prices[passing_pair_keys[i][1]] = {'price': 0, 'long': False}
     context.pairs_chosen = True
     context.num_pairs = len(context.pairs)
-    
+
     for pair in context.pairs:
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
@@ -655,6 +672,37 @@ def check_pair_status(context, data):
 
     new_spreads = np.ndarray((context.num_pairs, 1))
     
+    pairs_to_dump = []
+    for stock in context.purchase_prices.keys():
+        initial_price = context.purchase_prices[stock]['price']
+        is_long = context.purchase_prices[stock]['long']
+        current_price = data.current(stock, 'price')
+        if (initial_price == 0):
+            continue
+        if ((is_long and current_price< STOPLOSS*initial_price) or (not is_long and current_price> (2-STOPLOSS)*initial_price)):
+            partner = get_stock_partner(context, stock)
+            print ("Dumping " + str(stock) + ". Purchase price: " + str(initial_price) + ", Current price: " + str(current_price))
+            order_target_percent(stock, 0)
+            order_target_percent(partner, 0)
+            context.target_weights.loc[stock] = 0.0
+            context.target_weights.loc[partner] = 0.0
+            # context.purchase_prices[stock]['price'] = 0
+            # context.purchase_prices[partner]['price'] = 0
+            # pair = (stock, partner)
+            # if not (pair in context.pairs):
+            #     pair = (partner, stock)
+            # context.pair_status[pair]['currently_short'] = False
+            # context.pair_status[pair]['currently_long'] = False
+            pair = (stock, partner)
+            if not (pair in context.pairs):
+                pair = (partner, stock)
+            pairs_to_dump.append(pair)
+            
+    for pair in pairs_to_dump:
+        del context.purchase_prices[pair[0]]
+        del context.purchase_prices[pair[1]]
+        context.pairs.remove(pair)
+
     for i in range(context.num_pairs):
         if (len(context.pairs) == 0):
             month = get_datetime('US/Eastern').month
@@ -662,7 +710,7 @@ def check_pair_status(context, data):
             context.universe_set = False
             context.pairs_chosen = False
             break
-        elif (i == len(context.pairs)):
+        elif (i >= len(context.pairs)):
             break
         pair = context.pairs[i]
         s1 = pair[0]
@@ -674,7 +722,8 @@ def check_pair_status(context, data):
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
             print("Closing " + str((s1,s2)) + ". Failed tests.")
             context.pairs.remove(pair)
-            
+            # context.num_pairs = context.num_pairs - 1
+
             order_target_percent(s1, 0)
             order_target_percent(s2, 0)
             context.target_weights.loc[s1] = 0.0
@@ -728,12 +777,15 @@ def check_pair_status(context, data):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
-                    if stock != s1 and stock != s2:
-                        context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
+                    if stock != s1 and stock != s2 and stock in context.target_weights.keys():
+                        context.target_weights[stock] = context.target_weights.loc[stock]*n/(n-2)
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
 
+                context.purchase_prices[s1]['price'] = 0
+                context.purchase_prices[s2]['price'] = 0
+                        
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -748,12 +800,16 @@ def check_pair_status(context, data):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
-                    if stock != s1 and stock != s2:
-                        context.target_weights[stock] = context.target_weights[stock]*n/(n-2)
+                    if stock != s1 and stock != s2 and stock in context.target_weights.keys():
+                        context.target_weights[stock] = context.target_weights.loc[stock]*n/(n-2)
                 for stock in stocks:
                     if stock != s1 and stock != s2:
                         scale_stock_to_leverage(context, stock, pair_weight=2/(n-2))
 
+                        
+                context.purchase_prices[s1]['price'] = 0
+                context.purchase_prices[s2]['price'] = 0        
+                        
                 context.target_weights[s1] = 0.0
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
@@ -774,10 +830,31 @@ def check_pair_status(context, data):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
-                    context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
+                    if stock in context.target_weights:
+                        context.target_weights[stock] = context.target_weights.loc[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
 
+                s1_weight = LEVERAGE * y_target_pct * (2/(n+2))
+                s2_weight = LEVERAGE * x_target_pct * (2/(n+2))
+                if (context.purchase_prices[s1]['price'] == 0):
+                    context.purchase_prices[s1]['price'] = data.current(s1, 'price')
+                    context.purchase_prices[s1]['long'] = True if s1_weight > 0 else False
+                else:
+                    is_long = context.purchase_prices[s1]['long']
+                    if ((is_long and s1_weight < 0) or (not is_long and s1_weight > 0)):
+                        context.purchase_prices[s1]['long'] = not context.purchase_prices[s1]['long']
+                        context.purchase_prices[s1]['price'] = data.current(s1, 'price')
+                
+                if (context.purchase_prices[s2]['price'] == 0):
+                    context.purchase_prices[s2]['price'] = data.current(s2, 'price')
+                    context.purchase_prices[s2]['long'] = True if s2_weight > 0 else False
+                else:
+                    is_long = context.purchase_prices[s2]['long']
+                    if ((is_long and s2_weight < 0) or (not is_long and s2_weight > 0)):
+                        context.purchase_prices[s2]['long'] = not context.purchase_prices[s2]['long']
+                        context.purchase_prices[s2]['price'] = data.current(s2, 'price')
+                    
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
@@ -796,10 +873,32 @@ def check_pair_status(context, data):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
-                    context.target_weights[stock] = context.target_weights[stock]*n/(n+2)
+                    if stock in context.target_weights:
+                        context.target_weights[stock] = context.target_weights.loc[stock]*n/(n+2)
                 for stock in stocks:
                     scale_stock_to_leverage(context, stock, pair_weight=(2/(n+2)))
 
+                    
+                s1_weight = LEVERAGE * y_target_pct * (2/(n+2))
+                s2_weight = LEVERAGE * x_target_pct * (2/(n+2))
+                if (context.purchase_prices[s1]['price'] == 0):
+                    context.purchase_prices[s1]['price'] = data.current(s1, 'price')
+                    context.purchase_prices[s1]['long'] = True if s1_weight > 0 else False
+                else:
+                    is_long = context.purchase_prices[s1]['long']
+                    if ((is_long and s1_weight < 0) or (not is_long and s1_weight > 0)):
+                        context.purchase_prices[s1]['long'] = not context.purchase_prices[s1]['long']
+                        context.purchase_prices[s1]['price'] = data.current(s1, 'price')
+                
+                if (context.purchase_prices[s2]['price'] == 0):
+                    context.purchase_prices[s2]['price'] = data.current(s2, 'price')
+                    context.purchase_prices[s2]['long'] = True if s2_weight > 0 else False
+                else:
+                    is_long = context.purchase_prices[s2]['long']
+                    if ((is_long and s2_weight < 0) or (not is_long and s2_weight > 0)):
+                        context.purchase_prices[s2]['long'] = not context.purchase_prices[s2]['long']
+                        context.purchase_prices[s2]['price'] = data.current(s2, 'price')    
+                    
                 context.target_weights[s2] = LEVERAGE * x_target_pct * (2/(n+2))
                 context.target_weights[s1] = LEVERAGE * y_target_pct * (2/(n+2))
 
@@ -839,23 +938,22 @@ def allocate(context, data):
     for s in list(context.target_weights.keys()):
         if context.target_weights.loc[s] != 0:
             print(("\t" + str(s) + ":\t" + str(round(context.target_weights.loc[s],3))))
-        #order_target_percent(s, context.target_weights.loc[s])
-    # print(context.target_weights.keys())
-    
-    objective = opt.TargetWeights(context.target_weights)
+        order_target_percent(s, context.target_weights.loc[s])
+
+    # objective = opt.TargetWeights(context.target_weights)
 
 
-    # Define constraints
-    constraints = []
-    constraints.append(opt.MaxGrossExposure(MAX_GROSS_EXPOSURE))
-    algo.order_optimal_portfolio(
-        objective=objective,
-        constraints=constraints,
-    )
+    # # Define constraints
+    # constraints = []
+    # constraints.append(opt.MaxGrossExposure(MAX_GROSS_EXPOSURE))
+    # algo.order_optimal_portfolio(
+    #     objective=objective,
+    #     constraints=constraints,
+    # )
 
 
 # def handle_data(context, data):
 #     pass
-    #check_pair_status(context, data)
-    # if context.account.leverage>LEVERAGE or context.account.leverage < 0:
-    #     warn_leverage(context, data)
+#     check_pair_status(context, data)
+#     if context.account.leverage>LEVERAGE or context.account.leverage < 0:
+#         warn_leverage(context, data)
