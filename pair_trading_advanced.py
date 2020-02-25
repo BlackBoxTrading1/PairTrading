@@ -1,4 +1,4 @@
-#Pair Trading Algorithm
+#Pair Trading Algorithm 
 
 import quantopian.algorithm as algo
 import quantopian.optimize as opt
@@ -20,16 +20,15 @@ from pykalman import KalmanFilter
 
 COMMISSION             = 0
 LEVERAGE               = 1.0
-MAX_GROSS_EXPOSURE     = LEVERAGE
-MARKET_CAP             = 0
+MARKET_CAP             = 1000 #millions
 INTERVAL               = 3
 DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 20 # used for regression
 Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
-ENTRY                  = 2
+ENTRY                  = 2.0
 EXIT                   = 0.5
 RECORD_LEVERAGE        = True
-STOPLOSS               = 0.25
+STOPLOSS               = 0.20
 
 # Quantopian constraints
 SET_PAIR_LIMIT         = True
@@ -65,7 +64,7 @@ REAL_UNIVERSE = [
     # 31040030, 31050010, 31060010, 31070010, 31070020, 31070030, 31070040, 31070050, 31070060,
     # 31080010, 31080020, 31080030, 31080040, 31080050, 31080060, 31090010, 31110010, 31110020,
     # 31110030, 31120010, 31120020, 31120030, 31120040, 31120050, 31120060, 31130010, 31130020,
-    # 31130030
+    # 31130030,
 
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009,
     10106010, 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018,
@@ -100,7 +99,7 @@ REAL_UNIVERSE = [
 # REAL_UNIVERSE             = [ 30947102, 31169147, 31167140]
 
 #Choose tests
-RUN_CORRELATION_TEST      = False
+RUN_CORRELATION_TEST      = True
 RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
@@ -115,22 +114,22 @@ RANK_BY                   = 'hurst h-value'
 DESIRED_PVALUE            = 0.01
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
 TEST_PARAMS               = { #Used when choosing pairs
-            'Correlation':      {'lookback': 365, 'min': 0.00, 'max': 1.00,           'key': 'correlation'  },
+            'Correlation':      {'lookback': 365, 'min': 0.90, 'max': 1.00,           'key': 'correlation'  },
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
             'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.30,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 365, 'min': 1,    'max': 50,             'key': 'half-life'    },
+            'Half-life':        {'lookback': 365, 'min': 0,    'max': 50,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   }
 
                              }
-LOOSE_PVALUE              = 0.10
+LOOSE_PVALUE              = 0.05
 LOOSE_PARAMS              = { #Used when checking pair quality
             'Correlation':      {'min': 0.00, 'max': 1.00,         'run': False},
             'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.49,         'run': True }, #true
-            'Half-life':        {'min': 0,    'max': 100,          'run': True }, #true
-            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True } #true
+            'Hurst':            {'min': 0.00, 'max': 0.40,         'run': True },
+            'Half-life':        {'min': 0,    'max': 100,          'run': True },
+            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': True }
                              }
 
 def initialize(context):
@@ -217,7 +216,7 @@ def make_pipeline(start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
         universe = REAL_UNIVERSE[i]
-        columns[str(universe)] = (sma_short>5) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>1000000000)
+        columns[str(universe)] = (sma_short>5) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6))
         securities = securities | columns[str(universe)]
 
     return Pipeline(
@@ -712,6 +711,8 @@ def check_pair_status(context, data):
         context.curr_price_history = (s1_price_test, s2_price_test)
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
             print("Closing " + str((s1,s2)) + ". Failed tests.")
+            del context.purchase_prices[pair[0]]
+            del context.purchase_prices[pair[1]]
             context.pairs.remove(pair)
             # context.num_pairs = context.num_pairs - 1
 
@@ -930,21 +931,3 @@ def allocate(context, data):
         if context.target_weights.loc[s] != 0:
             print(("\t" + str(s) + ":\t" + str(round(context.target_weights.loc[s],3))))
         order_target_percent(s, context.target_weights.loc[s])
-
-    # objective = opt.TargetWeights(context.target_weights)
-
-
-    # # Define constraints
-    # constraints = []
-    # constraints.append(opt.MaxGrossExposure(MAX_GROSS_EXPOSURE))
-    # algo.order_optimal_portfolio(
-    #     objective=objective,
-    #     constraints=constraints,
-    # )
-
-
-# def handle_data(context, data):
-#     pass
-#     check_pair_status(context, data)
-#     if context.account.leverage>LEVERAGE or context.account.leverage < 0:
-#         warn_leverage(context, data)
