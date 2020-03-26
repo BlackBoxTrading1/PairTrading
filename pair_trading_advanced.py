@@ -25,8 +25,8 @@ INTERVAL               = 3
 DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 20 # used for regression
 Z_WINDOW               = 20 # used for zscore calculation, must be <= HEDGE_LOOKBACK
-ENTRY                  = 0.5
-EXIT                   = 0.2
+ENTRY                  = 2.0
+EXIT                   = 0.5
 RECORD_LEVERAGE        = True
 STOPLOSS               = 0.20
 
