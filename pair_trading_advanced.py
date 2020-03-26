@@ -18,7 +18,7 @@ from scipy.stats import shapiro
 import math
 from pykalman import KalmanFilter
 
-COMMISSION             = 0
+# COMMISSION             = 0
 LEVERAGE               = 1.0
 MARKET_CAP             = 1000 #millions
 INTERVAL               = 3
@@ -134,9 +134,9 @@ LOOSE_PARAMS              = { #Used when checking pair quality
 
 def initialize(context):
 
-    set_slippage(slippage.FixedBasisPointsSlippage())
-    set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=0))
-    set_benchmark(symbol('SPY'))
+    # set_slippage(slippage.FixedBasisPointsSlippage())
+    # set_commission(commission.PerShare(cost=COMMISSION, min_trade_cost=0))
+    # set_benchmark(symbol('SPY'))
 
     context.num_universes = len(REAL_UNIVERSE)
     context.num_pvalue_tests = len(PVALUE_TESTS)
@@ -237,13 +237,7 @@ def get_stock_partner(context, stock):
             partner = pair[1]
         elif stock == pair[1]:
             partner = pair[0]
-    return partner     
-
-#calculate total commission cost of a stock given betsize
-def get_commission(data, stock, bet_size):
-    price = data.current(stock, 'price')
-    num_shares = bet_size/price
-    return (COMMISSION*num_shares)
+    return partner
 
 def get_price_history(data, stock, length):
     return data.history(stock, "price", length, '1d')
@@ -663,6 +657,13 @@ def check_pair_status(context, data):
         choose_pairs(context, data)
         return
 
+    if (len(context.pairs) == 0):
+        month = get_datetime('US/Eastern').month
+        context.curr_month = month + 1 - 12*(month == 12)
+        context.universe_set = False
+        context.pairs_chosen = False
+        return
+    
     new_spreads = np.ndarray((context.num_pairs, 1))
     
     pairs_to_dump = []
@@ -765,7 +766,7 @@ def check_pair_status(context, data):
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
-            if context.pair_status[pair]['currently_short'] and zscore < EXIT:
+            if (context.pair_status[pair]['currently_short'] and zscore < EXIT) or (zscore > 3) or (zscore< -3):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
@@ -782,6 +783,11 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
+                
+                if (zscore > 3 or zscore < -3):
+                    context.pairs.remove(pair)
+                    del context.purchase_prices[s1]
+                    del context.purchase_prices[s2]
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
