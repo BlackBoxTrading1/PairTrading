@@ -1,4 +1,4 @@
-#Pair Trading Algorithm
+#Pair Trading Algorithm 
 
 import quantopian.algorithm as algo
 import quantopian.optimize as opt
@@ -26,9 +26,11 @@ DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 21 # used for regression
 Z_WINDOW               = 21 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY                  = 2.0
-EXIT                   = 0.5
+EXIT                   = 0.0
+Z_STOP                 = 4.0
 RECORD_LEVERAGE        = True
 STOPLOSS               = 0.20
+MIN_SHARE              = 2
 
 # Quantopian constraints
 SET_PAIR_LIMIT         = True
@@ -104,7 +106,9 @@ RUN_COINTEGRATION_TEST    = True
 RUN_ADFULLER_TEST         = True
 RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
-RUN_SHAPIROWILKE_TEST     = True
+RUN_SHAPIROWILKE_TEST     = True 
+RUN_ZSCORE_TEST           = False
+RUN_ALPHA_TEST            = False
 
 RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
@@ -118,7 +122,7 @@ TEST_PARAMS               = { #Used when choosing pairs
             'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
             'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 365, 'min': 1,    'max': 42,             'key': 'half-life'    },
+            'Half-life':        {'lookback': 365, 'min': 1,    'max': 63,             'key': 'half-life'    },
             'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   }
 
                              }
@@ -127,8 +131,8 @@ LOOSE_PARAMS              = { #Used when checking pair quality
             'Correlation':      {'min': 0.00, 'max': 1.00,         'run': False},
             'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': True },
-            'Half-life':        {'min': 1,    'max': 63,           'run': True },
+            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False},
+            'Half-life':        {'min': 1,    'max': 63,           'run': False},
             'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False}
                              }
 
@@ -216,7 +220,7 @@ def make_pipeline(start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
         universe = REAL_UNIVERSE[i]
-        columns[str(universe)] = (sma_short>2) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6))
+        columns[str(universe)] = (sma_short>MIN_SHARE) & industry_code.eq(universe) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6))
         securities = securities | columns[str(universe)]
 
     return Pipeline(
@@ -261,7 +265,7 @@ def hedge_ratio(Y, X):
     X = sm.add_constant(X)
     model = sm.OLS(Y, X).fit_regularized()
     return model.params[1]
-    
+
 def get_current_portfolio_weights(context, data):
     positions = context.portfolio.positions  
     positions_index = pd.Index(positions)  
@@ -319,23 +323,14 @@ def get_spreads(data, s1_price, s2_price, length):
     return spreads
 
 def get_cointegration(s1_price, s2_price):
-    pvalue = sm.coint(s1_price, s2_price)[1]
+    score, pvalue, _ = sm.coint(s1_price, s2_price)
     return pvalue
 
 def get_adf_pvalue(spreads):
-    aic = sm.adfuller(spreads, regression = 'ct', autolag='aic')[1]
-    # bic = sm.adfuller(spreads, autolag='bic')[1]
-    # upper_bound = LOOSE_PARAMS['adf p-value']['max']
-    # if RUN_BONFERRONI_CORRECTION and 'adf p-value' in PVALUE_TESTS:
-    #     upper_bound /= context.num_pvalue_tests
-    # lower_bound = LOOSE_PARAMS['adf p-value']['min']
-    # if ((aic and bic) != 'N/A' and (aic and bic) >= lower_bound and (aic and bic) <= upper_bound):
-    #     return aic
-    # else:
-    #     return 1.00
+    aic = sm.adfuller(spreads, autolag='aic')[1]
     return aic
 
-def get_half_life(spreads, Y, X): 
+def get_half_life(spreads): 
     lag = np.roll(spreads, 1)
     lag[0] = 0
     ret = spreads - lag
@@ -343,14 +338,7 @@ def get_half_life(spreads, Y, X):
     lag2 = sm.add_constant(lag)
     model = sm.OLS(ret, lag2)
     res = model.fit_regularized()
-    hl = (-np.log(2) / res.params[1])
-    X = sm.add_constant(X)
-    model = sm.OLS(Y, X).fit_regularized()
-    alpha = model.params[1]
-    if alpha < 0:
-        return 10**9
-    else:
-        return hl
+    return (-np.log(2) / res.params[1])
 
 def get_hurst_hvalue(ts):
     ts = np.asarray(ts)
@@ -361,8 +349,8 @@ def get_hurst_hvalue(ts):
         pdiff = np.subtract(ts[lag:],ts[:-lag])
         lagvec.append(lag)
         tau.append(np.sqrt(np.std(pdiff)))
-    m = np.polynomial.polynomial.polyfit(np.log10(np.asarray(lagvec)), np.log10(np.asarray(tau).clip(min=0.0000000001)), 1)
-    return m[1]*2.0
+    m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
+    return m[0]*2.0
 
 def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
@@ -370,18 +358,19 @@ def get_shapiro_pvalue(spreads):
 
 def run_test(context, test, value, loose_screens):
     upper_bound = TEST_PARAMS[test]['max']
-    if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
-        upper_bound /= context.num_pvalue_tests
     lower_bound = TEST_PARAMS[test]['min']
     if loose_screens:
         upper_bound = LOOSE_PARAMS[test]['max']
         lower_bound = LOOSE_PARAMS[test]['min']
+    if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
+        upper_bound /= context.num_pvalue_tests
     return (value != 'N/A' and value >= lower_bound and value <= upper_bound)
 
 def passed_all_tests(context, data, s1, s2, loose_screens=False):
     context.spreads = {}
     context.spread_lookbacks = []
     context.test_data[(s1,s2)] = {}
+
     if RUN_CORRELATION_TEST:
         if not loose_screens or (loose_screens and LOOSE_PARAMS['Correlation']['run']):
             lookback = TEST_PARAMS['Correlation']['lookback']
@@ -444,7 +433,7 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
             hl = 'N/A'
             try:
-                hl = get_half_life(spreads, s1_price, s2_price)
+                hl = get_half_life(spreads)
             except:
                 hl = 'N/A'
             context.test_data[(s1,s2)][TEST_PARAMS['Half-life']['key']] = hl
@@ -465,6 +454,21 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
             if not run_test(context, 'Shapiro-Wilke', sw, loose_screens):
                 return False       
 
+    if RUN_ZSCORE_TEST and (not loose_screens):
+        lookback = 365
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        zscore = (spreads[-1] - spreads.mean()) / spreads.std()
+        if not (zscore > ENTRY and zscore < Z_STOP) or (zscore > -Z_STOP and zscore < -ENTRY):
+            return False
+    
+    if RUN_ALPHA_TEST and (not loose_screens):
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        X = sm.add_constant(s1_price)
+        hedge = sm.OLS(s2_price, X).fit_regularized().params[1]
+        if hedge < 0:
+            return False
+        
     return True
 
 
@@ -670,6 +674,13 @@ def check_pair_status(context, data):
         choose_pairs(context, data)
         return
 
+    if (len(context.pairs) == 0):
+        month = get_datetime('US/Eastern').month
+        context.curr_month = month + 1 - 12*(month == 12)
+        context.universe_set = False
+        context.pairs_chosen = False
+        return
+    
     new_spreads = np.ndarray((context.num_pairs, 1))
     
     pairs_to_dump = []
@@ -772,7 +783,7 @@ def check_pair_status(context, data):
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
-            if context.pair_status[pair]['currently_short'] and zscore < EXIT:
+            if (context.pair_status[pair]['currently_short'] and zscore < EXIT) or (zscore > Z_STOP) or (zscore< -Z_STOP):
                 stocks = get_allocated_stocks(context, context.target_weights)
                 n = float(len(stocks))
                 for stock in stocks:
@@ -789,6 +800,11 @@ def check_pair_status(context, data):
                 context.target_weights[s2] = 0.0
                 context.pair_status[pair]['currently_short'] = False
                 context.pair_status[pair]['currently_long'] = False
+                
+                if (zscore > Z_STOP or zscore < -Z_STOP):
+                    del context.purchase_prices[s1]
+                    del context.purchase_prices[s2]
+                    context.pairs.remove(pair)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
