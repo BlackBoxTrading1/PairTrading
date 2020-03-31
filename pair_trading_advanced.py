@@ -22,7 +22,7 @@ from pykalman import KalmanFilter
 LEVERAGE               = 1.0
 MARKET_CAP             = 50 #millions
 INTERVAL               = 3
-DESIRED_PAIRS          = 2
+DESIRED_PAIRS          = 1
 HEDGE_LOOKBACK         = 21 # used for regression
 Z_WINDOW               = 21 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY                  = 1.5
@@ -108,6 +108,7 @@ RUN_HURST_TEST            = True
 RUN_HALF_LIFE_TEST        = True
 RUN_SHAPIROWILKE_TEST     = True
 RUN_ZSCORE_TEST           = True
+RUN_ALPHA_TEST            = True
 
 RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
@@ -122,7 +123,8 @@ TEST_PARAMS               = { #Used when choosing pairs
             'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
             'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
             'Half-life':        {'lookback': 365, 'min': 1,    'max': 63,             'key': 'half-life'    },
-            'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   }
+            'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
+            'Zscore':           {'lookback': Z_WINDOW, 'min': ENTRY,'max': Z_STOP,    'key': 'zscore'       }
 
                              }
 LOOSE_PVALUE              = 0.15
@@ -347,8 +349,8 @@ def get_hurst_hvalue(ts):
         pdiff = np.subtract(ts[lag:],ts[:-lag])
         lagvec.append(lag)
         tau.append(np.sqrt(np.std(pdiff)))
-    m = np.polynomial.polynomial.polyfit(np.log10(np.asarray(lagvec)), np.log10(np.asarray(tau).clip(min=0.0000000001)), 1)
-    return m[1]*2.0
+    m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
+    return m[0]*2.0
 
 def get_shapiro_pvalue(spreads):
     w, p = shapiro(spreads)
@@ -453,13 +455,21 @@ def passed_all_tests(context, data, s1, s2, loose_screens=False):
                 return False       
 
     if RUN_ZSCORE_TEST and (not loose_screens):
-        lookback = 365
+        lookback = TEST_PARAMS['Zscore']['lookback']
+        s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
+        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
+        zscore = (spreads[-1] - spreads.mean()) / spreads.std()
+        context.test_data[(s1,s2)][TEST_PARAMS['Zscore']['key']] = zscore
+        if (not run_test(context, 'Zscore', zscore,loose_screens) and 
+            not run_test(context, 'Zscore', -zscore,loose_screens)):
+            return False
+
+    if RUN_ALPHA_TEST and (not loose_screens):
+        lookback = TEST_PARAMS['Zscore']['lookback']
         s1_price, s2_price = get_stored_prices(context, data, s1, s2, lookback)
         X = sm.add_constant(s1_price)
         hedge = sm.OLS(s2_price, X).fit_regularized().params[1]
-        spreads = get_stored_spreads(context, data, s1_price, s2_price, lookback)
-        zscore = (spreads[-1] - spreads.mean()) / spreads.std()
-        if (not ((zscore > ENTRY and zscore < Z_STOP) or (zscore > -Z_STOP and zscore < -ENTRY)) or hedge < 0):
+        if hedge < 0:
             return False
         
     return True
@@ -651,13 +661,21 @@ def choose_pairs(context, data):
     context.pairs_chosen = True
     context.num_pairs = len(context.pairs)
 
-    for pair in context.pairs:
+
+    context.spread = np.ndarray((context.num_pairs, 0))
+    for index, pair in enumerate(context.pairs):
         context.pair_status[pair] = {}
         context.pair_status[pair]['currently_short'] = False
         context.pair_status[pair]['currently_long'] = False
-
-    context.spread = np.ndarray((context.num_pairs, 0))
-
+        s1_price = context.price_histories[pair[0]][-(Z_WINDOW):]
+        s2_price = context.price_histories[pair[1]][-(Z_WINDOW):]
+        spreads = get_spreads(data, s1_price, s2_price, Z_WINDOW)
+        new_spreads = np.ndarray((context.num_pairs, 1))
+        for i in range(Z_WINDOW):
+            new_spreads[index, :] = spreads[i]
+            context.spread = np.hstack([context.spread, new_spreads])
+    
+    
 def check_pair_status(context, data):
     if (not context.pairs_chosen):
         return
@@ -722,7 +740,7 @@ def check_pair_status(context, data):
         context.curr_price_history = (s1_price_test, s2_price_test)
         if not passed_all_tests(context, data, s1, s2, loose_screens=True):
             print("Closing " + str((s1,s2)) + ". Failed tests.")
-            del context.purchase_prices[pair[0]]
+            del context.purchase_prices[s1]
             del context.purchase_prices[pair[1]]
             context.pairs.remove(pair)
             # context.num_pairs = context.num_pairs - 1
@@ -770,8 +788,10 @@ def check_pair_status(context, data):
         for k in context.target_weights.keys():
             if not data.can_trade(k):
                 context.target_weights = context.target_weights.drop([k])
-        new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]
-        if context.spread.shape[1] > Z_WINDOW:
+        new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]               
+        
+        if context.spread.shape[1] >= Z_WINDOW:
+            print("inside z window")
 
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
@@ -795,9 +815,10 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_long'] = False
                 
                 if (zscore > Z_STOP or zscore < -Z_STOP):
-                    context.pairs.remove(pair)
+                    print("Failed Z Stop: " + str(zscore))
                     del context.purchase_prices[s1]
                     del context.purchase_prices[s2]
+                    context.pairs.remove(pair)
 
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
@@ -872,6 +893,7 @@ def check_pair_status(context, data):
                 return
 
             if zscore > ENTRY and (not context.pair_status[pair]['currently_short']):
+                print("zscore > entry")
                 context.pair_status[pair]['currently_short'] = True
                 context.pair_status[pair]['currently_long'] = False
                 y_target_shares = -1
