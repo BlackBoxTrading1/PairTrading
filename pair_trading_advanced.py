@@ -21,16 +21,17 @@ from pykalman import KalmanFilter
 # COMMISSION             = 0
 LEVERAGE               = 1.0
 MARKET_CAP             = 50 #millions
-INTERVAL               = 3
+INTERVAL               = 1
 DESIRED_PAIRS          = 1
 HEDGE_LOOKBACK         = 21 # used for regression
 Z_WINDOW               = 21 # used for zscore calculation, must be <= HEDGE_LOOKBACK
 ENTRY                  = 1.5
 EXIT                   = 0.5
-Z_STOP                 = 3
+Z_STOP                 = 3.0
 RECORD_LEVERAGE        = True
 STOPLOSS               = 0.20
-MIN_SHARE              = 2
+MIN_SHARE              = 2.00
+Z_PROTECT              = 0.20
 
 # Quantopian constraints
 SET_PAIR_LIMIT         = True
@@ -101,12 +102,12 @@ REAL_UNIVERSE = [
 # REAL_UNIVERSE             = [ 30947102, 31169147, 31167140]
 
 #Choose tests
-RUN_CORRELATION_TEST      = False
+RUN_CORRELATION_TEST      = True
 RUN_COINTEGRATION_TEST    = True
-RUN_ADFULLER_TEST         = True
-RUN_HURST_TEST            = True
-RUN_HALF_LIFE_TEST        = True
-RUN_SHAPIROWILKE_TEST     = True
+RUN_ADFULLER_TEST         = False
+RUN_HURST_TEST            = False
+RUN_HALF_LIFE_TEST        = False
+RUN_SHAPIROWILKE_TEST     = False
 RUN_ZSCORE_TEST           = True
 RUN_ALPHA_TEST            = True
 
@@ -114,17 +115,18 @@ RUN_BONFERRONI_CORRECTION = True
 RUN_KALMAN_FILTER         = True
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY                   = 'hurst h-value'
+RANK_BY                   = 'correlation'
 DESIRED_PVALUE            = 0.01
+LOOKBACK = 365
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
 TEST_PARAMS               = { #Used when choosing pairs
-            'Correlation':      {'lookback': 365, 'min': 0.50, 'max': 1.00,           'key': 'correlation'  },
-            'Cointegration':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'coint p-value'},
-            'ADFuller':         {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
-            'Hurst':            {'lookback': 365, 'min': 0.00, 'max': 0.50,           'key': 'hurst h-value'},
-            'Half-life':        {'lookback': 365, 'min': 1,    'max': 63,             'key': 'half-life'    },
-            'Shapiro-Wilke':    {'lookback': 365, 'min': 0.00, 'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
-            'Zscore':           {'lookback': Z_WINDOW, 'min': ENTRY,'max': Z_STOP,    'key': 'zscore'       }
+            'Correlation':      {'lookback': LOOKBACK, 'min': -1.00,    'max': 1.00,           'key': 'correlation'  },
+            'Cointegration':    {'lookback': LOOKBACK, 'min': 0.00,     'max': DESIRED_PVALUE, 'key': 'coint p-value'},
+            'ADFuller':         {'lookback': LOOKBACK, 'min': 0.00,     'max': DESIRED_PVALUE, 'key': 'adf p-value'  },
+            'Hurst':            {'lookback': LOOKBACK, 'min': 0.00,     'max': 0.50,           'key': 'hurst h-value'},
+            'Half-life':        {'lookback': LOOKBACK, 'min': 1,        'max': 63,             'key': 'half-life'    },
+            'Shapiro-Wilke':    {'lookback': LOOKBACK, 'min': 0.00,     'max': DESIRED_PVALUE, 'key': 'sw p-value'   },
+            'Zscore':           {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'key': 'zscore'       }
 
                              }
 LOOSE_PVALUE              = 0.15
@@ -132,9 +134,9 @@ LOOSE_PARAMS              = { #Used when checking pair quality
             'Correlation':      {'min': 0.00, 'max': 1.00,         'run': False},
             'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
             'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False },
-            'Half-life':        {'min': 1,    'max': 63,          'run': False },
-            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False }
+            'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False}, #true
+            'Half-life':        {'min': 1,    'max': 63,          'run':  False}, #true
+            'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False}  #true
                              }
 
 def initialize(context):
@@ -624,7 +626,7 @@ def choose_pairs(context, data):
                 pair_counter += 1
 
     #sort pairs from highest to lowest cointegrations
-    rev = (RANK_BY == 'correlation')
+    rev = (RANK_BY == 'zscore')
     passing_pair_keys = sorted(context.passing_pairs, key=lambda kv: context.passing_pairs[kv][RANK_BY],
                                      reverse=rev)
     passing_pair_list = []
@@ -791,7 +793,7 @@ def check_pair_status(context, data):
         new_spreads[i, :] = s1_price[-1] - hedge * s2_price[-1]               
         
         if context.spread.shape[1] >= Z_WINDOW:
-            print("inside z window")
+            # print("inside z window")
 
             spreads = context.spread[i, -Z_WINDOW:]
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
@@ -815,11 +817,11 @@ def check_pair_status(context, data):
                 context.pair_status[pair]['currently_long'] = False
                 
                 if (zscore > Z_STOP or zscore < -Z_STOP):
+                    context.pairs.remove(pair)
                     print("Failed Z Stop: " + str(zscore))
                     del context.purchase_prices[s1]
                     del context.purchase_prices[s2]
-                    context.pairs.remove(pair)
-
+                    
                 if not RECORD_LEVERAGE:
                     record(Y_pct=0, X_pct=0)
                 allocate(context, data)
@@ -893,7 +895,7 @@ def check_pair_status(context, data):
                 return
 
             if zscore > ENTRY and (not context.pair_status[pair]['currently_short']):
-                print("zscore > entry")
+                # print("zscore > entry")
                 context.pair_status[pair]['currently_short'] = True
                 context.pair_status[pair]['currently_long'] = False
                 y_target_shares = -1
