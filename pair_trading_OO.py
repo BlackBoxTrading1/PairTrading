@@ -9,12 +9,11 @@ import quantopian.pipeline.data.morningstar as ms
 import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
-import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 from pykalman import KalmanFilter
 
 LEVERAGE               = 1.0
-MARKET_CAP             = 50
+MARKET_CAP             = 1000
 INTERVAL               = 1
 DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 21 
@@ -28,7 +27,6 @@ Z_PROTECT              = 0.20
 
 # Quantopian constraints
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 150
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -57,22 +55,25 @@ LOOSE_PVALUE              = 0.15
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
 RUN_BONFERRONI_CORRECTION = True
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': 0.50, 'max': 1.00,           'type': 'price',  'run': True },
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.30, 'max': 1.00,           'type': 'price',  'run': False },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'price',  'run': True },
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.40,           'type': 'spread', 'run': True },
-    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run': True },
-    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True },
-    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'key': 'zscore', 'run': False}
+    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': False},
+    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run':  False },
+    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run':  False },
+    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'type': 'spread', 'run': True},
+    'Alpha':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 1.00,           'type': 'spread', 'run':  False }
                              }
 
 LOOSE_PARAMS              = {
-    'Correlation':      {'min': 0.00, 'max': 1.00,         'run': False},
-    'Cointegration':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-    'ADFuller':         {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False},
-    'Hurst':            {'min': 0.00, 'max': 0.50,         'run': False},
-    'Half-life':        {'min': 1,    'max': 63,           'run': False},
-    'Shapiro-Wilke':    {'min': 0.00, 'max': LOOSE_PVALUE, 'run': False}
+    'Correlation':      {'min': 0.00,     'max': 1.00,         'run': False},
+    'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
+    'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
+    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True},
+    'Alpha':            {'min': -Z_STOP,  'max': Z_STOP,       'run': False}
                              }
 
 class Stock:
@@ -80,11 +81,11 @@ class Stock:
         self.equity = equity
         self.price_history = price_history
         self.purchase_price = {'price': 0, 'long': False}
-    
+
     def update_purchase_price(self, price, is_long):
         self.purchase_price['price'] = price
         self.purchase_price['long'] = is_long
-        
+
     def test_stoploss(self, data):
         is_long = self.purchase_price['long']
         initial_price = self.purchase_price['price']
@@ -92,7 +93,7 @@ class Stock:
         if initial_price == 0:
             return True
         return not ((is_long and current_price< (1-STOPLOSS)*initial_price) or (not is_long and current_price> (1+STOPLOSS)*initial_price))
-
+    
 class Pair:
     def __init__(self, data, s1, s2, industry):
         self.left = s1
@@ -112,19 +113,16 @@ class Pair:
         if len(untradable) > 0:
             return False, untradable
         return True, []
-    
+
     def test(self, context, data, loose_screens=False, test_type="spread"):
         for test in TEST_PARAMS:
-            if not TEST_PARAMS[test]['run'] or (loose_screens and not LOOSE_PARAMS[test]['run']) or (TEST_PARAMS[test]['type'] != test_type):
+            if (not TEST_PARAMS[test]['run']) or (loose_screens and not LOOSE_PARAMS[test]['run']) or (TEST_PARAMS[test]['type'] != test_type):
                 continue
-            
             current_test = get_test_by_name(test)
             result = "N/A"
-            (s1_price, s2_price) = (self.left.price_history, self.right.price_history)
-            
             if TEST_PARAMS[test]['type'] == "price":
                 try:
-                    result = current_test(s1_price[-LOOKBACK:], s2_price[-LOOKBACK:])
+                    result = current_test(self.left.price_history[-LOOKBACK:], self.right.price_history[-LOOKBACK:])
                 except:
                     pass
             elif TEST_PARAMS[test]['type'] == "spread":
@@ -134,10 +132,8 @@ class Pair:
                     result = current_test(self.spreads)
                 except:
                     pass
-
             if result == 'N/A':
                 return False
-
             self.latest_test_results[test] = round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
             lower_bound = TEST_PARAMS[test]['min'] if (not loose_screens) else LOOSE_PARAMS[test]['min']
@@ -171,10 +167,10 @@ def initialize(context):
     context.weight_change = False
     day = get_datetime().day - (int)(2*get_datetime().day/7) - 3
 
+    schedule_function(set_universe, date_rules.month_start(day * (not (day < 0 or day > 19))), time_rules.market_open(hours=0, minutes=1))
     schedule_function(calculate_price_histories, date_rules.every_day(), time_rules.market_open(hours=0, minutes=30))
     schedule_function(create_pairs, date_rules.every_day(), time_rules.market_open(hours=0, minutes=45))
     schedule_function(choose_pairs, date_rules.every_day(), time_rules.market_open(hours=1, minutes=0))
-    schedule_function(set_universe, date_rules.month_start(day * (not (day < 0 or day > 19))), time_rules.market_open(hours=0, minutes=1))
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
 
 def make_pipeline(start, end):
@@ -189,39 +185,6 @@ def make_pipeline(start, end):
         columns[str(REAL_UNIVERSE[i])] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6))
         securities = securities | columns[str(REAL_UNIVERSE[i])]
     return Pipeline(columns = columns, screen=(securities),)
-
-def calculate_price_histories(context, data):
-    record(market_exposure=context.account.net_leverage, leverage=context.account.leverage)
-    if (not context.remaining_codes) or (not context.universe_set) or context.desired_pairs==0:
-        context.desired_pairs = 0
-        return
-
-    sorted_codes = context.remaining_codes
-    count = 0
-    i = len(sorted_codes) - 1
-    context.codes = []
-    while (i >= 0):
-        diff = context.max_kalman - count
-        if context.industries[sorted_codes[i]]['size'] < diff:
-            context.codes.append(sorted_codes[i])
-            count += context.industries[sorted_codes[i]]['size']
-            context.remaining_codes.remove(sorted_codes[i])
-        i = i - 1
-
-    report = "SETTING UNIVERSE"
-    comps = 0
-    for code in context.codes:
-        report += "\n\t\t\t" + str(code) + ": " + str(context.industries[code]['size']) + " stocks"
-        comps += context.industries[code]['size']*(context.industries[code]['size'] + 1)
-    comps = comps if comps < MAX_PROCESSABLE_PAIRS else MAX_PROCESSABLE_PAIRS
-    print (report + "\n\t\t\t--> Processed pairs = " + str(comps))
-
-    current_pool = []
-    for code in context.codes:
-         current_pool = current_pool + context.industries[code]['list']
-    for i in range(count):
-        price_history = data.history(current_pool[i].equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d')
-        current_pool[i].price_history = price_history
 
 def set_universe(context, data):
     this_month = get_datetime('US/Eastern').month 
@@ -263,6 +226,7 @@ def set_universe(context, data):
             total += len(stock_obj_list)
             if (len(stock_obj_list) > context.max_kalman):
                 context.max_kalman = len(stock_obj_list) + 1
+    context.max_kalman = 100
     if not context.industries:
         print("No substantial universe found. Waiting until next cycle")
         context.universe_set = False
@@ -274,6 +238,35 @@ def set_universe(context, data):
     context.spread = np.ndarray((0, Z_WINDOW))
     context.delisted = []
 
+def calculate_price_histories(context, data):
+    record(market_exposure=context.account.net_leverage, leverage=context.account.leverage)
+    if (not context.remaining_codes) or (not context.universe_set) or context.desired_pairs==0:
+        context.desired_pairs = 0
+        return
+
+    sorted_codes = context.remaining_codes
+    count = 0
+    i = len(sorted_codes) - 1
+    context.codes = []
+    while (i >= 0):
+        diff = context.max_kalman - count
+        if context.industries[sorted_codes[i]]['size'] < diff:
+            context.codes.append(sorted_codes[i])
+            count += context.industries[sorted_codes[i]]['size']
+            context.remaining_codes.remove(sorted_codes[i])
+        i = i - 1
+
+    report = "SETTING UNIVERSE"
+    comps = 0
+    for code in context.codes:
+        report += "\n\t\t\t" + str(code) + ": " + str(context.industries[code]['size']) + " stocks"
+        comps += context.industries[code]['size']*(context.industries[code]['size'] + 1)
+    comps = comps if comps < MAX_PROCESSABLE_PAIRS else MAX_PROCESSABLE_PAIRS
+    print (report + "\n\t\t\t--> Processed pairs = " + str(comps))
+
+    for code in context.codes:
+        for stock in context.industries[code]['list']:
+            stock.price_history = data.history(stock.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d')
 
 def create_pairs(context, data):
     if not context.universe_set or context.desired_pairs == 0:
@@ -291,12 +284,12 @@ def create_pairs(context, data):
                 if pair_forward.test(context, data, test_type="price"):
                     pair_forward.spreads = get_spreads(data, pair_forward.left.price_history, pair_forward.right.price_history, LOOKBACK)
                     context.all_pairs[code].append(pair_forward)
-                
+
                 if pair_reverse.test(context, data, test_type="price"):
                     pair_reverse.spreads = get_spreads(data, pair_reverse.left.price_history, pair_reverse.right.price_history, LOOKBACK)
                     context.all_pairs[code].append(pair_reverse)
                 pair_counter += 2
-    
+                
 def choose_pairs(context, data):
     if not context.universe_set or context.desired_pairs == 0:
         return
@@ -306,9 +299,8 @@ def choose_pairs(context, data):
     for code in context.all_pairs:
         for pair in context.all_pairs[code]:
             pair.test(context, data, test_type="spread")
-        if not context.industries[code]['top'] == None:
+        if not (context.industries[code]['top'] == None):
             new_pairs.append(context.industries[code]['top'])
-
     new_pairs = sorted(new_pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
     num_pairs = context.desired_pairs if (len(new_pairs) > context.desired_pairs) else len(new_pairs)
     context.desired_pairs = context.desired_pairs - num_pairs
@@ -317,22 +309,16 @@ def choose_pairs(context, data):
         report += ("\n\t\t\t"+str(len(context.pairs)+i+1)+") "+str(new_pairs[i].left.equity)+" & "+str(new_pairs[i].right.equity)
         +"\n\t\t\t\tIndustry Code:\t"+ str(new_pairs[i].industry))
         for test in new_pairs[i].latest_test_results:
-            report += "\n\t\t\t\t" + str(test) + ": \t" + "\t"*(len(test) <= 6) + str(new_pairs[i].latest_test_results[test])
+            report += "\n\t\t\t\t" + str(test) + ": \t" + "\t"*(len(test) <= 5 ) + str(new_pairs[i].latest_test_results[test])
         context.pairs.append(new_pairs[i])
         context.pairs_chosen = True
     
     num_spreads = context.spread.shape[1]
     for index in range(num_pairs):
-        (s1_price, s2_price) = (new_pairs[index].left.price_history, new_pairs[index].right.price_history)
         new_spreads = np.ndarray((1, num_spreads))
         for i in range(num_spreads):
-            if (i >= num_spreads-Z_WINDOW):
-                start_index = len(s1_price) - (num_spreads-i)
-                (price1, price2) = (s1_price[(start_index-HEDGE_LOOKBACK): start_index], s2_price[(start_index-HEDGE_LOOKBACK): start_index])
-                hedge = np.polynomial.polynomial.polyfit(price2,price1,1)[1]
-                new_spreads[0][i] = price1[-1] - hedge*price2[-1]
-            else:
-                new_spreads[0][i] = 0
+            diff = num_spreads-Z_WINDOW
+            new_spreads[0][i] = new_pairs[index].spreads[-HEDGE_LOOKBACK:][i-diff] if i >= diff else 0
         context.spread = np.vstack((context.spread, new_spreads))
     print (report)
 
@@ -369,7 +355,7 @@ def check_pair_status(context, data):
     for stock in temp_delisted:
         if (not stock.equity in context.portfolio.positions):
             context.delisted.remove(stock)
-    if (len(context.delisted) > 0):
+    if len(context.delisted) > 0:
         print("Stock not liquidated. Returning")
         return
 
@@ -379,15 +365,16 @@ def check_pair_status(context, data):
     while (pair_index < num_pairs):
         if (pair_index >= len(context.pairs)):
             break
-
         pair = context.pairs[pair_index]
         (s1, s2) = (pair.left, pair.right)
         (s1_price_test, s2_price_test) = (data.history(s1.equity, "price", LOOKBACK, '1d'), data.history(s2.equity, "price", LOOKBACK, '1d'))
         pair.left.price_history = s1_price_test
         pair.right.price_history = s2_price_test
+
         if not pair.test(context,data,loose_screens=True):
             print(str(s1.equity) + " & " + str(s2.equity) + " failed tests --> X")
             remove_pair(context, pair, index=pair_index)
+            new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
     
         s1_price = run_kalman(data.history(s1.equity, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::])
@@ -398,12 +385,8 @@ def check_pair_status(context, data):
         
         if context.spread.shape[1] >= Z_WINDOW:
             spreads = context.spread[pair_index, -Z_WINDOW:]
+            context.pairs[pair_index].spreads = spreads
             zscore = (spreads[-1] - spreads.mean()) / spreads.std()
-            if (zscore > Z_STOP) or (zscore < -Z_STOP):
-                print(str(pair.left.equity) + " & " + str(pair.right.equity) + " Zscore " + str(round(zscore, 2)) + " --> X")
-                remove_pair(context, pair, index=pair_index)
-                new_spreads = np.delete(new_spreads, pair_index, 0)
-                continue
 
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
                 sell_pair(context, data, pair)
@@ -443,7 +426,7 @@ def sell_pair(context, data, pair):
     pair.currently_short = False
     pair.currently_long = False
     context.weight_change = True
-    
+
 def buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2_price, new_pair=True):
     n = num_allocated_stocks(context)
     notionalDol =  abs(y_target_shares * s1_price[-1]) + abs(X_target_shares * s2_price[-1])
@@ -458,7 +441,7 @@ def buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2
     else:
         update_target_weight(context, data, pair.left, LEVERAGE * y_target_pct* 2/n)
         update_target_weight(context, data, pair.right, LEVERAGE * x_target_pct* 2/n)
-    
+
 def allocate(context, data):
     if (not context.weight_change):
         return
@@ -477,13 +460,12 @@ def allocate(context, data):
 def get_spreads(data, s1_price, s2_price, length):
     spreads = []
     for i in range(length):
+        start_index = len(s1_price)-length+i
         try:
-            start_index = len(s1_price)-length+i
             hedge = np.polynomial.polynomial.polyfit(s2_price[start_index-HEDGE_LOOKBACK:start_index],s1_price[start_index-HEDGE_LOOKBACK:start_index],1)[1]
-        except ValueError as e:
-            log.debug(e)
-            return
-        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
+        except:
+            return []
+        spreads = np.append(spreads, s1_price[start_index-1] - hedge*s2_price[start_index-1])
     return spreads
 
 def num_allocated_stocks(context):
@@ -549,18 +531,22 @@ def get_test_by_name(name):
             tau.append(np.sqrt(np.std(pdiff)))
         m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
         return m[0]*2.0
+    
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
         lag[0] = 0
         ret = spreads - lag
         ret[0] = 0
-        lag2 = sm.add_constant(lag)
-        model = sm.OLS(ret, lag2)
-        res = model.fit_regularized()
-        return (-np.log(2) / res.params[1])
+        return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
+    
     def shapiro_pvalue(spreads):
         w, p = shapiro(spreads)
         return p
+    
+    def zscore(spreads):
+        spreads = spreads[-Z_WINDOW:]
+        return (spreads[-1]-spreads.mean())/spreads.std()
+    
     def default(a=0, b=0):
         return a
     
@@ -576,4 +562,6 @@ def get_test_by_name(name):
         return half_life
     elif (name.lower() == "shapiro-wilke"):
         return shapiro_pvalue
+    elif (name.lower() == "zscore"):
+        return zscore
     return default
