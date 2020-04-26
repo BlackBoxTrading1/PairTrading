@@ -11,23 +11,24 @@ import pandas as pd
 import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro
 from pykalman import KalmanFilter
+import math
 
 LEVERAGE               = 1.0
-MARKET_CAP             = 50
-INTERVAL               = 2
-DESIRED_PAIRS          = 2
+MARKET_CAP             = 25
+INTERVAL               = 1
+DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
 Z_WINDOW               = 21 
-ENTRY                  = 1.5
-EXIT                   = 0.5
+ENTRY                  = 1.25
+EXIT                   = 0.50
 Z_STOP                 = 3
-STOPLOSS               = 0.20
-MIN_SHARE              = 2
-Z_PROTECT              = 0.20
+STOPLOSS               = 0.15
+MIN_SHARE              = 1.00
+Z_PROTECT              = 0.05
 
 # Quantopian constraints
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 100
+MAX_KALMAN_STOCKS      = 150
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -50,31 +51,31 @@ REAL_UNIVERSE = [
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Hurst'
 RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.05
+DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
-LOOSE_PVALUE              = 0.15
+LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
-RUN_BONFERRONI_CORRECTION = False
+RUN_BONFERRONI_CORRECTION = True
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': 0.30, 'max': 1.00,           'type': 'price',  'run': False},
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.80, 'max': 1.00,           'type': 'price',  'run': False},
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'price',  'run': True },
-    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.40,           'type': 'spread', 'run': True },
-    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True},
-    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run':  True},
-    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run':  False},
-    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'type': 'spread', 'run': True},
-    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.01, 'max': 1.00,           'type': 'price', 'run':  True}
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,           'type': 'spread', 'run': True },
+    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run': True },
+    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True },
+    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': ENTRY*(1+(2*Z_PROTECT)),'type': 'spread', 'run': True},
+    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.00, 'max': 10**9,           'type': 'price', 'run':  True}
                              }
 
 LOOSE_PARAMS              = {
     'Correlation':      {'min': 0.00,     'max': 1.00,         'run': False},
-    'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True},
-    'Alpha':            {'min': 0.01,  'max': 1.00,       'run': False}
+    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True },
+    'Alpha':            {'min': 0.00,     'max': 10**9,        'run': True }
                              }
 
 class Stock:
@@ -183,7 +184,7 @@ def initialize(context):
     schedule_function(calculate_price_histories, date_rules.every_day(), time_rules.market_open(hours=0, minutes=30))
     schedule_function(create_pairs, date_rules.every_day(), time_rules.market_open(hours=0, minutes=45))
     schedule_function(choose_pairs, date_rules.every_day(), time_rules.market_open(hours=1, minutes=0))
-    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
+    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(hours = 1))
 
 def make_pipeline(start, end):
     base_universe = QTradableStocksUS()
@@ -535,17 +536,19 @@ def get_test_by_name(name):
     def adf_pvalue(spreads):
         return sm.adfuller(spreads,1)[1]
     def hurst_hvalue(ts):
-        ts = np.asarray(ts)
-        lagvec = []
-        tau = []
-        lags = list(range(2, 100))
-        for lag in lags:
-            pdiff = np.subtract(ts[lag:],ts[:-lag])
-            lagvec.append(lag)
-            tau.append(np.sqrt(np.std(pdiff)))
-        m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
-        return m[0]*2.0
-    
+        # ts = np.asarray(ts)
+        # lagvec = []
+        # tau = []
+        # lags = list(range(2, 100))
+        # for lag in lags:
+        #     pdiff = np.subtract(ts[lag:],ts[:-lag])
+        #     lagvec.append(lag)
+        #     tau.append(np.sqrt(np.std(pdiff)))
+        # m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
+        # return m[0]*2.0
+        
+        npspreads = np.array(ts)
+        return compute_Hc(npspreads)[0]
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
         lag[0] = 0
@@ -584,3 +587,257 @@ def get_test_by_name(name):
     elif (name.lower() == "alpha"):
         return alpha
     return default
+
+
+def __to_inc(x):
+    incs = x[1:] - x[:-1]
+    return incs
+
+def __to_pct(x):
+    pcts = x[1:] / x[:-1] - 1.
+    return pcts
+
+def __get_simplified_RS(series, kind):
+    """
+    Simplified version of rescaled range
+
+    Parameters
+    ----------
+
+    series : array-like
+        (Time-)series
+    kind : str
+        The kind of series (refer to compute_Hc docstring)
+    """
+
+    if kind == 'random_walk':
+        incs = __to_inc(series)
+        R = max(series) - min(series)  # range in absolute values
+        S = np.std(incs, ddof=1)
+    elif kind == 'price':
+        pcts = __to_pct(series)
+        R = max(series) / min(series) - 1. # range in percent
+        S = np.std(pcts, ddof=1)
+    elif kind == 'change':
+        incs = series
+        _series = np.hstack([[0.],np.cumsum(incs)])
+        R = max(_series) - min(_series)  # range in absolute values
+        S = np.std(incs, ddof=1)
+
+    if R == 0 or S == 0:
+        return 0  # return 0 to skip this interval due the undefined R/S ratio
+
+    return R / S
+
+def __get_RS(series, kind):
+    """
+    Get rescaled range (using the range of cumulative sum
+    of deviations instead of the range of a series as in the simplified version
+    of R/S) from a time-series of values.
+
+    Parameters
+    ----------
+
+    series : array-like
+        (Time-)series
+    kind : str
+        The kind of series (refer to compute_Hc docstring)
+    """
+
+    if kind == 'random_walk':
+        incs = __to_inc(series)
+        mean_inc = (series[-1] - series[0]) / len(incs)
+        deviations = incs - mean_inc
+        Z = np.cumsum(deviations)
+        R = max(Z) - min(Z)
+        S = np.std(incs, ddof=1)
+
+    elif kind == 'price':
+        incs = __to_pct(series)
+        mean_inc = np.sum(incs) / len(incs)
+        deviations = incs - mean_inc
+        Z = np.cumsum(deviations)
+        R = max(Z) - min(Z)
+        S = np.std(incs, ddof=1)
+
+    elif kind == 'change':
+        incs = series
+        mean_inc = np.sum(incs) / len(incs)
+        deviations = incs - mean_inc
+        Z = np.cumsum(deviations)
+        R = max(Z) - min(Z)
+        S = np.std(incs, ddof=1)
+
+    if R == 0 or S == 0:
+        return 0  # return 0 to skip this interval due undefined R/S
+
+    return R / S
+
+def compute_Hc(series, kind="random_walk", min_window=10, max_window=None, simplified=True):
+    """
+    Compute H (Hurst exponent) and C according to Hurst equation:
+    E(R/S) = c * T^H
+
+    Refer to:
+    https://en.wikipedia.org/wiki/Hurst_exponent
+    https://en.wikipedia.org/wiki/Rescaled_range
+    https://en.wikipedia.org/wiki/Random_walk
+
+    Parameters
+    ----------
+
+    series : array-like
+        (Time-)series
+
+    kind : str
+        Kind of series
+        possible values are 'random_walk', 'change' and 'price':
+        - 'random_walk' means that a series is a random walk with random increments;
+        - 'price' means that a series is a random walk with random multipliers;
+        - 'change' means that a series consists of random increments
+            (thus produced random walk is a cumulative sum of increments);
+
+    min_window : int, default 10
+        the minimal window size for R/S calculation
+
+    max_window : int, default is the length of series minus 1
+        the maximal window size for R/S calculation
+
+    simplified : bool, default True
+        whether to use the simplified or the original version of R/S calculation
+
+    Returns tuple of
+        H, c and data
+        where H and c — parameters or Hurst equation
+        and data is a list of 2 lists: time intervals and R/S-values for correspoding time interval
+        for further plotting log(data[0]) on X and log(data[1]) on Y
+    """
+
+    # if len(series)<100:
+    #     raise ValueError("Series length must be greater or equal to 100")
+
+    # ndarray_likes = [np.ndarray]
+    # if "pandas.core.series" in sys.modules.keys():
+    #     ndarray_likes.append(pd.core.series.Series)
+
+    # # convert series to numpy array if series is not numpy array or pandas Series
+    # if type(series) not in ndarray_likes:
+    #     series = np.array(series)
+
+    # if "pandas.core.series" in sys.modules.keys() and type(series) == pd.core.series.Series:
+    #     if series.isnull().values.any():
+    #         raise ValueError("Series contains NaNs")
+    #     series = series.values  # convert pandas Series to numpy array
+    # elif np.isnan(np.min(series)):
+    #     raise ValueError("Series contains NaNs")
+
+    if simplified:
+        RS_func = __get_simplified_RS
+    else:
+        RS_func = __get_RS
+
+
+    err = np.geterr()
+    np.seterr(all='raise')
+
+    max_window = max_window or len(series)-1
+    window_sizes = list(map(
+        lambda x: int(10**x),
+        np.arange(math.log10(min_window), math.log10(max_window), 0.25)))
+    window_sizes.append(len(series))
+
+    RS = []
+    for w in window_sizes:
+        rs = []
+        for start in range(0, len(series), w):
+            if (start+w)>len(series):
+                break
+            _ = RS_func(series[start:start+w], kind)
+            if _ != 0:
+                rs.append(_)
+        RS.append(np.mean(rs))
+
+    A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
+    H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+    np.seterr(**err)
+
+    c = 10**c
+    return H, c, [window_sizes, RS]
+
+def random_walk(length, proba=0.5, min_lookback=1, max_lookback=100, cumprod=False):
+    """
+    Generates a random walk series
+
+    Parameters
+    ----------
+
+    proba : float, default 0.5
+        the probability that the next increment will follow the trend.
+        Set proba > 0.5 for the persistent random walk,
+        set proba < 0.5 for the antipersistent one
+
+    min_lookback: int, default 1
+    max_lookback: int, default 100
+        minimum and maximum window sizes to calculate trend direction
+    cumprod : bool, default False
+        generate a random walk as a cumulative product instead of cumulative sum
+    """
+
+    assert(min_lookback>=1)
+    assert(max_lookback>=min_lookback)
+
+    if max_lookback > length:
+        max_lookback = length
+        # warnings.warn("max_lookback parameter has been set to the length of the random walk series.")
+
+    if not cumprod:  # ordinary increments
+        series = [0.] * length  # array of prices
+        for i in range(1, length):
+            if i < min_lookback + 1:
+                direction = np.sign(np.random.randn())
+            else:
+                lookback = np.random.randint(min_lookback, min(i-1, max_lookback)+1)
+                direction = np.sign(series[i-1] - series[i-1-lookback]) * np.sign(proba - np.random.uniform())
+            series[i] = series[i-1] + np.fabs(np.random.randn()) * direction
+    else:  # percent changes
+        series = [1.] * length  # array of prices
+        for i in range(1, length):
+            if i < min_lookback + 1:
+                direction = np.sign(np.random.randn())
+            else:
+                lookback = np.random.randint(min_lookback, min(i-1, max_lookback)+1)
+                direction = np.sign(series[i-1] / series[i-1-lookback] - 1.) * np.sign(proba - np.random.uniform())
+            series[i] = series[i-1] * np.fabs(1 + np.random.randn()/1000. * direction)
+
+    return series
+
+
+# if __name__ == '__main__':
+
+#     # Use random_walk() function or generate a random walk series manually:
+#     # series = random_walk(99999, cumprod=True)
+#     np.random.seed(42)
+#     random_changes = 1. + np.random.randn(99999) / 1000.
+#     series = np.cumprod(random_changes)  # create a random walk from random changes
+
+#     # Evaluate Hurst equation
+#     H, c, data = compute_Hc(series, kind='price', simplified=True)
+
+#     # Plot
+#     # uncomment the following to make a plot using Matplotlib:
+#     """
+#     import matplotlib.pyplot as plt
+
+#     f, ax = plt.subplots()
+#     ax.plot(data[0], c*data[0]**H, color="deepskyblue")
+#     ax.scatter(data[0], data[1], color="purple")
+#     ax.set_xscale('log')
+#     ax.set_yscale('log')
+#     ax.set_xlabel('Time interval')
+#     ax.set_ylabel('R/S ratio')
+#     ax.grid(True)
+#     plt.show()
+#     """
+
+#     print("H={:.4f}, c={:.4f}".format(H,c))
+#     assert H<0.6 and H>0.4
