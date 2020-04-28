@@ -11,10 +11,11 @@ import pandas as pd
 import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro
 from pykalman import KalmanFilter
+import math
 
 LEVERAGE               = 1.0
 MARKET_CAP             = 50
-INTERVAL               = 2
+INTERVAL               = 1
 DESIRED_PAIRS          = 2
 HEDGE_LOOKBACK         = 21 
 Z_WINDOW               = 21 
@@ -48,22 +49,22 @@ REAL_UNIVERSE = [
 ]
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY                   = 'Hurst'
-RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.05
+RANK_BY                   = 'Correlation'
+RANK_DESCENDING           = True
+DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
-LOOSE_PVALUE              = 0.15
+LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
-RUN_BONFERRONI_CORRECTION = False
+RUN_BONFERRONI_CORRECTION = True
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': 0.30, 'max': 1.00,           'type': 'price',  'run': False},
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.30, 'max': 1.00,           'type': 'price',  'run': True},
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'price',  'run': True },
-    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.40,           'type': 'spread', 'run': True },
-    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': True},
-    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run':  True},
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,           'type': 'spread', 'run': False },
+    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': False},
+    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run':  False},
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run':  False},
-    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'type': 'spread', 'run': True},
-    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.01, 'max': 1.00,           'type': 'price', 'run':  True}
+    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'type': 'spread', 'run': False},
+    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.01, 'max': np.inf,   'type': 'price', 'run':  True}
                              }
 
 LOOSE_PARAMS              = {
@@ -74,12 +75,13 @@ LOOSE_PARAMS              = {
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True},
-    'Alpha':            {'min': 0.01,  'max': 1.00,       'run': False}
+    'Alpha':            {'min': 0.01,     'max': np.inf,       'run': True}
                              }
 
 class Stock:
     def __init__(self, equity, price_history):
         self.equity = equity
+        self.name = equity.symbol
         self.price_history = price_history
         self.purchase_price = {'price': 0, 'long': False}
 
@@ -99,6 +101,7 @@ class Pair:
     def __init__(self, data, s1, s2, industry):
         self.left = s1
         self.right= s2
+        self.to_string = "<" + s1.name + " & " + s2.name + ">"
         self.industry = industry
         self.spreads = []
         self.latest_test_results = {}
@@ -134,21 +137,21 @@ class Pair:
                 except:
                     pass
             if result == 'N/A':
-                return False
+                return False, (test, result)
             self.latest_test_results[test] = round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
             lower_bound = TEST_PARAMS[test]['min'] if (not loose_screens) else LOOSE_PARAMS[test]['min']
             if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
                 upper_bound /= len(PVALUE_TESTS)
             if not (result >= lower_bound and result <= upper_bound):
-                return False
+                return False, (test, result)
 
             if (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
                 bottom_result = context.industries[self.industry]['top'][0].latest_test_results[test]
                 if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
-                    return False
+                    return False, (test, result)
                 
-        if TEST_PARAMS[RANK_BY]['type'] == test_type:
+        if test_type == "spread":
             context.industries[self.industry]['top'].append(self)
             context.industries[self.industry]['top'] = sorted(context.industries[self.industry]['top'], key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
             stock_list = []
@@ -158,12 +161,12 @@ class Pair:
                     new_list.append(pair)
                     stock_list.append(pair.left.equity)
                     stock_list.append(pair.right.equity)
-            
+
             context.industries[self.industry]['top'] = new_list
             if len(context.industries[self.industry]['top']) > context.desired_pairs:
                 context.industries[self.industry]['top'].pop(0)
-                
-        return True
+
+        return True, ()
 
 def initialize(context):
     context.num_pipes = (int)(len(REAL_UNIVERSE)/50) + (len(REAL_UNIVERSE)%50 > 0)*1
@@ -183,7 +186,7 @@ def initialize(context):
     schedule_function(calculate_price_histories, date_rules.every_day(), time_rules.market_open(hours=0, minutes=30))
     schedule_function(create_pairs, date_rules.every_day(), time_rules.market_open(hours=0, minutes=45))
     schedule_function(choose_pairs, date_rules.every_day(), time_rules.market_open(hours=1, minutes=0))
-    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(minutes=30))
+    schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(hours = 1))
 
 def make_pipeline(start, end):
     base_universe = QTradableStocksUS()
@@ -313,14 +316,13 @@ def choose_pairs(context, data):
         for pair in context.all_pairs[code]:
             pair.test(context, data, test_type="spread")
         new_pairs = new_pairs + context.industries[code]['top']
-        # if not (context.industries[code]['top'] == None):
-        #     new_pairs.append(context.industries[code]['top'])
+
     new_pairs = sorted(new_pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
     num_pairs = context.desired_pairs if (len(new_pairs) > context.desired_pairs) else len(new_pairs)
     context.desired_pairs = context.desired_pairs - num_pairs
     report += " --> FOUND " + str(num_pairs)
     for i in range(num_pairs):
-        report += ("\n\t\t\t"+str(len(context.pairs)+i+1)+") "+str(new_pairs[i].left.equity)+" & "+str(new_pairs[i].right.equity)
+        report += ("\n\t\t\t"+str(len(context.pairs)+1)+") "+str(new_pairs[i].to_string)
         +"\n\t\t\t\tIndustry Code:\t"+ str(new_pairs[i].industry))
         for test in new_pairs[i].latest_test_results:
             report += "\n\t\t\t\t" + str(test) + ": \t" + "\t"*(len(test) <= 5 ) + str(new_pairs[i].latest_test_results[test])
@@ -353,12 +355,16 @@ def check_pair_status(context, data):
         pair = context.pairs[i]
         
         if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
-            print (str(pair.left.equity) + " & " + str(pair.right.equity) + " failed stoploss --> X")
+            print (pair.to_string + " failed stoploss --> X")
+            if context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0:
+                sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
             i = i-1        
         is_tradable = pair.is_tradable(data)
         if not is_tradable[0]:
             print ("cannot trade  " + str(pair.left.equity) + " & " + str(pair.right.equity))
+            if context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0:
+                sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
             i = i-1
             del context.target_weights[pair.left.equity]
@@ -385,16 +391,20 @@ def check_pair_status(context, data):
         pair.left.price_history = s1_price_test
         pair.right.price_history = s2_price_test
 
-        if not pair.test(context,data,loose_screens=True):
-            print(str(s1.equity) + " & " + str(s2.equity) + " failed tests --> X")
+        result, tup = pair.test(context,data,loose_screens=True)
+        if not result:
+            print(pair.to_string + " failed tests --> X" + str(tup))
+            if context.target_weights[s1.equity] != 0 or context.target_weights[s2.equity] != 0:
+                sell_pair(context, data, pair)
             remove_pair(context, pair, index=pair_index)
             new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
     
         s1_price = run_kalman(data.history(s1.equity, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::])
         s2_price = run_kalman(data.history(s2.equity, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::])
-
-        hedge = np.polynomial.polynomial.polyfit(s2_price,s1_price,1)[1]
+        
+        hedge = sm.OLS(s1_price, sm.add_constant(s2_price)).fit_regularized().params[1]
+        
         new_spreads[pair_index, :] = s1_price[-1] - hedge * s2_price[-1]
         
         if context.spread.shape[1] >= Z_WINDOW:
@@ -463,13 +473,13 @@ def allocate(context, data):
     table = ""
     for pair in context.pairs:
         if (context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0):
-            table += ("\n\t|\t"+str(pair.left.equity)+"\t"+"+"*(1 if context.target_weights[pair.left.equity] >= 0 else 0) 
+            table += ("\n\t\t\t|\t"+str(pair.left.name)+"\t"+"+"*(1 if context.target_weights[pair.left.equity] >= 0 else 0) 
                   +str(round(context.target_weights[pair.left.equity],3)*100)+"%  "+"+"*(1 if context.target_weights[pair.right.equity] >= 0 else 0)
-                  +str(round(context.target_weights[pair.right.equity],3)*100)+"%\t "+str(pair.right.equity) + "\t|")
+                  +str(round(context.target_weights[pair.right.equity],3)*100)+"%\t "+str(pair.right.name) + "\t|")
         order_target_percent(pair.left.equity, context.target_weights[pair.left.equity])
         order_target_percent(pair.right.equity, context.target_weights[pair.right.equity])
-    table = table if len(table) > 0 else "\n\t|\t\t\t\tall weights 0\t\t\t\t|"
-    print ("ALLOCATING...\n\t " + "_"*71 + table + "\n\t|" + "_"*71 + "|")
+    table = table if len(table) > 0 else "\n\t\t\t|\t\tall weights 0\t\t|"
+    print ("ALLOCATING...\n\t\t\t " + "_"*39 + table + "\n\t\t\t|" + "_"*39 + "|")
 
 def get_spreads(data, s1_price, s2_price, length):
     spreads = []
@@ -534,18 +544,37 @@ def get_test_by_name(name):
         return pvalue
     def adf_pvalue(spreads):
         return sm.adfuller(spreads,1)[1]
-    def hurst_hvalue(ts):
-        ts = np.asarray(ts)
-        lagvec = []
-        tau = []
-        lags = list(range(2, 100))
-        for lag in lags:
-            pdiff = np.subtract(ts[lag:],ts[:-lag])
-            lagvec.append(lag)
-            tau.append(np.sqrt(np.std(pdiff)))
-        m = np.polynomial.polynomial.polyfit(np.log(np.asarray(lagvec)), np.log(np.asarray(tau)), 1)
-        return m[0]*2.0
-    
+    def hurst_hvalue(series):
+        max_window = len(series)-1
+        min_window = 10
+        window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), math.log10(max_window), 0.25)))
+        window_sizes.append(len(series))
+        RS = []
+        for w in window_sizes:
+            rs = []
+            for start in range(0, len(series), w):
+                if (start+w)>len(series):
+                    break
+                    
+                incs = series[start:start+w][1:] - series[start:start+w][:-1]
+                
+                # SIMPLIFIED
+                # R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+                # S = np.std(incs, ddof=1) 
+
+                #NOT SIMPLIFIED
+                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                deviations = incs - mean_inc
+                Z = np.cumsum(deviations)
+                R = max(Z) - min(Z)
+                S = np.std(incs, ddof=1)
+     
+                if R != 0 and S != 0:
+                    rs.append(R/S)
+            RS.append(np.mean(rs))
+        A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
+        H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+        return H
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
         lag[0] = 0
