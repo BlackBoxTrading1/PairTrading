@@ -12,21 +12,23 @@ import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro
 from pykalman import KalmanFilter
 import math
+from scipy.stats import linregress
 
 LEVERAGE               = 1.0
-MARKET_CAP             = 50
+MARKET_CAP             = 25
 INTERVAL               = 1
-DESIRED_PAIRS          = 2
+DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
 Z_WINDOW               = 21 
-ENTRY                  = 1.5
-EXIT                   = 0.5
-Z_STOP                 = 3
+ENTRY                  = 1.0
+EXIT                   = 0.2
+Z_STOP                 = 1.5
 STOPLOSS               = 0.20
-MIN_SHARE              = 2
-Z_PROTECT              = 0.20
+MIN_SHARE              = 1.00
+Z_PROTECT              = 0.15
 
 # Quantopian constraints
+PIPE_SIZE              = 50
 MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 100
 
@@ -49,22 +51,22 @@ REAL_UNIVERSE = [
 ]
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY                   = 'Correlation'
-RANK_DESCENDING           = True
+RANK_BY                   = 'Hurst'
+RANK_DESCENDING           = False
 DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
 RUN_BONFERRONI_CORRECTION = True
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': 0.30, 'max': 1.00,           'type': 'price',  'run': True},
-    'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'price',  'run': True },
-    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,           'type': 'spread', 'run': False },
-    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run': False},
-    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,    'type': 'spread', 'run':  False},
-    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE, 'type': 'spread', 'run':  False},
-    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY*(1+Z_PROTECT),'max': Z_STOP*(1-Z_PROTECT),'type': 'spread', 'run': False},
-    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.01, 'max': np.inf,   'type': 'price', 'run':  True}
+    'Correlation':  {'lookback': LOOKBACK, 'min': -1.00,'max': 0.00,                   'type': 'price',  'run': False},
+    'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': True },
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
+    'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,            'type': 'spread', 'run': True },
+    'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
+    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY,'max': ENTRY*(1+(3*Z_PROTECT)),'type': 'spread', 'run': True },
+    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.10, 'max': np.inf,           'type': 'price',  'run': True }
                              }
 
 LOOSE_PARAMS              = {
@@ -74,8 +76,8 @@ LOOSE_PARAMS              = {
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True},
-    'Alpha':            {'min': 0.01,     'max': np.inf,       'run': True}
+    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True },
+    'Alpha':            {'min': 0.10,     'max': np.inf,       'run': True }
                              }
 
 class Stock:
@@ -137,19 +139,19 @@ class Pair:
                 except:
                     pass
             if result == 'N/A':
-                return False, (test, result)
+                return False#, (test, result)
             self.latest_test_results[test] = round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
             lower_bound = TEST_PARAMS[test]['min'] if (not loose_screens) else LOOSE_PARAMS[test]['min']
             if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
                 upper_bound /= len(PVALUE_TESTS)
             if not (result >= lower_bound and result <= upper_bound):
-                return False, (test, result)
+                return False#, (test, result)
 
             if (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
-                bottom_result = context.industries[self.industry]['top'][0].latest_test_results[test]
+                bottom_result = context.industries[self.industry]['top'][-1].latest_test_results[test]
                 if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
-                    return False, (test, result)
+                    return False#, (test, result)
                 
         if test_type == "spread":
             context.industries[self.industry]['top'].append(self)
@@ -164,14 +166,15 @@ class Pair:
 
             context.industries[self.industry]['top'] = new_list
             if len(context.industries[self.industry]['top']) > context.desired_pairs:
-                context.industries[self.industry]['top'].pop(0)
+                # context.industries[self.industry]['top'].pop(0)
+                del context.industries[self.industry]['top'][-1]
 
-        return True, ()
+        return True##, ()
 
 def initialize(context):
-    context.num_pipes = (int)(len(REAL_UNIVERSE)/50) + (len(REAL_UNIVERSE)%50 > 0)*1
+    context.num_pipes = (int)(len(REAL_UNIVERSE)/PIPE_SIZE) + (len(REAL_UNIVERSE)%PIPE_SIZE > 0)*1
     for i in range(context.num_pipes):
-        algo.attach_pipeline(make_pipeline(50*i, 50*i+50), "pipe" + str(i))
+        algo.attach_pipeline(make_pipeline(PIPE_SIZE*i, PIPE_SIZE*(i+1)), "pipe" + str(i))
 
     context.initial_portfolio_value = context.portfolio.portfolio_value
     context.universe_set = False
@@ -215,7 +218,7 @@ def set_universe(context, data):
     context.target_weights = {}
     for equity in context.portfolio.positions:  
         order_target_percent(equity, 0)
-
+        
     context.pairs_chosen = False
     context.desired_pairs = int(round(DESIRED_PAIRS * (context.portfolio.portfolio_value / context.initial_portfolio_value)))
 
@@ -387,25 +390,23 @@ def check_pair_status(context, data):
             break
         pair = context.pairs[pair_index]
         (s1, s2) = (pair.left, pair.right)
-        (s1_price_test, s2_price_test) = (data.history(s1.equity, "price", LOOKBACK, '1d'), data.history(s2.equity, "price", LOOKBACK, '1d'))
+        (s1_price_test, s2_price_test) = (run_kalman(data.history(s1.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d')), run_kalman(data.history(s2.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d')))
         pair.left.price_history = s1_price_test
         pair.right.price_history = s2_price_test
 
-        result, tup = pair.test(context,data,loose_screens=True)
+        result= pair.test(context,data,loose_screens=True, test_type="price")
+        if result:
+            pair.spreads = get_spreads(data, pair.left.price_history, pair.right.price_history, LOOKBACK)
+            result = pair.test(context,data,loose_screens=True)
         if not result:
-            print(pair.to_string + " failed tests --> X" + str(tup))
+            print(pair.to_string + " failed tests --> X")
             if context.target_weights[s1.equity] != 0 or context.target_weights[s2.equity] != 0:
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=pair_index)
             new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
-    
-        s1_price = run_kalman(data.history(s1.equity, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::])
-        s2_price = run_kalman(data.history(s2.equity, 'price', 35, '1d').iloc[-HEDGE_LOOKBACK::])
         
-        hedge = sm.OLS(s1_price, sm.add_constant(s2_price)).fit_regularized().params[1]
-        
-        new_spreads[pair_index, :] = s1_price[-1] - hedge * s2_price[-1]
+        new_spreads[pair_index, :] = pair.left.price_history[-1] -  pair.latest_test_results['Alpha'] * pair.right.price_history[-1]
         
         if context.spread.shape[1] >= Z_WINDOW:
             spreads = context.spread[pair_index, -Z_WINDOW:]
@@ -416,22 +417,22 @@ def check_pair_status(context, data):
                 sell_pair(context, data, pair)
             elif pair.currently_short:
                 y_target_shares = -1
-                X_target_shares = hedge
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2_price, new_pair=False)
+                X_target_shares = pair.latest_test_results['Alpha']
+                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
             elif pair.currently_long:
                 y_target_shares = 1
-                X_target_shares = -hedge
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2_price, new_pair=False)
+                X_target_shares = -pair.latest_test_results['Alpha']
+                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
 
             if zscore < -ENTRY and (not pair.currently_long):
                 y_target_shares = 1
-                X_target_shares = -hedge
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2_price, new_pair=True)
+                X_target_shares = -pair.latest_test_results['Alpha']
+                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
                 
             if zscore > ENTRY and (not pair.currently_short):
                 y_target_shares = -1
-                X_target_shares = hedge
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2_price, new_pair=True)
+                X_target_shares = pair.latest_test_results['Alpha']
+                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
 
         pair_index = pair_index+1
 
@@ -486,7 +487,8 @@ def get_spreads(data, s1_price, s2_price, length):
     for i in range(length):
         start_index = len(s1_price)-length+i
         try:
-            hedge = np.polynomial.polynomial.polyfit(s2_price[start_index-HEDGE_LOOKBACK:start_index],s1_price[start_index-HEDGE_LOOKBACK:start_index],1)[1]
+            # hedge = np.polynomial.polynomial.polyfit(s2_price[start_index-HEDGE_LOOKBACK:start_index],s1_price[start_index-HEDGE_LOOKBACK:start_index],1)[1]
+            hedge = linregress(s2_price[start_index-HEDGE_LOOKBACK:start_index], s1_price[start_index-HEDGE_LOOKBACK:start_index]).slope
         except:
             return []
         spreads = np.append(spreads, s1_price[start_index-1] - hedge*s2_price[start_index-1])
@@ -580,7 +582,8 @@ def get_test_by_name(name):
         lag[0] = 0
         ret = spreads - lag
         ret[0] = 0
-        return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
+        # return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
+        return(-np.log(2) / linregress(lag, ret).slope)
     
     def shapiro_pvalue(spreads):
         w, p = shapiro(spreads)
@@ -591,7 +594,8 @@ def get_test_by_name(name):
         return abs((spreads[-1]-spreads.mean())/spreads.std())
     
     def alpha(price1, price2):
-        return np.polynomial.polynomial.polyfit(price2,price1,1)[1]
+        # return np.polynomial.polynomial.polyfit(price2,price1,1)[1]
+        return linregress(price2, price1).slope
     
     def default(a=0, b=0):
         return a
