@@ -20,49 +20,49 @@ MARKET_CAP             = 25
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
-Z_WINDOW               = 21 
-ENTRY                  = 1.0
-EXIT                   = 0.2
-Z_STOP                 = 1.5
+Z_WINDOW               = 21
+ENTRY                  = 1.5
+EXIT                   = 0.5
+Z_STOP                 = 2.5
 STOPLOSS               = 0.20
 MIN_SHARE              = 1.00
 Z_PROTECT              = 0.15
-MIN_WEIGHT             = 0.4
+MIN_WEIGHT             = 0.20
 
 # Quantopian constraints
-PIPE_SIZE              = 50
+PIPE_SIZE              = 20
 MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 100
 
 # About 4 rows of codes max for 2 buckets
 REAL_UNIVERSE = [
-    #10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
-    #10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 
-    #10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 
-    #10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 
-    #10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 
-    #10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 
-    #10326061, 10427062, 10427063, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 
-    #20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 
+    10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
+    10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 
+    10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 
+    10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 
+    10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 
+    10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 
+    10326061, 10427062, 10427063, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 
+    20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 
     20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 
     20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 
     30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 31052107, 31053108, 31054109, 31055110, 
     31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 
-   # 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 
-    #31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 
-    #31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
+    31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 
+    31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 
+    31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
-CODE_TYPES = [ 0.1, 0.2]
+CODE_TYPES = [0.1, 0.2, 0.3]
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Half-life'
 RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.01
+DESIRED_PVALUE            = 0.05
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
-RUN_BONFERRONI_CORRECTION = True
+RUN_BONFERRONI_CORRECTION = False
 TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke']
 TEST_PARAMS               = {
     'Correlation':  {'lookback': LOOKBACK, 'min': -1.00,'max': 0.00,                   'type': 'price',  'run': False},
@@ -79,10 +79,10 @@ LOOSE_PARAMS              = {
     'Correlation':      {'min': 0.00,     'max': 1.00,         'run': False},
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
+    'Hurst':            {'min': 0.00,     'max': 0.45,         'run': False},
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True },
+    'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True }
                              }
 
@@ -207,7 +207,7 @@ def make_pipeline(start, end):
     base_universe = QTradableStocksUS()
     industry_code = ms.asset_classification.morningstar_industry_code.latest
     sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
-    market_proxy = symbol('SPY') 
+    market_proxy = symbol('SPY')
     beta = SimpleBeta(target=market_proxy, regression_length=253)
     columns = {}
     securities = (ms.valuation.market_cap.latest < 0 )
@@ -215,11 +215,13 @@ def make_pipeline(start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
         #columns[str(REAL_UNIVERSE[i]+0.0)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta < 0)
-        columns[str(REAL_UNIVERSE[i]+0.1)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0) & (beta < 1)
+        columns[str(REAL_UNIVERSE[i]+0.1)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0) & (beta < 1) & (beta >= 0)
         columns[str(REAL_UNIVERSE[i]+0.2)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 1)
+        columns[str(REAL_UNIVERSE[i]+0.3)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0)
         #securities = securities | columns[str(REAL_UNIVERSE[i]+0.0)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.1)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.2)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.3)]
     return Pipeline(columns = columns, screen=(securities),)
 
 def set_universe(context, data):
@@ -579,26 +581,26 @@ def get_test_by_name(name):
                 if (start+w)>len(series):
                     break
             
-            # RANDOM WALK
-                incs = series[start:start+w][1:] - series[start:start+w][:-1]
+            # # RANDOM WALK
+            #     incs = series[start:start+w][1:] - series[start:start+w][:-1]
                 
-                # SIMPLIFIED
-                R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
-                S = np.std(incs, ddof=1) 
+            #     # SIMPLIFIED
+            #     R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+            #     S = np.std(incs, ddof=1) 
 
-                #NOT SIMPLIFIED
-                # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-                # deviations = incs - mean_inc
-                # Z = np.cumsum(deviations)
-                # R = max(Z) - min(Z)
-                # S = np.std(incs, ddof=1)
+            #     # #NOT SIMPLIFIED
+            #     # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+            #     # deviations = incs - mean_inc
+            #     # Z = np.cumsum(deviations)
+            #     # R = max(Z) - min(Z)
+            #     # S = np.std(incs, ddof=1)
                 
             # PRICE
-                # pcts = series[start:start+w][1:] / series[start:start+w][:-1] - 1.
+                pcts = series[start:start+w][1:] / series[start:start+w][:-1] - 1.
                 
-                # #SIMPLIFIED
-                # R = max(series[start:start+w]) / min(series[start:start+w]) - 1.
-                # S = np.std(pcts, ddof=1)
+                #SIMPLIFIED
+                R = max(series[start:start+w]) / min(series[start:start+w]) - 1.
+                S = np.std(pcts, ddof=1)
                 
                 
      
@@ -610,9 +612,9 @@ def get_test_by_name(name):
         return H
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
-        lag[0] = 0
+        # lag[0] = 0
         ret = spreads - lag
-        ret[0] = 0
+        # ret[0] = 0
         # return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
         return(-np.log(2) / linregress(lag, ret).slope)
     
