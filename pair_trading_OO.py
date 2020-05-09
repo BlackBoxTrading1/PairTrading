@@ -3,6 +3,7 @@ import quantopian.algorithm as algo
 from quantopian.pipeline import Pipeline,CustomFactor
 from quantopian.pipeline.data.builtin import USEquityPricing
 from quantopian.pipeline.factors import SimpleMovingAverage
+from quantopian.pipeline.factors import SimpleBeta
 from quantopian.pipeline.filters import QTradableStocksUS
 import quantopian.pipeline.data.morningstar as ms
 
@@ -19,18 +20,21 @@ MARKET_CAP             = 25
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
-Z_WINDOW               = 21 
-ENTRY                  = 1.0
-EXIT                   = 0.2
-Z_STOP                 = 1.75
-STOPLOSS               = 0.15
+Z_WINDOW               = 21
+ENTRY                  = 1.5
+EXIT                   = 0.5
+Z_STOP                 = 2.5
+STOPLOSS               = 0.20
 MIN_SHARE              = 1.00
+Z_PROTECT              = 0.15
+MIN_WEIGHT             = 0.20
 
 # Quantopian constraints
-PIPE_SIZE              = 50
+PIPE_SIZE              = 25
 MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 100
 
+# About 4 rows of codes max for 2 buckets
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
     10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 
@@ -49,34 +53,37 @@ REAL_UNIVERSE = [
     31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
+CODE_TYPES = [0.1, 0.2, 0.3]
+
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Half-life'
 RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.01
+DESIRED_PVALUE            = 0.05
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
-RUN_BONFERRONI_CORRECTION = True
+RUN_BONFERRONI_CORRECTION = False
+TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke']
 TEST_PARAMS               = {
     'Correlation':  {'lookback': LOOKBACK, 'min': -1.00,'max': 0.00,                   'type': 'price',  'run': False},
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': True },
-    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.40,                   'type': 'spread', 'run': True },
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': LOOKBACK, 'min': 1,    'max': INTERVAL*21,            'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1,    'max': INTERVAL*42,            'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
-    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0, 'max': np.inf,              'type': 'price',  'run': True }
+    'Alpha':        {'lookback': HEDGE_LOOKBACK, 'min': 0.00, 'max': np.inf,           'type': 'price',  'run': True }
                              }
 
 LOOSE_PARAMS              = {
     'Correlation':      {'min': 0.00,     'max': 1.00,         'run': False},
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Hurst':            {'min': 0.00,     'max': 0.40,         'run': False},
+    'Hurst':            {'min': 0.00,     'max': 0.45,         'run': False},
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
-    'Alpha':            {'min': 0,        'max': np.inf,       'run': True }
+    'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True }
                              }
 
 class Stock:
@@ -120,21 +127,29 @@ class Pair:
         return True, []
 
     def test(self, context, data, loose_screens=False, test_type="spread"):
-        for test in TEST_PARAMS:
+        for test in TEST_ORDER:
             if (not TEST_PARAMS[test]['run']) or (loose_screens and not LOOSE_PARAMS[test]['run']) or (TEST_PARAMS[test]['type'] != test_type):
                 continue
             current_test = get_test_by_name(test)
             result = "N/A"
             if TEST_PARAMS[test]['type'] == "price":
                 try:
-                    result = current_test(self.left.price_history[-TEST_PARAMS[test]['lookback']:], self.right.price_history[-TEST_PARAMS[test]['lookback']:])
+                    if loose_screens and test == "Alpha":
+                        hl = int(round(self.latest_test_results['Half-life'], 0))
+                        result = current_test(self.left.price_history[-hl:], self.right.price_history[-hl:])
+                    else:
+                        result = current_test(self.left.price_history[-TEST_PARAMS[test]['lookback']:], self.right.price_history[-TEST_PARAMS[test]['lookback']:])
                 except:
                     pass
             elif TEST_PARAMS[test]['type'] == "spread":
                 if self.spreads == []:
                     return False
                 try:
-                    result = current_test(self.spreads)
+                    if test == "Zscore":
+                        hl = int(round(self.latest_test_results['Half-life'], 0))
+                        result = current_test(self.spreads[-hl:])
+                    else:
+                        result = current_test(self.spreads)
                 except:
                     pass
             if result == 'N/A':
@@ -147,12 +162,12 @@ class Pair:
             if not (result >= lower_bound and result <= upper_bound):
                 return False#, (test, result)
 
-            if (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
+            if (not loose_screens) and (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
                 bottom_result = context.industries[self.industry]['top'][-1].latest_test_results[test]
                 if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
                     return False#, (test, result)
                 
-        if test_type == "spread":
+        if (not loose_screens) and test_type == "spread":
             context.industries[self.industry]['top'].append(self)
             context.industries[self.industry]['top'] = sorted(context.industries[self.industry]['top'], key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
             stock_list = []
@@ -165,7 +180,6 @@ class Pair:
 
             context.industries[self.industry]['top'] = new_list
             if len(context.industries[self.industry]['top']) > context.desired_pairs:
-                # context.industries[self.industry]['top'].pop(0)
                 del context.industries[self.industry]['top'][-1]
 
         return True##, ()
@@ -174,7 +188,6 @@ def initialize(context):
     context.num_pipes = (int)(len(REAL_UNIVERSE)/PIPE_SIZE) + (len(REAL_UNIVERSE)%PIPE_SIZE > 0)*1
     for i in range(context.num_pipes):
         algo.attach_pipeline(make_pipeline(PIPE_SIZE*i, PIPE_SIZE*(i+1)), "pipe" + str(i))
-
     context.initial_portfolio_value = context.portfolio.portfolio_value
     context.universe_set = False
     context.pairs_chosen = False
@@ -194,13 +207,21 @@ def make_pipeline(start, end):
     base_universe = QTradableStocksUS()
     industry_code = ms.asset_classification.morningstar_industry_code.latest
     sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
+    market_proxy = symbol('SPY')
+    beta = SimpleBeta(target=market_proxy, regression_length=253)
     columns = {}
     securities = (ms.valuation.market_cap.latest < 0 )
     for i in range(start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
-        columns[str(REAL_UNIVERSE[i])] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6))
-        securities = securities | columns[str(REAL_UNIVERSE[i])]
+        #columns[str(REAL_UNIVERSE[i]+0.0)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta < 0)
+        columns[str(REAL_UNIVERSE[i]+0.1)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0) & (beta < 1) & (beta >= 0)
+        columns[str(REAL_UNIVERSE[i]+0.2)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 1)
+        columns[str(REAL_UNIVERSE[i]+0.3)] = (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0)
+        #securities = securities | columns[str(REAL_UNIVERSE[i]+0.0)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.1)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.2)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.3)]
     return Pipeline(columns = columns, screen=(securities),)
 
 def set_universe(context, data):
@@ -231,18 +252,19 @@ def set_universe(context, data):
     industry_pool = []
     context.max_kalman = 0
     for code in REAL_UNIVERSE:
-        stock_obj_list = []
-        stock_list = pipe_output[pipe_output[str(code)]].index.tolist()
-        for stock in stock_list:
-            new_stock = Stock(stock, [])
-            stock_obj_list.append(new_stock)
-        industry_pool = industry_pool + stock_obj_list
-        if len(stock_obj_list) > 1:
-            context.universe_set = True
-            context.industries[code] = {'list': stock_obj_list, 'top': [], 'size': len(stock_obj_list)}
-            total += len(stock_obj_list)
-            if (len(stock_obj_list) > context.max_kalman):
-                context.max_kalman = len(stock_obj_list) + 1
+        for val in CODE_TYPES:
+            stock_obj_list = []
+            stock_list = pipe_output[pipe_output[str(code+val)]].index.tolist()
+            for stock in stock_list:
+                new_stock = Stock(stock, [])
+                stock_obj_list.append(new_stock)
+            industry_pool = industry_pool + stock_obj_list
+            if len(stock_obj_list) > 1:
+                context.universe_set = True
+                context.industries[code+val] = {'list': stock_obj_list, 'top': [], 'size': len(stock_obj_list)}
+                total += len(stock_obj_list)
+                if (len(stock_obj_list) > context.max_kalman):
+                    context.max_kalman = len(stock_obj_list) + 1
     context.max_kalman = MAX_KALMAN_STOCKS
     if not context.industries:
         print("No substantial universe found. Waiting until next cycle")
@@ -260,6 +282,8 @@ def calculate_price_histories(context, data):
     if (not context.remaining_codes) or (not context.universe_set) or context.desired_pairs==0:
         context.desired_pairs = 0
         return
+    if (len(context.pairs) == 0):
+        context.pairs_chosen = False
 
     sorted_codes = context.remaining_codes
     count = 0
@@ -486,7 +510,6 @@ def get_spreads(data, s1_price, s2_price, length):
     for i in range(length):
         start_index = len(s1_price)-length+i
         try:
-            # hedge = np.polynomial.polynomial.polyfit(s2_price[start_index-HEDGE_LOOKBACK:start_index],s1_price[start_index-HEDGE_LOOKBACK:start_index],1)[1]
             hedge = linregress(s2_price[start_index-HEDGE_LOOKBACK:start_index], s1_price[start_index-HEDGE_LOOKBACK:start_index]).slope
         except:
             return []
@@ -536,6 +559,7 @@ def remove_pair(context, pair, index):
     context.target_weights[pair.right.equity] = 0.0
     context.pairs.remove(pair)
     context.spread = np.delete(context.spread, index, 0)
+    context.desired_pairs += 1
 
 def get_test_by_name(name):
     def correlation(a,b):
@@ -556,19 +580,29 @@ def get_test_by_name(name):
             for start in range(0, len(series), w):
                 if (start+w)>len(series):
                     break
-                    
-                incs = series[start:start+w][1:] - series[start:start+w][:-1]
+            
+            # # RANDOM WALK
+            #     incs = series[start:start+w][1:] - series[start:start+w][:-1]
                 
-                # SIMPLIFIED
-                R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
-                S = np.std(incs, ddof=1) 
+            #     # SIMPLIFIED
+            #     R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+            #     S = np.std(incs, ddof=1) 
 
-                #NOT SIMPLIFIED
-                # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-                # deviations = incs - mean_inc
-                # Z = np.cumsum(deviations)
-                # R = max(Z) - min(Z)
-                # S = np.std(incs, ddof=1)
+            #     # #NOT SIMPLIFIED
+            #     # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+            #     # deviations = incs - mean_inc
+            #     # Z = np.cumsum(deviations)
+            #     # R = max(Z) - min(Z)
+            #     # S = np.std(incs, ddof=1)
+                
+            # PRICE
+                pcts = series[start:start+w][1:] / series[start:start+w][:-1] - 1.
+                
+                #SIMPLIFIED
+                R = max(series[start:start+w]) / min(series[start:start+w]) - 1.
+                S = np.std(pcts, ddof=1)
+                
+                
      
                 if R != 0 and S != 0:
                     rs.append(R/S)
@@ -581,18 +615,26 @@ def get_test_by_name(name):
         # lag[0] = 0
         ret = spreads - lag
         # ret[0] = 0
-        return (-np.log(2) / linregress(lag, ret).slope)
+        # return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
+        return(-np.log(2) / linregress(lag, ret).slope)
     
     def shapiro_pvalue(spreads):
         w, p = shapiro(spreads)
         return p
     
     def zscore(spreads):
-        spreads = spreads[-Z_WINDOW:]
         return abs((spreads[-1]-spreads.mean())/spreads.std())
     
     def alpha(price1, price2):
-        return linregress(price2, price1).slope
+        slope = linregress(price2, price1).slope
+        y_target_shares = 1
+        X_target_shares = -slope
+        notionalDol =  abs(y_target_shares * price1[-1]) + abs(X_target_shares * price2[-1])
+        (y_target_pct, x_target_pct) = (y_target_shares * price1[-1] / notionalDol, X_target_shares * price2[-1] / notionalDol)
+        if (abs(x_target_pct) > MIN_WEIGHT) and (abs(y_target_pct) > MIN_WEIGHT):
+            return slope
+        else:
+            return -1
     
     def default(a=0, b=0):
         return a
