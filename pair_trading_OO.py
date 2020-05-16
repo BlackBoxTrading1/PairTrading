@@ -10,6 +10,7 @@ import quantopian.pipeline.data.morningstar as ms
 import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
+import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro
 from pykalman import KalmanFilter
 import math
@@ -23,8 +24,8 @@ HEDGE_LOOKBACK         = 21
 Z_WINDOW               = 21 
 ENTRY                  = 1.0
 EXIT                   = 0.2
-Z_STOP                 = 1.5
-STOPLOSS               = 0.20
+Z_STOP                 = 2.0
+STOPLOSS               = 0.05
 MIN_SHARE              = 1.00
 Z_PROTECT              = 0.15
 MIN_WEIGHT             = 0.2
@@ -61,18 +62,19 @@ RANK_DESCENDING           = False
 DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
-PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke']
+PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke', 'Ljung-Box']
 RUN_BONFERRONI_CORRECTION = True
-TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke']
+TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Ljung-Box']
 TEST_PARAMS               = {
     'Correlation':  {'lookback': LOOKBACK, 'min': -1.00,'max': 0.00,                   'type': 'price',  'run': False},
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': True },
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1,    'max': INTERVAL*21,            'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 10,    'max': 3*21,            'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
-    'Alpha':        {'lookback': 8, 'min': 0.00, 'max': np.inf,           'type': 'price',  'run': True }
+    'Alpha':        {'lookback': 10, 'min': 0.00, 'max': np.inf,           'type': 'price',  'run': True },
+    'Ljung-Box':        {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,           'type': 'spread',  'run': True }
                              }
 
 LOOSE_PARAMS              = {
@@ -83,7 +85,8 @@ LOOSE_PARAMS              = {
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True },
-    'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True }
+    'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
+    'Ljung-Box':            {'min': 0.00,     'max': np.inf,       'run': False }
                              }
 
 class Stock:
@@ -139,7 +142,7 @@ class Pair:
                         hl = int(round(self.latest_test_results['Half-life'], 0))
                         result = current_test(self.left.price_history[-hl:], self.right.price_history[-hl:])
                     else:
-                        result = current_test(self.left.price_history[-TEST_PARAMS[test]['lookback']:], self.right.price_history[-TEST_PARAMS[test]['lookback']:])
+                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], self.right.price_history[-HEDGE_LOOKBACK:])
                 except:
                     pass
             elif TEST_PARAMS[test]['type'] == "spread":
@@ -156,7 +159,7 @@ class Pair:
             if result == 'N/A':
                 self.latest_failed_test = test + " " + str(result)
                 return False
-            self.latest_test_results[test] = round(result,6)
+            self.latest_test_results[test] = result #round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
             lower_bound = TEST_PARAMS[test]['min'] if (not loose_screens) else LOOSE_PARAMS[test]['min']
             if RUN_BONFERRONI_CORRECTION and test in PVALUE_TESTS:
@@ -198,6 +201,7 @@ def initialize(context):
     context.curr_month = -1
     context.target_weights = {}
     context.industries = []
+    context.pairs = []
     context.weight_change = False
     day = get_datetime().day - (int)(2*get_datetime().day/7) - 3
 
@@ -341,6 +345,8 @@ def choose_pairs(context, data):
         return
 
     report = "CHOOSING " + str(context.desired_pairs) + " PAIR" + "S"*(context.desired_pairs > 1)
+
+    
     new_pairs = []
     for code in context.all_pairs:
         for pair in context.all_pairs[code]:
@@ -435,37 +441,55 @@ def check_pair_status(context, data):
         
         new_spreads[pair_index, :] = pair.left.price_history[-1] -  pair.latest_test_results['Alpha'] * pair.right.price_history[-1]
         
-        if context.spread.shape[1] >= Z_WINDOW:
-            spreads = context.spread[pair_index, -Z_WINDOW:]
-            context.pairs[pair_index].spreads = spreads
-            zscore = (spreads[-1] - spreads.mean()) / spreads.std()
+        spreads = context.spread[pair_index, -Z_WINDOW:]
+        context.pairs[pair_index].spreads = spreads
+        zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
-            if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
-                sell_pair(context, data, pair)
-            elif pair.currently_short:
-                y_target_shares = -1
-                X_target_shares = pair.latest_test_results['Alpha']
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
-            elif pair.currently_long:
-                y_target_shares = 1
-                X_target_shares = -pair.latest_test_results['Alpha']
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
+        if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
+            sell_pair(context, data, pair)
+        elif pair.currently_short:
+            y_target_shares = -1
+            X_target_shares = pair.latest_test_results['Alpha']
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
+        elif pair.currently_long:
+            y_target_shares = 1
+            X_target_shares = -pair.latest_test_results['Alpha']
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
 
-            if zscore < -ENTRY and (not pair.currently_long):
-                y_target_shares = 1
-                X_target_shares = -pair.latest_test_results['Alpha']
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
-                
-            if zscore > ENTRY and (not pair.currently_short):
-                y_target_shares = -1
-                X_target_shares = pair.latest_test_results['Alpha']
-                buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
+        if zscore < -ENTRY and (not pair.currently_long):
+            y_target_shares = 1
+            X_target_shares = -pair.latest_test_results['Alpha']
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
+
+        if zscore > ENTRY and (not pair.currently_short):
+            y_target_shares = -1
+            X_target_shares = pair.latest_test_results['Alpha']
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
 
         pair_index = pair_index+1
 
     context.spread = np.hstack([context.spread, new_spreads])
     allocate(context, data)
 
+# def handle_data(context, data):
+#     num_pairs = len(context.pairs)
+#     for i in range(num_pairs):
+#         if (i >= len(context.pairs)):
+#             break
+#         pair = context.pairs[i]
+        
+#         if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
+#             print ("Handle data " + pair.to_string + " failed stoploss --> X")
+#             if context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0:
+#                 sell_pair(context, data, pair)
+#             remove_pair(context, pair, index=i)
+#             i = i-1 
+#     lev = context.account.leverage
+#     if lev > LEVERAGE*1.1:
+#         print("leverage: scaling pairs")
+#         scale_pair_pct(context, LEVERAGE/lev)
+#         allocate(context, data)
+    
 def sell_pair(context, data, pair):
     n = num_allocated_stocks(context)
     if n > 2:
@@ -543,7 +567,7 @@ def run_kalman(price_history):
     kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history.values[0], 
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
-    return kf_stock.filter(price_history.values)[0].flatten()
+    return kf_stock.smooth(price_history.values)[0].flatten()
 
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
@@ -640,6 +664,9 @@ def get_test_by_name(name):
         else:
             return -1
     
+    def ljung_box(spreads):
+        return max(sd.acorr_ljungbox(spreads)[1])
+    
     def default(a=0, b=0):
         return a
     
@@ -659,4 +686,6 @@ def get_test_by_name(name):
         return zscore
     elif (name.lower() == "alpha"):
         return alpha
+    elif (name.lower() == "ljung-box"):
+        return ljung_box
     return default
