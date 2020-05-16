@@ -66,7 +66,7 @@ TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', '
 TEST_PARAMS               = {
     'Correlation':  {'lookback': HEDGE_LOOKBACK, 'min': 0.50,'max': 1.00,                   'type': 'price',  'run': False},
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': True },
-    'Hurst':        {'lookback': HEDGE_LOOKBACK*3, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 10,    'max': 3*21,            'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
