@@ -15,17 +15,18 @@ from scipy.stats import shapiro
 from pykalman import KalmanFilter
 import math
 from scipy.stats import linregress
+import itertools
 
 LEVERAGE               = 1.0
 MARKET_CAP             = 25
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
-Z_WINDOW               = 21 
+Z_WINDOW               = HEDGE_LOOKBACK 
 ENTRY                  = 1.0
 EXIT                   = 0.2
 Z_STOP                 = 2.0
-STOPLOSS               = 0.05
+STOPLOSS               = 0.10
 MIN_SHARE              = 1.00
 Z_PROTECT              = 0.15
 MIN_WEIGHT             = 0.2
@@ -54,10 +55,10 @@ REAL_UNIVERSE = [
     31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
-CODE_TYPES = [ 0.1, 0.2, 0.3]
+CODE_TYPES = [0.1, 0.2, 0.3]
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY                   = 'Half-life'
+RANK_BY                   = 'Hurst'
 RANK_DESCENDING           = False
 DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
@@ -66,15 +67,15 @@ PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke', 'Ljung-
 RUN_BONFERRONI_CORRECTION = True
 TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Ljung-Box']
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': -1.00,'max': 0.00,                   'type': 'price',  'run': False},
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.80, 'max': 1.00,                   'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': True },
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 10,    'max': 3*21,            'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK*2, 'min': 1, 'max': 2*HEDGE_LOOKBACK,  'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Zscore':       {'lookback': Z_WINDOW, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
-    'Alpha':        {'lookback': 10, 'min': 0.00, 'max': np.inf,           'type': 'price',  'run': True },
-    'Ljung-Box':        {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,           'type': 'spread',  'run': True }
+    'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
+    'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
+    'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True }
                              }
 
 LOOSE_PARAMS              = {
@@ -83,10 +84,10 @@ LOOSE_PARAMS              = {
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
     'Half-life':        {'min': 1,        'max': INTERVAL*21,  'run': False},
-    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'Zscore':           {'min': -Z_STOP,  'max': Z_STOP,       'run': True },
+    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
+    'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
-    'Ljung-Box':            {'min': 0.00,     'max': np.inf,       'run': False }
+    'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False}
                              }
 
 class Stock:
@@ -223,9 +224,9 @@ def make_pipeline(context, start, end):
     for i in range(start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
-        columns[str(REAL_UNIVERSE[i]+0.1)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0) & (beta < 1)
-        columns[str(REAL_UNIVERSE[i]+0.2)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 1)
-        columns[str(REAL_UNIVERSE[i]+0.3)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta < 0)
+        columns[str(REAL_UNIVERSE[i]+0.1)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) &(ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 0.75) & (beta < 1.25)
+        columns[str(REAL_UNIVERSE[i]+0.2)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta >= 1.25)
+        columns[str(REAL_UNIVERSE[i]+0.3)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>MARKET_CAP*(10**6)) & (beta > 0) & (beta < 0.75)
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.1)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.2)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.3)]
@@ -471,19 +472,19 @@ def check_pair_status(context, data):
     context.spread = np.hstack([context.spread, new_spreads])
     allocate(context, data)
 
-# def handle_data(context, data):
-#     num_pairs = len(context.pairs)
-#     for i in range(num_pairs):
-#         if (i >= len(context.pairs)):
-#             break
-#         pair = context.pairs[i]
+def handle_data(context, data):
+    num_pairs = len(context.pairs)
+    for i in range(num_pairs):
+        if (i >= len(context.pairs)):
+            break
+        pair = context.pairs[i]
         
-#         if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
-#             print ("Handle data " + pair.to_string + " failed stoploss --> X")
-#             if context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0:
-#                 sell_pair(context, data, pair)
-#             remove_pair(context, pair, index=i)
-#             i = i-1 
+        if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
+            print ("Handle data " + pair.to_string + " failed stoploss --> X")
+            if context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0:
+                sell_pair(context, data, pair)
+            remove_pair(context, pair, index=i)
+            i = i-1 
 #     lev = context.account.leverage
 #     if lev > LEVERAGE*1.1:
 #         print("leverage: scaling pairs")
@@ -534,15 +535,9 @@ def allocate(context, data):
     print ("ALLOCATING...\n\t " + "_"*63 + table + "\n\t|" + "_"*63 + "|")
 
 def get_spreads(data, s1_price, s2_price, length):
-    spreads = []
-    for i in range(length):
-        start_index = len(s1_price)-length+i
-        try:
-            hedge = linregress(s2_price[start_index-HEDGE_LOOKBACK:start_index], s1_price[start_index-HEDGE_LOOKBACK:start_index]).slope
-        except:
-            return []
-        spreads = np.append(spreads, s1_price[start_index-1] - hedge*s2_price[start_index-1])
-    return spreads
+    s1_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s1_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
+    s2_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s2_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
+    return np.array(s2_price_changes)-np.array(s1_price_changes)
 
 def num_allocated_stocks(context):
     total = 0
@@ -591,7 +586,7 @@ def remove_pair(context, pair, index):
 
 def get_test_by_name(name):
     def correlation(a,b):
-        return abs(np.corrcoef(a,b)[0][1])
+        return np.corrcoef(a,b)[0][1]
     def cointegration(a, b):
         score, pvalue, _ = sm.coint(a, b)
         return pvalue
