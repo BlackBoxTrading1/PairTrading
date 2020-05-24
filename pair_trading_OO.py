@@ -368,7 +368,7 @@ def choose_pairs(context, data):
         new_spreads = np.ndarray((1, num_spreads))
         for i in range(num_spreads):
             diff = num_spreads-LOOKBACK
-            new_spreads[0][i] = new_pairs[index].spreads[-HEDGE_LOOKBACK:][i-diff] if i >= diff else float("nan")
+            new_spreads[0][i] = new_pairs[index].spreads[-LOOKBACK:][i-diff] if i >= diff else float("nan")
         context.spread = np.vstack((context.spread, new_spreads))
     print (report)
 
