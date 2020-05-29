@@ -31,7 +31,7 @@ MIN_WEIGHT             = 0.2
 # Quantopian constraints
 PIPE_SIZE              = 5
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 200
+MAX_KALMAN_STOCKS      = 125
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -77,10 +77,10 @@ TEST_PARAMS               = {
 LOOSE_PARAMS              = {
     'Correlation':      {'min': 0.80,     'max': 1.00,         'run': True },
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
-    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': True },
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK,'run': True },
-    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
+    'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK,'run': True},
+    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
     'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False}
@@ -553,15 +553,15 @@ def allocate(context, data):
     print ("ALLOCATING...\n\t " + "_"*63 + table + "\n\t|" + "_"*63 + "|")
 
 def get_spreads(data, s1_price, s2_price, length):
-    try:
-        hedge = linregress(s2_price, s1_price).slope
-    except ValueError as e:
-        log.debug(e)
-        return
     spreads = []
-    for i in range(len(s1_price)):
-        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
-    return spreads[-length:]
+    for i in range(length):
+        start_index = len(s1_price)-length+i
+        try:
+            hedge = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index])).slope
+        except:
+            return
+        spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i]))
+    return spreads
     
     # s1_initial = s1_price[0]
     # s2_initial = s2_price[0]
@@ -651,15 +651,15 @@ def get_test_by_name(name):
                 incs = series[start:start+w][1:] - series[start:start+w][:-1]
                 
                 # SIMPLIFIED
-                R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
-                S = np.std(incs, ddof=1)
+                # R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+                # S = np.std(incs, ddof=1)
 
                 #NOT SIMPLIFIED
-                # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-                # deviations = incs - mean_inc
-                # Z = np.cumsum(deviations)
-                # R = max(Z) - min(Z)
-                # S = np.std(incs, ddof=1)
+                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                deviations = incs - mean_inc
+                Z = np.cumsum(deviations)
+                R = max(Z) - min(Z)
+                S = np.std(incs, ddof=1)
                 
             # PRICE
                 # pcts = series[start:start+w][1:] / series[start:start+w][:-1] - 1.
