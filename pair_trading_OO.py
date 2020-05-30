@@ -1,4 +1,4 @@
-#Pair Trading Algorithm 
+#Pair Trading Algorithm
 import quantopian.algorithm as algo
 from quantopian.pipeline import Pipeline,CustomFactor
 from quantopian.pipeline.data.builtin import USEquityPricing
@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
-from scipy.stats import shapiro
+from scipy.stats import shapiro, jarque_bera, pearsonr
 from pykalman import KalmanFilter
 import math
 from scipy.stats import linregress
@@ -20,18 +20,17 @@ LEVERAGE               = 1.0
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21 
-Z_WINDOW               = HEDGE_LOOKBACK 
 ENTRY                  = 1.0
 EXIT                   = 0.2
 Z_STOP                 = 2.0
-STOPLOSS               = 0.10
+STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.2
 
 # Quantopian constraints
 PIPE_SIZE              = 5
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 200
+MAX_KALMAN_STOCKS      = 100
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -59,33 +58,35 @@ RANK_DESCENDING           = False
 DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
-PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke', 'Ljung-Box']
+PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
 RUN_BONFERRONI_CORRECTION = True
-TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Ljung-Box']
+TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
 TEST_PARAMS               = {
     'Correlation':  {'lookback': HEDGE_LOOKBACK, 'min': 0.80, 'max': 1.00,             'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK,      'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,      'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
+    'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
     'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
     'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True }
-                             }
-
+    }
+    
 LOOSE_PARAMS              = {
     'Correlation':      {'min': 0.80,     'max': 1.00,         'run': True },
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
-    'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
-    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': True },
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK,'run': True },
-    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': True },
+    'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True},
+    'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
+    'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
     'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False}
-                             }
-
+    }
+    
 
 class Stock:
     def __init__(self, equity, price_history):
@@ -452,7 +453,7 @@ def check_pair_status(context, data):
             new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
         
-        new_spreads[pair_index, :] = pair.left.price_history[-1] -  pair.latest_test_results['Alpha'] * pair.right.price_history[-1]
+        new_spreads[pair_index, :] = np.log(pair.left.price_history[-1]) -  pair.latest_test_results['Alpha'] * np.log(pair.right.price_history[-1])
         
         spreads = context.spread[pair_index, -context.spread.shape[1]:]
         spreads = np.array([val for val in spreads if (not np.isnan(val))])
@@ -553,15 +554,15 @@ def allocate(context, data):
     print ("ALLOCATING...\n\t " + "_"*63 + table + "\n\t|" + "_"*63 + "|")
 
 def get_spreads(data, s1_price, s2_price, length):
-    try:
-        hedge = linregress(s2_price, s1_price).slope
-    except ValueError as e:
-        log.debug(e)
-        return
     spreads = []
-    for i in range(len(s1_price)):
-        spreads = np.append(spreads, s1_price[i] - hedge*s2_price[i])
-    return spreads[-length:]
+    for i in range(length):
+        start_index = len(s1_price)-length+i
+        try:
+            hedge = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index])).slope
+        except:
+            return
+        spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i]))
+    return spreads
     
     # s1_initial = s1_price[0]
     # s2_initial = s2_price[0]
@@ -621,8 +622,15 @@ def remove_pair(context, pair, index):
     context.desired_pairs += 1
 
 def get_test_by_name(name):
+    
     def correlation(a,b):
-        return np.corrcoef(a,b)[0][1]
+        r, p = pearsonr(a,b)
+        if p<DESIRED_PVALUE:
+            return r
+        else:
+            return float('NaN')
+        return r
+    
     def cointegration(s1_price, s2_price):
         # s1_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s1_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
         # s2_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s2_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
@@ -633,8 +641,10 @@ def get_test_by_name(name):
         # s2_final = [(val-s2_initial)/s2_initial for val in s2_price]
         score, pvalue, _ = sm.coint(s1_price, s2_price)
         return pvalue
+    
     def adf_pvalue(spreads):
         return sm.adfuller(spreads,1)[1]
+    
     def hurst_hvalue(series):
         max_window = len(series)-1
         min_window = 10
@@ -647,35 +657,26 @@ def get_test_by_name(name):
                 if (start+w)>len(series):
                     break
             
-            # RANDOM WALK
                 incs = series[start:start+w][1:] - series[start:start+w][:-1]
                 
                 # SIMPLIFIED
-                R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
-                S = np.std(incs, ddof=1)
+                # R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+                # S = np.std(incs, ddof=1)
 
                 #NOT SIMPLIFIED
-                # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-                # deviations = incs - mean_inc
-                # Z = np.cumsum(deviations)
-                # R = max(Z) - min(Z)
-                # S = np.std(incs, ddof=1)
-                
-            # PRICE
-                # pcts = series[start:start+w][1:] / series[start:start+w][:-1] - 1.
-                
-                # #SIMPLIFIED
-                # R = max(series[start:start+w]) / min(series[start:start+w]) - 1.
-                # S = np.std(pcts, ddof=1)
-                
-                
-     
+                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                deviations = incs - mean_inc
+                Z = np.cumsum(deviations)
+                R = max(Z) - min(Z)
+                S = np.std(incs, ddof=1)
+                     
                 if R != 0 and S != 0:
                     rs.append(R/S)
             RS.append(np.mean(rs))
         A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
         H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
         return H
+    
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
         #lag[0] = 0
@@ -688,19 +689,23 @@ def get_test_by_name(name):
         w, p = shapiro(spreads)
         return p
     
+    def jb_pvalue(spreads):
+        w, p = jarque_bera(spreads)
+        return p
+    
     def zscore(spreads):
         return abs((spreads[-1]-spreads.mean())/spreads.std())
     
     def alpha(price1, price2):
-        slope = linregress(price2, price1).slope
+        slope, intercept, rvalue, pvalue, stderr = linregress(np.log(price2), np.log(price1))
         y_target_shares = 1
         x_target_shares = -slope
         notionalDol =  abs(y_target_shares * price1[-1]) + abs(x_target_shares * price2[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * price1[-1] / notionalDol, x_target_shares * price2[-1] / notionalDol)
-        if (abs(x_target_pct) > MIN_WEIGHT) and (abs(y_target_pct) > MIN_WEIGHT):
+        if (abs(x_target_pct) > MIN_WEIGHT) and (abs(y_target_pct) > MIN_WEIGHT) and (pvalue<DESIRED_PVALUE):
             return slope
         else:
-            return -1
+            return float('NaN')
     
     def ljung_box(spreads):
         return max(sd.acorr_ljungbox(spreads)[1])
@@ -726,4 +731,7 @@ def get_test_by_name(name):
         return alpha
     elif (name.lower() == "ljung-box"):
         return ljung_box
+    elif (name.lower() == "jarque-bera"):
+        return jb_pvalue
+
     return default
