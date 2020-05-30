@@ -66,7 +66,7 @@ TEST_PARAMS               = {
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK,      'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,      'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
@@ -79,7 +79,7 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK,'run': True},
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
@@ -697,7 +697,7 @@ def get_test_by_name(name):
         return abs((spreads[-1]-spreads.mean())/spreads.std())
     
     def alpha(price1, price2):
-        slope, intercept, rvalue, pvalue, stderr = linregress(price2, price1)
+        slope, intercept, rvalue, pvalue, stderr = linregress(np.log(price2), np.log(price1))
         y_target_shares = 1
         x_target_shares = -slope
         notionalDol =  abs(y_target_shares * price1[-1]) + abs(x_target_shares * price2[-1])
