@@ -19,10 +19,10 @@ from scipy.stats import linregress
 LEVERAGE               = 1.0
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
-HEDGE_LOOKBACK         = 21 
-ENTRY                  = 1.0
-EXIT                   = 0.2
-Z_STOP                 = 2.0
+HEDGE_LOOKBACK         = 21 #usually 15-300
+ENTRY                  = 1.0 #usually 1.5
+EXIT                   = 0.2 #usually 0.0
+Z_STOP                 = 2.0 #usually 4.0
 STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.2
@@ -30,7 +30,7 @@ MIN_WEIGHT             = 0.2
 # Quantopian constraints
 PIPE_SIZE              = 5
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 100
+MAX_KALMAN_STOCKS      = 150
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -53,25 +53,26 @@ REAL_UNIVERSE = [
 CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
 
 #Ranking metric: select key from TEST_PARAMS
-RANK_BY                   = 'Hurst'
-RANK_DESCENDING           = False
+RANK_BY                   = 'Correlation'
+RANK_DESCENDING           = True
 DESIRED_PVALUE            = 0.01
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
-PVALUE_TESTS              = ['Cointegration','ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
-RUN_BONFERRONI_CORRECTION = True
-TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
+PVALUE_TESTS              = ['Cointegration','ADF-Prices','ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
+RUN_BONFERRONI_CORRECTION = False
+TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'ADF-Prices', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
 TEST_PARAMS               = {
     'Correlation':  {'lookback': HEDGE_LOOKBACK, 'min': 0.80, 'max': 1.00,             'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
-    'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
+    'Hurst':        {'lookback': LOOKBACK, 'min': 0.40, 'max': 0.60,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,      'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 0, 'max': HEDGE_LOOKBACK,      'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
     'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
-    'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True }
+    'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
+    'ADF-Prices':   {'lookback': LOOKBACK, 'min': 0.05, 'max': 1.00,                   'type': 'price',  'run': True }
     }
     
 LOOSE_PARAMS              = {
@@ -79,12 +80,13 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True},
+    'Half-life':        {'min': 0,        'max': HEDGE_LOOKBACK,'run': True},
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
-    'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False}
+    'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False},
+    'ADF-Prices':       {'min': 0.05,     'max': 1.00,         'run': False}
     }
     
 
@@ -452,8 +454,8 @@ def check_pair_status(context, data):
             remove_pair(context, pair, index=pair_index)
             new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
-        
-        new_spreads[pair_index, :] = np.log(pair.left.price_history[-1]) -  pair.latest_test_results['Alpha'] * np.log(pair.right.price_history[-1])
+        intercept = linregress(np.log(pair.right.price_history[-HEDGE_LOOKBACK:]),np.log(pair.left.price_history[-HEDGE_LOOKBACK:])).intercept
+        new_spreads[pair_index, :] = np.log(pair.left.price_history[-1]) -  pair.latest_test_results['Alpha'] * np.log(pair.right.price_history[-1] - intercept)
         
         spreads = context.spread[pair_index, -context.spread.shape[1]:]
         spreads = np.array([val for val in spreads if (not np.isnan(val))])
@@ -559,21 +561,11 @@ def get_spreads(data, s1_price, s2_price, length):
         start_index = len(s1_price)-length+i
         try:
             hedge = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index])).slope
+            intercept = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index])).intercept
         except:
             return
-        spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i]))
+        spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i])-intercept)
     return spreads
-    
-    # s1_initial = s1_price[0]
-    # s2_initial = s2_price[0]
-    # s1_final = [(val-s1_initial)/s1_initial for val in s1_price[-length:]]
-    # s2_final = [(val-s2_initial)/s2_initial for val in s2_price[-length:]]
-    # return np.array(s2_final) - np.array(s1_final)
-    
-    
-    # s1_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s1_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
-    # s2_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s2_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
-    # return np.array(s2_price_changes)-np.array(s1_price_changes)
     
 
 def num_allocated_stocks(context):
@@ -596,10 +588,11 @@ def scale_pair_pct(context, factor):
             context.target_weights[pair.right.equity] = LEVERAGE * factor * s2_weight / total
 
 def run_kalman(price_history):
-    kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history.values[0], 
-                            initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
+    # kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history.values[0], 
+    #                         initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
-    return kf_stock.smooth(price_history.values)[0].flatten()
+    # return kf_stock.smooth(price_history.values)[0].flatten()
+    return price_history
 
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
@@ -632,13 +625,6 @@ def get_test_by_name(name):
         return r
     
     def cointegration(s1_price, s2_price):
-        # s1_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s1_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
-        # s2_price_changes = list(itertools.chain.from_iterable(pd.DataFrame(s2_price).pct_change(periods=HEDGE_LOOKBACK).iloc[HEDGE_LOOKBACK:].values.tolist()))
-        
-        # s1_initial = s1_price[0]
-        # s2_initial = s2_price[0]
-        # s1_final = [(val-s1_initial)/s1_initial for val in s1_price]
-        # s2_final = [(val-s2_initial)/s2_initial for val in s2_price]
         score, pvalue, _ = sm.coint(s1_price, s2_price)
         return pvalue
     
@@ -679,15 +665,17 @@ def get_test_by_name(name):
     
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
-        #lag[0] = 0
         ret = spreads - lag
-        #ret[0] = 0
-        # return(-np.log(2) / np.polynomial.polynomial.polyfit(lag, ret, 1)[1])
         return(-np.log(2) / linregress(lag, ret).slope)
     
     def shapiro_pvalue(spreads):
         w, p = shapiro(spreads)
         return p
+    
+    def adf_prices(s1_price, s2_price):
+        w, p1 = shapiro(s1_price)
+        w, p2 = shapiro(s2_price)
+        return max(p1,p2)
     
     def jb_pvalue(spreads):
         w, p = jarque_bera(spreads)
@@ -733,5 +721,7 @@ def get_test_by_name(name):
         return ljung_box
     elif (name.lower() == "jarque-bera"):
         return jb_pvalue
+    elif (name.lower() == "adf-prices"):
+        return adf_prices
 
     return default
