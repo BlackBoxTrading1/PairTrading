@@ -45,11 +45,11 @@ REAL_UNIVERSE = [
     # 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 
     # 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 
     # 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 
-    # 30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 31052107, 31053108, 31054109, 31055110, 
+    30946101, 30947102, 30948103, 30949104#, 30950105, 30951106, 31052107, 31053108, 31054109, 31055110, 
     # 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 
     # 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 
     # 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 
-    31167141, 31167142, 31167143, 31168144, 31169145, #31169146, 31169147
+    # 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
 #CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
@@ -58,7 +58,7 @@ CODE_TYPES = [0.00]
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Hurst'
 RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.01
+DESIRED_PVALUE            = 0.05
 LOOKBACK                  = 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration', 'ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
@@ -81,7 +81,7 @@ TEST_PARAMS               = {
     }
     
 LOOSE_PARAMS              = {
-    'Correlation':      {'min': 0.80,     'max': 1.00,         'run': True },
+    'Correlation':      {'min': 0.80,     'max': 1.00,         'run': False },
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
@@ -174,6 +174,8 @@ class Pair:
                     pass
             if result == 'N/A':
                 self.latest_failed_test = test + " " + str(result)
+                if TEST_PARAMS[test]['type'] == "spread":
+                    print(str(test) + " " + str(result))
                 return False
             self.latest_test_results[test] = result #round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
@@ -182,12 +184,16 @@ class Pair:
                 upper_bound /= len(PVALUE_TESTS)
             if not (result >= lower_bound and result <= upper_bound):
                 self.latest_failed_test = test + " " + str(result)
+                if TEST_PARAMS[test]['type'] == "spread":
+                    print(str(test) + " " + str(result))
                 return False
 
             if (not loose_screens) and (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
                 bottom_result = context.industries[self.industry]['top'][-1].latest_test_results[test]
                 if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
                     self.latest_failed_test = test + " " + str(result) + " no space"
+                    if TEST_PARAMS[test]['type'] == "spread":
+                        print(str(test) + " ranking " + str(result))
                     return False
 
         if (not loose_screens) and test_type == "spread":
@@ -354,49 +360,53 @@ def calculate_price_histories(context, data):
     for code in context.codes:
         for stock in context.industries[code]['list']:
             stock.price_history = data.history(stock.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d')
-            stock.filtered_price_history = run_kalman(stock.price_history)
             stock.price_history = stock.price_history.values.tolist()
+            stock.filtered_price_history = run_kalman(stock.price_history)
             
 def create_pairs(context, data):
     if not context.universe_set or context.desired_pairs == 0:
         return
     pair_counter = 0
     context.all_pairs = {}
+    
+    counter = 0
+    
     for code in context.codes:
         context.all_pairs[code] = []
         for i in range (context.industries[code]['size']):
             for j in range (i+1, context.industries[code]['size']):
+                
                 if (pair_counter > MAX_PROCESSABLE_PAIRS):
                     break
                 pair_forward = Pair(data, context.industries[code]['list'][i], context.industries[code]['list'][j], code)
                 pair_reverse = Pair(data, context.industries[code]['list'][j], context.industries[code]['list'][i], code)
                 if pair_forward.test(context, data, test_type="price"):
+                    counter += 1
                     pair_forward.spreads = get_spreads(data, pair_forward.left.price_history, pair_forward.right.price_history, LOOKBACK)
                     try:
-                        pair_forward.filtered_spreads = run_kalman(pd.Series(pair_forward.spreads))
+                        pair_forward.filtered_spreads = run_kalman(pair_forward.spreads)
                         context.all_pairs[code].append(pair_forward)
                     except:
                         print("forward pair failed kalman")
-                        print(i)
-                        print(j)
+                        print(counter)
                     
                 if pair_reverse.test(context, data, test_type="price"):
+                    counter += 1
                     pair_reverse.spreads = get_spreads(data, pair_reverse.left.price_history, pair_reverse.right.price_history, LOOKBACK)
                     try:
-                        pair_reverse.filtered_spreads = run_kalman(pd.Series(pair_reverse.spreads))
+                        pair_reverse.filtered_spreads = run_kalman(pair_reverse.spreads)
                         context.all_pairs[code].append(pair_reverse)
                     except:
                         print("reverse pair failed kalman")
-                        print(i)
-                        print(j)
+                        print(counter)
                 pair_counter += 2
+    print(counter)
                 
 def choose_pairs(context, data):
     if not context.universe_set or context.desired_pairs == 0:
         return
 
     report = "CHOOSING " + str(context.desired_pairs) + " PAIR" + "S"*(context.desired_pairs > 1)
-
     
     new_pairs = []
     for code in context.all_pairs:
@@ -475,16 +485,16 @@ def check_pair_status(context, data):
         pair = context.pairs[pair_index]
         (s1, s2) = (pair.left, pair.right)
         (s1_price_test, s2_price_test) = (data.history(s1.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d'), data.history(s2.equity, "price", LOOKBACK+HEDGE_LOOKBACK, '1d'))
-        pair.left.price_history = s1_price_test
+        pair.left.price_history = s1_price_test.values.tolist()
         pair.left.filtered_price_history = run_kalman(pair.left.price_history)
-        pair.right.price_history = s2_price_test
+        pair.right.price_history = s2_price_test.values.tolist()
         pair.right.filtered_price_history = run_kalman(pair.right.price_history)
 
         result= pair.test(context,data,loose_screens=True, test_type="price")
         if result:
             pair.spreads = get_spreads(data, pair.left.price_history, pair.right.price_history, LOOKBACK)
             try:
-                pair.filtered_spreads = run_kalman(pd.Series(pair.spreads))
+                pair.filtered_spreads = run_kalman(pair.spreads)
             except:
                 print("cps")
             result = pair.test(context,data,loose_screens=True)
@@ -601,19 +611,23 @@ def get_spreads(data, s1_price, s2_price, length):
     for i in range(length):
         start_index = len(s1_price)-length+i
         try:
-            # reg = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]))
-            # hedge = reg.slope
-            # intercept = reg.intercept
-            reg = np.polynomial.polynomial.polyfit(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]),1)
-            hedge = reg[1]
-            intercept = reg[0]
+            reg = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]))
+            hedge = reg.slope
+            intercept = reg.intercept
+           
             
         except:
-            print("hedge fail")
+            print("linregress fail")
             print(start_index)
             print(s1_price[start_index-HEDGE_LOOKBACK:start_index])
             print(s2_price[start_index-HEDGE_LOOKBACK:start_index])
-            return []
+            try:
+                reg = np.polynomial.polynomial.polyfit(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]),1)
+                hedge = reg[1]
+                intercept = reg[0]
+            except:
+                print("polyfit fail")
+                return []
         spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i])-intercept)
     return spreads
     
@@ -637,11 +651,10 @@ def scale_pair_pct(context, factor):
             context.target_weights[pair.right.equity] = LEVERAGE * factor * s2_weight / total
 
 def run_kalman(price_history):
-    kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history.values[0], 
+    kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history[0], 
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
-    return kf_stock.smooth(price_history.values)[0].flatten()
-    # return price_history
+    return kf_stock.smooth(price_history)[0].flatten()
 
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
@@ -695,15 +708,15 @@ def get_test_by_name(name):
                 incs = series[start:start+w][1:] - series[start:start+w][:-1]
 
                 # SIMPLIFIED
-                # R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
-                # S = np.std(incs, ddof=1)
+                R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
+                S = np.std(incs, ddof=1)
 
                 #NOT SIMPLIFIED
-                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-                deviations = incs - mean_inc
-                Z = np.cumsum(deviations)
-                R = max(Z) - min(Z)
-                S = np.std(incs, ddof=1)
+                # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                # deviations = incs - mean_inc
+                # Z = np.cumsum(deviations)
+                # R = max(Z) - min(Z)
+                # S = np.std(incs, ddof=1)
 
                 if R != 0 and S != 0:
                     rs.append(R/S)
