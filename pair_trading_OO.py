@@ -11,10 +11,9 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
-from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett
+from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett, linregress
 from pykalman import KalmanFilter
 import math
-from scipy.stats import linregress
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
@@ -25,14 +24,14 @@ EXIT                   = 0.1 #usually 0.0
 Z_STOP                 = 4.0 #usually >4.0
 STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
-MIN_WEIGHT             = 0.2
+MIN_WEIGHT             = 0.25
 BETA_LOWER             = 0.0
 BETA_UPPER             = 1.0
 
 # Quantopian constraints
 PIPE_SIZE              = 5
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 200 # should at minimum be size of largest universe
+MAX_KALMAN_STOCKS      = 50 #should at minimum be size of largest universe
 
 REAL_UNIVERSE = [
     10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -59,14 +58,14 @@ CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
 RANK_BY                   = 'Hurst'
 RANK_DESCENDING           = False
 DESIRED_PVALUE            = 0.01
-LOOKBACK                  = 126
+LOOKBACK                  = 253 # usually set to 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration', 'ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
 RUN_BONFERRONI_CORRECTION = True
 TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'ADF-Prices', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
 
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': HEDGE_LOOKBACK, 'min': 0.80, 'max': 1.00,             'type': 'price',  'run': True },
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.80, 'max': 1.00,                   'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
@@ -84,7 +83,7 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True},
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True },
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
@@ -517,11 +516,11 @@ def check_pair_status(context, data):
             
         elif pair.currently_short:
             y_target_shares = -1
-            X_target_shares = pair.latest_test_results['Alpha']
+            X_target_shares = slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
         elif pair.currently_long:
             y_target_shares = 1    
-            X_target_shares = -pair.latest_test_results['Alpha']
+            X_target_shares = -slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
 
         if zscore < -ENTRY and (not pair.currently_long):
@@ -637,7 +636,11 @@ def run_kalman(price_history):
     kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history[0], 
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
-    return kf_stock.smooth(price_history)[0].flatten()
+    try:
+        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+    except:
+        filtered_prices = kf_stock.filter(price_history)[0].flatten()
+    return filtered_prices
 
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
@@ -669,7 +672,10 @@ def linreg(s1,s2):
             intercept = reg[0]
         except:
             try:
-                slope, intercept, rvalue, pvalue, stderr = linregress(s1,s2)
+                s1 = sm.add_constant(s1)
+                model = sm.OLS(s2, s1).fit()
+                intercept = model.params[0]
+                slope = model.params[1]
             except:
                 print('Linear Regression Failed')
                 slope = float('NaN')
@@ -681,7 +687,7 @@ def get_test_by_name(name):
     def correlation(a,b):
         r, p = pearsonr(a,b)
         if p<DESIRED_PVALUE:
-            return abs(r)
+            return r
         else:
             return float('NaN')
         return r
@@ -694,6 +700,20 @@ def get_test_by_name(name):
         return sm.adfuller(spreads)[1]
     
     def hurst_hvalue(series):
+        
+        #From Ernie Chan
+        
+        # tau, lagvec = [], []
+        # for lag in range(2,20):  
+        #     pp = np.subtract(series[lag:],series[:-lag])
+        #     lagvec.append(lag)
+        #     tau.append(np.sqrt(np.std(pp)))
+        # slope, intercept = linreg(np.log10(lagvec),np.log10(tau))
+        # hurst = slope*2
+        # return hurst
+        
+        #From Hurst Package
+        
         max_window = len(series)-1
         min_window = 10
         window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), math.log10(max_window), 0.25)))
