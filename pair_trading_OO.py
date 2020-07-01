@@ -29,26 +29,26 @@ BETA_LOWER             = 0.0
 BETA_UPPER             = 1.0
 
 # Quantopian constraints
-PIPE_SIZE              = 5
+PIPE_SIZE              = 50
 MAX_PROCESSABLE_PAIRS  = 19000
 MAX_KALMAN_STOCKS      = 50 #should at minimum be size of largest universe
 
 REAL_UNIVERSE = [
-    10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
-    10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 
-    10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 
-    10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 
-    10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 
-    10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 
-    10326061, 10427062, 10427063, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 
-    20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 
-    20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 
-    20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 
-    30946101, 30947102, 30948103, 30949104, 30950105, 30951106, 31052107, 31053108, 31054109, 31055110, 
-    31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 
-    31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 
-    31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 
-    31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
+    # 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
+    # 10106011, 10106012, 10107013, 10208014, 10208015, 10209016, 10209017, 10209018, 10209019, 10209020, 
+    # 10210021, 10210022, 10210023, 10211024, 10211025, 10212026, 10212027, 10212028, 10213029, 10214030, 
+    # 10215031, 10216032, 10217033, 10217034, 10217035, 10217036, 10217037, 10218038, 10218039, 10218040, 
+    # 10218041, 10319042, 10320043, 10320044, 10320045, 10320046, 10320047, 10320048, 10320049, 10320050, 
+    # 10320051, 10320052, 10321053, 10321054, 10321055, 10322056, 10323057, 10324058, 10325059, 10326060, 
+    # 10326061, 10427062, 10427063, 10428064, 10428065, 10428066, 10428067, 10428068, 10428069, 10428070, 
+    # 20529071, 20529072, 20530073, 20531074, 20531075, 20531076, 20531077, 20532078, 20533079, 20533080, 
+    # 20533081, 20533082, 20534083, 20635084, 20636085, 20636086, 20637087, 20638088, 20638089, 20639090, 
+    # 20640091, 20641092, 20642093, 20743094, 20744095, 20744096, 20744097, 20744098, 30845099, 30845100, 
+    30946101, 30947102, 30948103, 30949104#, 30950105, 30951106, 31052107, 31053108, 31054109, 31055110, 
+    # 31056111, 31056112, 31057113, 31058114, 31058115, 31059116, 31060117, 31061118, 31061119, 31061120, 
+    # 31061121, 31061122, 31062123, 31062124, 31062125, 31062126, 31062127, 31063128, 31064129, 31165130, 
+    # 31165131, 31165132, 31165133, 31165134, 31166135, 31167136, 31167137, 31167138, 31167139, 31167140, 
+    # 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
 CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
@@ -79,7 +79,7 @@ TEST_PARAMS               = {
     }
     
 LOOSE_PARAMS              = {
-    'Correlation':      {'min': 0.80,     'max': 1.00,         'run': True },
+    'Correlation':      {'min': 0.80,     'max': 1.00,         'run': False },
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
@@ -236,8 +236,8 @@ def make_pipeline(context, start, end):
     industry_code = ms.asset_classification.morningstar_industry_code.latest
     sma_short = SimpleMovingAverage(inputs=[USEquityPricing.close], window_length=30, mask=base_universe)
     max_share_price = context.initial_portfolio_value * MIN_WEIGHT / DESIRED_PAIRS
-    market_proxy = symbol('SPY') 
-    beta = SimpleBeta(target=market_proxy, regression_length=LOOKBACK)
+    #market_proxy = symbol('SPY') 
+    #beta = SimpleBeta(target=market_proxy, regression_length=LOOKBACK)
     columns = {}
     securities = (ms.valuation.market_cap.latest < 0 )
     for i in range(start, end):
@@ -248,7 +248,9 @@ def make_pipeline(context, start, end):
         columns[str(REAL_UNIVERSE[i]+0.12)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_UPPER)
         columns[str(REAL_UNIVERSE[i]+0.13)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta < BETA_LOWER)
         
-        
+        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
         
         columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
         columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
@@ -267,6 +269,9 @@ def make_pipeline(context, start, end):
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.31)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.32)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.33)]
+        
+        # columns[str(REAL_UNIVERSE[i]+0.00)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i])
+        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.00)]
         
         # columns[str(REAL_UNIVERSE[i]+0.00)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i])
         # securities = securities | columns[str(REAL_UNIVERSE[i]+0.00)]
@@ -513,7 +518,6 @@ def check_pair_status(context, data):
 
         if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
             sell_pair(context, data, pair)
-            
         elif pair.currently_short:
             y_target_shares = -1
             X_target_shares = slope
@@ -639,7 +643,7 @@ def run_kalman(price_history):
     try:
         filtered_prices = kf_stock.smooth(price_history)[0].flatten()
     except:
-        filtered_prices = kf_stock.filter(price_history)[0].flatten()
+        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
     return filtered_prices
 
 def update_target_weight(context, data, stock, new_weight):
@@ -730,8 +734,7 @@ def get_test_by_name(name):
                 # SIMPLIFIED
                 R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
                 S = np.std(incs, ddof=1)
-
-                # NOT SIMPLIFIED
+                #NOT SIMPLIFIED
                 # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
                 # deviations = incs - mean_inc
                 # Z = np.cumsum(deviations)
