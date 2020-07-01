@@ -11,10 +11,9 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
-from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett
+from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett, linregress
 from pykalman import KalmanFilter
 import math
-from scipy.stats import linregress
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
@@ -25,14 +24,14 @@ EXIT                   = 0.1 #usually 0.0
 Z_STOP                 = 4.0 #usually >4.0
 STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
-MIN_WEIGHT             = 0.2
-BETA_LOWER             = 1.0
-BETA_UPPER             = 2.0
+MIN_WEIGHT             = 0.25
+BETA_LOWER             = 0.0
+BETA_UPPER             = 1.0
 
 # Quantopian constraints
 PIPE_SIZE              = 50
 MAX_PROCESSABLE_PAIRS  = 19000
-MAX_KALMAN_STOCKS      = 100
+MAX_KALMAN_STOCKS      = 50 #should at minimum be size of largest universe
 
 REAL_UNIVERSE = [
     # 10101001, 10102002, 10103003, 10103004, 10104005, 10105006, 10105007, 10106008, 10106009, 10106010, 
@@ -52,21 +51,21 @@ REAL_UNIVERSE = [
     # 31167141, 31167142, 31167143, 31168144, 31169145, 31169146, 31169147
 ]
 
-#CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
-CODE_TYPES = [0.00]
+CODE_TYPES = [0.11, 0.12, 0.13, 0.21, 0.22, 0.23, 0.31, 0.32, 0.33]
+# CODE_TYPES = [0.00]
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Hurst'
 RANK_DESCENDING           = False
-DESIRED_PVALUE            = 0.05
-LOOKBACK                  = 253
+DESIRED_PVALUE            = 0.01
+LOOKBACK                  = 253 # usually set to 253
 LOOSE_PVALUE              = 0.05
 PVALUE_TESTS              = ['Cointegration', 'ADFuller','Shapiro-Wilke', 'Ljung-Box', 'Jarque-Bera']
-RUN_BONFERRONI_CORRECTION = False
+RUN_BONFERRONI_CORRECTION = True
 TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'ADF-Prices', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
 
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': HEDGE_LOOKBACK, 'min': 0.80, 'max': 1.00,             'type': 'price',  'run': True },
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.80, 'max': 1.00,                   'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
@@ -77,7 +76,6 @@ TEST_PARAMS               = {
     'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
     'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
     'ADF-Prices':   {'lookback': LOOKBACK, 'min': DESIRED_PVALUE, 'max': 1.00,         'type': 'price',  'run': True }
-    
     }
     
 LOOSE_PARAMS              = {
@@ -85,13 +83,13 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True},
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True },
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
     'Alpha':            {'min': 0.00,     'max': np.inf,       'run': True },
     'Ljung-Box':        {'min': 0.00,     'max': np.inf,       'run': False},
-    'ADF-Prices':       {'min': 0.05,     'max': 1.00,         'run': False}
+    'ADF-Prices':       {'min': LOOSE_PVALUE, 'max': 1.00,     'run': False}
     }
     
 
@@ -174,8 +172,8 @@ class Pair:
                     pass
             if result == 'N/A':
                 self.latest_failed_test = test + " " + str(result)
-                if TEST_PARAMS[test]['type'] == "spread":
-                    print(str(test) + " " + str(result))
+                # if TEST_PARAMS[test]['type'] == "spread":
+                #     print(str(test) + " " + str(result))
                 return False
             self.latest_test_results[test] = result #round(result,6)
             upper_bound = TEST_PARAMS[test]['max'] if (not loose_screens) else LOOSE_PARAMS[test]['max']
@@ -184,16 +182,16 @@ class Pair:
                 upper_bound /= len(PVALUE_TESTS)
             if not (result >= lower_bound and result <= upper_bound):
                 self.latest_failed_test = test + " " + str(result)
-                if TEST_PARAMS[test]['type'] == "spread":
-                    print(str(test) + " " + str(result))
+                # if TEST_PARAMS[test]['type'] == "spread":
+                #     print(str(test) + " " + str(result))
                 return False
 
             if (not loose_screens) and (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
                 bottom_result = context.industries[self.industry]['top'][-1].latest_test_results[test]
                 if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
                     self.latest_failed_test = test + " " + str(result) + " no space"
-                    if TEST_PARAMS[test]['type'] == "spread":
-                        print(str(test) + " ranking " + str(result))
+                    # if TEST_PARAMS[test]['type'] == "spread":
+                    #     print(str(test) + " ranking " + str(result))
                     return False
 
         if (not loose_screens) and test_type == "spread":
@@ -246,32 +244,37 @@ def make_pipeline(context, start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
             
-        # columns[str(REAL_UNIVERSE[i]+0.11)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.12)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.13)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta < BETA_LOWER)
+        columns[str(REAL_UNIVERSE[i]+0.11)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.12)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.13)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta < BETA_LOWER)
         
+        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
         
+        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
         
-        # columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
+        columns[str(REAL_UNIVERSE[i]+0.31)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.32)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_UPPER)
+        columns[str(REAL_UNIVERSE[i]+0.33)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta < BETA_LOWER)
         
-        # columns[str(REAL_UNIVERSE[i]+0.31)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.32)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_UPPER)
-        # columns[str(REAL_UNIVERSE[i]+0.33)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta < BETA_LOWER)
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.11)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.12)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.13)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.21)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.22)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.23)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.31)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.32)]
+        securities = securities | columns[str(REAL_UNIVERSE[i]+0.33)]
         
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.11)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.12)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.13)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.21)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.22)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.23)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.31)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.32)]
-        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.33)]
+        # columns[str(REAL_UNIVERSE[i]+0.00)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i])
+        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.00)]
         
-        columns[str(REAL_UNIVERSE[i]+0.00)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i])
-        securities = securities | columns[str(REAL_UNIVERSE[i]+0.00)]
+        # columns[str(REAL_UNIVERSE[i]+0.00)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i])
+        # securities = securities | columns[str(REAL_UNIVERSE[i]+0.00)]
         
     return Pipeline(columns = columns, screen=(securities),)
 
@@ -505,8 +508,8 @@ def check_pair_status(context, data):
             remove_pair(context, pair, index=pair_index)
             new_spreads = np.delete(new_spreads, pair_index, 0)
             continue
-        intercept = linregress(np.log(pair.right.price_history[-HEDGE_LOOKBACK:]),np.log(pair.left.price_history[-HEDGE_LOOKBACK:])).intercept
-        new_spreads[pair_index, :] = np.log(pair.left.price_history[-1]) -  pair.latest_test_results['Alpha'] * np.log(pair.right.price_history[-1] - intercept)
+        slope, intercept = linreg(np.log(pair.right.price_history[-HEDGE_LOOKBACK:]),np.log(pair.left.price_history[-HEDGE_LOOKBACK:]))
+        new_spreads[pair_index, :] = np.log(pair.left.price_history[-1]) -  slope * np.log(pair.right.price_history[-1]) - intercept
         
         spreads = context.spread[pair_index, -context.spread.shape[1]:]
         spreads = np.array([val for val in spreads if (not np.isnan(val))])
@@ -515,23 +518,23 @@ def check_pair_status(context, data):
 
         if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
             sell_pair(context, data, pair)
-        # elif pair.currently_short:
-        #     y_target_shares = -1
-        #     X_target_shares = pair.latest_test_results['Alpha']
-        #     buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
-        # elif pair.currently_long:
-        #     y_target_shares = 1    
-        #     X_target_shares = -pair.latest_test_results['Alpha']
-        #     buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
+        elif pair.currently_short:
+            y_target_shares = -1
+            X_target_shares = slope
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
+        elif pair.currently_long:
+            y_target_shares = 1    
+            X_target_shares = -slope
+            buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
 
         if zscore < -ENTRY and (not pair.currently_long):
             y_target_shares = 1
-            X_target_shares = -pair.latest_test_results['Alpha']
+            X_target_shares = -slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
 
         if zscore > ENTRY and (not pair.currently_short):
             y_target_shares = -1
-            X_target_shares = pair.latest_test_results['Alpha']
+            X_target_shares = slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=True)
 
         pair_index = pair_index+1
@@ -610,24 +613,7 @@ def get_spreads(data, s1_price, s2_price, length):
     spreads = []
     for i in range(length):
         start_index = len(s1_price)-length+i
-        try:
-            reg = linregress(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]))
-            hedge = reg.slope
-            intercept = reg.intercept
-           
-            
-        except:
-            print("linregress fail")
-            print(start_index)
-            print(s1_price[start_index-HEDGE_LOOKBACK:start_index])
-            print(s2_price[start_index-HEDGE_LOOKBACK:start_index])
-            try:
-                reg = np.polynomial.polynomial.polyfit(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]),1)
-                hedge = reg[1]
-                intercept = reg[0]
-            except:
-                print("polyfit fail")
-                return []
+        hedge, intercept = linreg(np.log(s2_price[start_index-HEDGE_LOOKBACK:start_index]),np.log(s1_price[start_index-HEDGE_LOOKBACK:start_index]))
         spreads = np.append(spreads, np.log(s1_price[i]) - hedge*np.log(s2_price[i])-intercept)
     return spreads
     
@@ -654,7 +640,11 @@ def run_kalman(price_history):
     kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history[0], 
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
-    return kf_stock.smooth(price_history)[0].flatten()
+    try:
+        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+    except:
+        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+    return filtered_prices
 
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
@@ -676,6 +666,26 @@ def remove_pair(context, pair, index):
     context.spread = np.delete(context.spread, index, 0)
     context.desired_pairs += 1
 
+def linreg(s1,s2):
+    try:
+        slope, intercept, rvalue, pvalue, stderr = linregress(s1,s2)
+    except:
+        try:
+            reg = np.polynomial.polynomial.polyfit(s1,s2)
+            slope = reg[1]
+            intercept = reg[0]
+        except:
+            try:
+                s1 = sm.add_constant(s1)
+                model = sm.OLS(s2, s1).fit()
+                intercept = model.params[0]
+                slope = model.params[1]
+            except:
+                print('Linear Regression Failed')
+                slope = float('NaN')
+                intercept = float('NaN')
+    return slope, intercept
+    
 def get_test_by_name(name):
     
     def correlation(a,b):
@@ -694,6 +704,20 @@ def get_test_by_name(name):
         return sm.adfuller(spreads)[1]
     
     def hurst_hvalue(series):
+        
+        #From Ernie Chan
+        
+        # tau, lagvec = [], []
+        # for lag in range(2,20):  
+        #     pp = np.subtract(series[lag:],series[:-lag])
+        #     lagvec.append(lag)
+        #     tau.append(np.sqrt(np.std(pp)))
+        # slope, intercept = linreg(np.log10(lagvec),np.log10(tau))
+        # hurst = slope*2
+        # return hurst
+        
+        #From Hurst Package
+        
         max_window = len(series)-1
         min_window = 10
         window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), math.log10(max_window), 0.25)))
@@ -710,7 +734,6 @@ def get_test_by_name(name):
                 # SIMPLIFIED
                 R = max(series[start:start+w]) - min(series[start:start+w])  # range in absolute values
                 S = np.std(incs, ddof=1)
-
                 #NOT SIMPLIFIED
                 # mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
                 # deviations = incs - mean_inc
@@ -728,7 +751,8 @@ def get_test_by_name(name):
     def half_life(spreads): 
         lag = np.roll(spreads, 1)
         ret = spreads - lag
-        return(-np.log(2) / linregress(lag, ret).slope)
+        slope, intercept = linreg(lag,ret)
+        return(-np.log(2) / slope)
     
     def shapiro_pvalue(spreads):
         w, p = shapiro(spreads)
@@ -747,12 +771,12 @@ def get_test_by_name(name):
         return abs((spreads[-1]-spreads.mean())/spreads.std())
     
     def alpha(price1, price2):
-        slope, intercept, rvalue, pvalue, stderr = linregress(np.log(price2), np.log(price1))
+        slope, intercept = linreg(np.log(price2), np.log(price1))
         y_target_shares = 1
         x_target_shares = -slope
         notionalDol =  abs(y_target_shares * price1[-1]) + abs(x_target_shares * price2[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * price1[-1] / notionalDol, x_target_shares * price2[-1] / notionalDol)
-        if (min (abs(x_target_pct),abs(y_target_pct)) > MIN_WEIGHT) and (pvalue<DESIRED_PVALUE):
+        if (min (abs(x_target_pct),abs(y_target_pct)) > MIN_WEIGHT):
             return slope
         else:
             return float('NaN')
