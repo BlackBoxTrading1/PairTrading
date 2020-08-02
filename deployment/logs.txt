@@ -1,281 +1,492 @@
 BACKTEST LOGS
 
 2014-01-02 21:00:00+00:00 > Pulling all Polygon companies
-2014-01-02 21:00:00+00:00 > Pulled 3965 tickers
+2014-01-02 21:00:00+00:00 > Pulled 3955 tickers
 2014-01-02 21:00:00+00:00 > Setting Universe...
 2014-01-02 21:00:00+00:00 > Calculating Price Histories...
-			Conglomerates (3)	Tobacco Products (4)	Utilities - Independent Power Producers (4)
-			Beverages - Alcoholic (4)	Truck Manufacturing (5)	Oil & Gas - Drilling (5)
-			Coal (5)	Beverages - Non-Alcoholic (5)	Oil & Gas - Midstream (5)
-			Oil & Gas - Integrated (6)	Personal Services (6)	Medical Distribution (7)
-			Agriculture (7)	Publishing (7)	Health Care Plans (8)
-			Advertising & Marketing Services (8)	Steel (9)	Insurance (10)
-			Farm & Construction Machinery (10)	Forest Products (10)	Industrial Distribution (10)
+			Conglomerates (3)	Beverages - Alcoholic (4)	Utilities - Independent Power Producers (4)
+			Tobacco Products (4)	Truck Manufacturing (5)	Coal (5)
+			Oil & Gas - Midstream (5)	Oil & Gas - Drilling (5)	Beverages - Non-Alcoholic (5)
+			Personal Services (6)	Oil & Gas - Integrated (6)	Agriculture (7)
+			Medical Distribution (7)	Publishing (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Farm & Construction Machinery (10)	Insurance (10)	Industrial Distribution (10)
+			Airlines (11)	Education (12)	Waste Management (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (13)
+			Packaging & Containers (14)	Real Estate Services (14)	Insurance - Specialty (15)
+			Health Care Providers (19)	Online Media (20)	Metals & Mining (20)
+			Homebuilding & Construction (20)	Consulting & Outsourcing (20)
 
-			Total Tickers = 138
-			Total Pairs = 1148
+			Total Tickers = 352
+			Total Pairs = 4806
 2014-01-02 21:00:00+00:00 > Price Testing Pairs...
-2014-01-02 21:00:00+00:00 > Price test passed: 221
+2014-01-02 21:00:00+00:00 > Price test passed: 416
 2014-01-02 21:00:00+00:00 > CHOOSING 10 PAIRS --> FOUND 4
-			1) ([1609 KMPR] & [107 AIZ])
-				Industry Code:	Insurance
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0011792599702183809
-				Half-life: 	2.955197660286821
-				Correlation: 	0.9371237928607759
-				Hurst: 		0.17341495860022288
-				Shapiro-Wilke: 	1.9894946490239818e-06
-				Alpha: 		1.4102726768433118
-				Zscore: 	2.4702470882592995
-			2) ([2515 SCHL] & [2068 NYT])
-				Industry Code:	Publishing
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0008209553688147268
-				Half-life: 	3.518284931231223
-				Correlation: 	0.982982560378897
-				Hurst: 		0.27631302583557077
-				Shapiro-Wilke: 	2.9835295345392865e-10
-				Alpha: 		1.2399865763051379
-				Zscore: 	1.7205715685805834
-			3) ([2774 TEX] & [605 CMCO])
+			1) ([2747 TBI] & [1591 KELYA])
+				Industry Code:	Employment Services
+				Half-life: 	8.453856922837364
+				Zscore: 	1.5691623057146535
+				Hurst: 		0.14848192680065395
+				ADFuller: 	0.0012301137308828062
+				Shapiro-Wilke: 	0.00021998629381414503
+				Correlation: 	0.939803829939159
+				Alpha: 		0.7667850436489881
+				ADF-Prices: 	0.06736029454497874
+			2) ([31 ACHC] & [1675 LHCG])
+				Industry Code:	Health Care Providers
+				Half-life: 	2.992397312376974
+				Zscore: 	1.6362483285614124
+				Hurst: 		0.22414420456168752
+				ADFuller: 	0.0007670994761826034
+				Shapiro-Wilke: 	1.6924410374485888e-05
+				Correlation: 	0.892783518740586
+				Alpha: 		1.0779269653734893
+				ADF-Prices: 	0.01614342552765347
+			3) ([614 CMP] & [2403 RGLD])
+				Industry Code:	Metals & Mining
+				Half-life: 	3.466391365785354
+				Zscore: 	1.5220803902085474
+				Hurst: 		0.27668912662930617
+				ADFuller: 	0.0017699891487796924
+				Shapiro-Wilke: 	0.00028748883050866425
+				Correlation: 	0.838623440836075
+				Alpha: 		0.6414693348117798
+				ADF-Prices: 	0.9979730384684738
+			4) ([2774 TEX] & [605 CMCO])
 				Industry Code:	Farm & Construction Machinery
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.00017261987744269006
 				Half-life: 	3.6347590836011383
-				Correlation: 	0.9159730715804698
-				Hurst: 		0.3204841357985262
-				Shapiro-Wilke: 	1.1520629285624584e-13
-				Alpha: 		1.8083449956315685
 				Zscore: 	1.6984410973345092
-			4) ([2838 TRGP] & [2094 OKE])
-				Industry Code:	Oil & Gas - Midstream
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0013495365953434314
-				Half-life: 	4.911886261242492
-				Correlation: 	0.9812495372860885
-				Hurst: 		0.3250713945205232
-				Shapiro-Wilke: 	3.5014736336075325e-12
-				Alpha: 		1.9344933960567972
-				Zscore: 	1.6849341904681248
-2014-01-02 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	1609 KMPR	+15.2%  -34.8%	     107 AIZ		|
-			|	2838 TRGP	-21.2%  +28.8%	     2094 OKE		|
-			|_______________________________________________________________|
-2014-01-03 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	2838 TRGP	-43.0%  +57.0%	     2094 OKE		|
-			|_______________________________________________________________|
-2014-01-06 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	2838 TRGP	-43.6%  +56.4%	     2094 OKE		|
-			|_______________________________________________________________|
+				Hurst: 		0.3204841357985262
+				ADFuller: 	0.00017261987744269006
+				Shapiro-Wilke: 	1.1520629285624584e-13
+				Correlation: 	0.9159730715804698
+				Alpha: 		1.8083449956315685
+				ADF-Prices: 	0.04854096875168913
+2014-01-03 21:00:00+00:00 > ([614 CMP] & [2403 RGLD]) failed tests --> X Alpha nan
 2014-01-07 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	+71.9%  -28.1%	     107 AIZ		|
+			|	31 ACHC		-68.9%  +31.1%	     1675 LHCG		|
 			|_______________________________________________________________|
-2014-01-08 21:00:00+00:00 > ([1609 KMPR] & [107 AIZ]) failed tests --> X Alpha nan
 2014-01-08 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2838 TRGP	+50.0%  -50.0%	     2094 OKE		|
+			|	31 ACHC		-71.2%  +28.8%	     1675 LHCG		|
 			|_______________________________________________________________|
+2014-01-09 21:00:00+00:00 > ([31 ACHC] & [1675 LHCG]) failed tests --> X Alpha nan
 2014-01-09 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
 			|			all weights 0				|
 			|_______________________________________________________________|
 2014-01-13 21:00:00+00:00 > ([2774 TEX] & [605 CMCO]) failed tests --> X Alpha nan
+2014-01-13 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-54.3%  +45.7%	     1591 KELYA		|
+			|_______________________________________________________________|
 2014-01-14 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2515 SCHL	-62.5%  +37.5%	     2068 NYT		|
+			|	2747 TBI	-55.9%  +44.1%	     1591 KELYA		|
 			|_______________________________________________________________|
 2014-01-15 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2515 SCHL	-61.5%  +38.5%	     2068 NYT		|
+			|	2747 TBI	-59.9%  +40.1%	     1591 KELYA		|
 			|_______________________________________________________________|
 2014-01-16 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2515 SCHL	-63.3%  +36.7%	     2068 NYT		|
+			|	2747 TBI	-60.5%  +39.5%	     1591 KELYA		|
 			|_______________________________________________________________|
-2014-01-17 21:00:00+00:00 > ([2838 TRGP] & [2094 OKE]) failed tests --> X Alpha nan
 2014-01-17 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2515 SCHL	-68.5%  +31.5%	     2068 NYT		|
+			|	2747 TBI	-62.3%  +37.7%	     1591 KELYA		|
 			|_______________________________________________________________|
 2014-01-21 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	2515 SCHL	-74.9%  +25.1%	     2068 NYT		|
+			|	2747 TBI	-65.3%  +34.7%	     1591 KELYA		|
 			|_______________________________________________________________|
-2014-01-22 21:00:00+00:00 > ([2515 SCHL] & [2068 NYT]) failed tests --> X Alpha nan
+2014-01-22 21:00:00+00:00 > ([2747 TBI] & [1591 KELYA]) failed tests --> X Alpha nan
 2014-01-22 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
 			|			all weights 0				|
 			|_______________________________________________________________|
 2014-02-03 21:00:00+00:00 > Pulling all Polygon companies
-2014-02-03 21:00:00+00:00 > Pulled 3965 tickers
+2014-02-03 21:00:00+00:00 > Pulled 3955 tickers
 2014-02-03 21:00:00+00:00 > Setting Universe...
 2014-02-03 21:00:00+00:00 > Calculating Price Histories...
-			Conglomerates (3)	Tobacco Products (4)	Utilities - Independent Power Producers (4)
-			Beverages - Alcoholic (4)	Truck Manufacturing (5)	Oil & Gas - Drilling (5)
-			Coal (5)	Beverages - Non-Alcoholic (5)	Oil & Gas - Midstream (5)
-			Oil & Gas - Integrated (6)	Personal Services (6)	Medical Distribution (7)
-			Agriculture (7)	Publishing (7)	Health Care Plans (8)
-			Advertising & Marketing Services (8)	Steel (9)	Insurance (10)
-			Farm & Construction Machinery (10)	Forest Products (10)	Industrial Distribution (10)
+			Conglomerates (3)	Beverages - Alcoholic (4)	Utilities - Independent Power Producers (4)
+			Tobacco Products (4)	Truck Manufacturing (5)	Coal (5)
+			Oil & Gas - Midstream (5)	Oil & Gas - Drilling (5)	Beverages - Non-Alcoholic (5)
+			Personal Services (6)	Oil & Gas - Integrated (6)	Agriculture (7)
+			Medical Distribution (7)	Publishing (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Farm & Construction Machinery (10)	Insurance (10)	Industrial Distribution (10)
+			Airlines (11)	Education (12)	Waste Management (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (13)
+			Packaging & Containers (14)	Real Estate Services (14)	Insurance - Specialty (15)
+			Health Care Providers (19)	Online Media (20)	Metals & Mining (20)
+			Homebuilding & Construction (20)	Consulting & Outsourcing (20)
 
-			Total Tickers = 138
-			Total Pairs = 1148
+			Total Tickers = 352
+			Total Pairs = 4806
 2014-02-03 21:00:00+00:00 > Price Testing Pairs...
-2014-02-03 21:00:00+00:00 > Price test passed: 248
-2014-02-03 21:00:00+00:00 > CHOOSING 10 PAIRS --> FOUND 7
-			1) ([2398 RFP] & [1223 GLT])
-				Industry Code:	Forest Products
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0010062820252558105
-				Half-life: 	4.102290327038244
-				Correlation: 	0.9891213953986561
-				Hurst: 		0.13908984583562142
-				Shapiro-Wilke: 	0.00011761146015487611
-				Alpha: 		1.0663212688298849
-				Zscore: 	1.8327287105159467
-			2) ([1609 KMPR] & [107 AIZ])
-				Industry Code:	Insurance
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0008837208129843823
-				Half-life: 	2.9378587490555588
-				Correlation: 	0.8523959103163053
-				Hurst: 		0.2244094714757406
-				Shapiro-Wilke: 	0.0002916115045081824
-				Alpha: 		1.153478618420869
-				Zscore: 	3.3367979914663017
-			3) ([1664 LEE] & [2515 SCHL])
-				Industry Code:	Publishing
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.000705914153299046
-				Half-life: 	3.4362035953789665
-				Correlation: 	0.9053652860820851
-				Hurst: 		0.2583968607904547
-				Shapiro-Wilke: 	7.328195579248131e-07
-				Alpha: 		0.32868643734161385
-				Zscore: 	2.064071448943076
-			4) ([1959 NCMI] & [1786 MDCA])
-				Industry Code:	Advertising & Marketing Services
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0019925005031257706
-				Half-life: 	3.2398526184979732
-				Correlation: 	0.940510078977311
-				Hurst: 		0.30458506175445427
-				Shapiro-Wilke: 	1.0163480723690554e-08
-				Alpha: 		0.34582878778114573
-				Zscore: 	1.7308169312776052
+2014-02-03 21:00:00+00:00 > Price test passed: 501
+2014-02-03 21:00:00+00:00 > CHOOSING 11 PAIRS --> FOUND 5
+			1) ([1396 HSC] & [521 CDE])
+				Industry Code:	Metals & Mining
+				Half-life: 	4.045044388784525
+				Zscore: 	2.023337622626802
+				Hurst: 		0.19983886483219426
+				ADFuller: 	0.0019346658436063234
+				Shapiro-Wilke: 	4.864047582486819e-07
+				Correlation: 	0.9515622190643165
+				Alpha: 		0.8009531420731807
+				ADF-Prices: 	0.9921999004579883
+			2) ([663 CPA] & [123 ALGT])
+				Industry Code:	Airlines
+				Half-life: 	3.601469852344928
+				Zscore: 	2.2476736929399563
+				Hurst: 		0.21310923642471138
+				ADFuller: 	0.0010735412320991649
+				Shapiro-Wilke: 	0.00011362903023837134
+				Correlation: 	0.9509049364384887
+				Alpha: 		1.1566630038188845
+				ADF-Prices: 	0.9805941699184658
+			3) ([254 ATR] & [1194 GEF])
+				Industry Code:	Packaging & Containers
+				Half-life: 	4.512751718986216
+				Zscore: 	1.879686773171393
+				Hurst: 		0.24730483047300458
+				ADFuller: 	0.00014316809451870847
+				Shapiro-Wilke: 	0.0010974010219797492
+				Correlation: 	0.9799586050276593
+				Alpha: 		1.1415612300769755
+				ADF-Prices: 	0.1786052800723158
+			4) ([1817 MGRC] & [475 CAR])
+				Industry Code:	Consulting & Outsourcing
+				Half-life: 	4.132037836404734
+				Zscore: 	1.5325602324185839
+				Hurst: 		0.2644127389115486
+				ADFuller: 	0.0016872641870136842
+				Shapiro-Wilke: 	0.0009099272429011762
+				Correlation: 	0.8592143155174798
+				Alpha: 		0.4057654810823726
+				ADF-Prices: 	0.9780104605973589
 			5) ([1995 NL] & [1036 FAST])
 				Industry Code:	Industrial Distribution
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0008768924413721221
 				Half-life: 	5.022971838565146
-				Correlation: 	0.9783789291011215
-				Hurst: 		0.3221124364328266
-				Shapiro-Wilke: 	2.6887162718480795e-08
-				Alpha: 		0.5854697399858133
 				Zscore: 	2.564724181428268
-			6) ([2041 NUE] & [604 CMC])
-				Industry Code:	Steel
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	7.284641810868042e-05
-				Half-life: 	3.707350883881513
-				Correlation: 	0.9226807048068949
-				Hurst: 		0.3283866531953063
-				Shapiro-Wilke: 	1.3329046851140447e-05
-				Alpha: 		0.9006860605738705
-				Zscore: 	2.8602608210439597
-			7) ([2458 RS] & [3184 ZEUS])
-				Industry Code:	Steel
-				ADF-Prices: 	0.958532086060056
-				ADFuller: 	0.0007195343643958078
-				Half-life: 	4.1366907422575
-				Correlation: 	0.9166635902666429
-				Hurst: 		0.33029214036803134
-				Shapiro-Wilke: 	7.791801093226525e-10
-				Alpha: 		1.044490633641905
-				Zscore: 	1.529916572333632
+				Hurst: 		0.3221124364328266
+				ADFuller: 	0.0008768924413721221
+				Shapiro-Wilke: 	2.6887162718480795e-08
+				Correlation: 	0.9783789291011215
+				Alpha: 		0.5854697399858133
+				ADF-Prices: 	0.47051239463486605
 2014-02-03 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	-10.9%  +22.5%	     107 AIZ		|
-			|	2041 NUE	-24.5%  +8.9%	     604 CMC		|
-			|	2458 RS		-23.6%  +9.8%	     3184 ZEUS		|
+			|	663 CPA		-27.3%  +22.7%	     123 ALGT		|
+			|	254 ATR		-26.3%  +23.7%	     1194 GEF		|
 			|_______________________________________________________________|
-2014-02-04 21:00:00+00:00 > ([1664 LEE] & [2515 SCHL]) failed tests --> X Alpha nan
 2014-02-04 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	+6.2%  -13.8%	     107 AIZ		|
-			|	1959 NCMI	+13.3%  -6.7%	     1786 MDCA		|
-			|	1995 NL		+5.0%  -15.0%	     1036 FAST		|
-			|	2041 NUE	+14.5%  -5.5%	     604 CMC		|
-			|	2458 RS		-14.2%  +5.8%	     3184 ZEUS		|
+			|	1396 HSC	+24.4%  -9.0%	     521 CDE		|
+			|	254 ATR		-18.5%  +14.8%	     1194 GEF		|
+			|	1995 NL		+8.3%  -25.0%	     1036 FAST		|
 			|_______________________________________________________________|
 2014-02-05 21:00:00+00:00 > ([1995 NL] & [1036 FAST]) failed tests --> X Alpha nan
 2014-02-05 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	+7.6%  -17.4%	     107 AIZ		|
-			|	1959 NCMI	+16.0%  -9.0%	     1786 MDCA		|
-			|	2041 NUE	+18.0%  -7.0%	     604 CMC		|
-			|	2458 RS		-17.9%  +7.1%	     3184 ZEUS		|
+			|	1396 HSC	+24.5%  -8.8%	     521 CDE		|
+			|	254 ATR		-19.3%  +14.0%	     1194 GEF		|
+			|	1817 MGRC	+21.4%  -11.9%	     475 CAR		|
 			|_______________________________________________________________|
 2014-02-06 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	+7.9%  -17.1%	     107 AIZ		|
-			|	1959 NCMI	+15.8%  -9.2%	     1786 MDCA		|
-			|	2041 NUE	+18.3%  -6.7%	     604 CMC		|
-			|	2458 RS		-18.1%  +6.9%	     3184 ZEUS		|
+			|	254 ATR		-28.7%  +21.3%	     1194 GEF		|
+			|	1817 MGRC	+31.6%  -18.4%	     475 CAR		|
 			|_______________________________________________________________|
 2014-02-07 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1959 NCMI	+31.7%  -18.3%	     1786 MDCA		|
-			|	2458 RS		-36.8%  +13.2%	     3184 ZEUS		|
+			|	254 ATR		-29.0%  +21.0%	     1194 GEF		|
+			|	1817 MGRC	+31.5%  -18.5%	     475 CAR		|
 			|_______________________________________________________________|
 2014-02-10 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1959 NCMI	+31.5%  -18.5%	     1786 MDCA		|
-			|	2458 RS		-37.4%  +12.6%	     3184 ZEUS		|
+			|	254 ATR		-28.8%  +21.2%	     1194 GEF		|
+			|	1817 MGRC	+31.6%  -18.4%	     475 CAR		|
 			|_______________________________________________________________|
-2014-02-11 21:00:00+00:00 > ([2041 NUE] & [604 CMC]) failed tests --> X Alpha nan
-2014-02-11 21:00:00+00:00 > ([2458 RS] & [3184 ZEUS]) failed tests --> X Alpha nan
 2014-02-11 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	-16.7%  +33.3%	     107 AIZ		|
-			|	1959 NCMI	+32.3%  -17.7%	     1786 MDCA		|
+			|	1817 MGRC	+64.0%  -36.0%	     475 CAR		|
 			|_______________________________________________________________|
+2014-02-12 21:00:00+00:00 > ([1396 HSC] & [521 CDE]) failed tests --> X Alpha nan
 2014-02-12 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	-18.1%  +31.9%	     107 AIZ		|
-			|	1959 NCMI	+32.4%  -17.6%	     1786 MDCA		|
+			|	1817 MGRC	+64.1%  -35.9%	     475 CAR		|
 			|_______________________________________________________________|
 2014-02-13 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
-			|	1609 KMPR	-19.2%  +30.8%	     107 AIZ		|
-			|	1959 NCMI	+34.6%  -15.4%	     1786 MDCA		|
+			|	1817 MGRC	+65.6%  -34.4%	     475 CAR		|
 			|_______________________________________________________________|
+2014-02-14 21:00:00+00:00 > ([663 CPA] & [123 ALGT]) failed tests --> X Zscore 4.088232959848687
 2014-02-14 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	1609 KMPR	-20.6%  +29.4%	     107 AIZ		|
-			|	1959 NCMI	+37.0%  -13.0%	     1786 MDCA		|
-			|_______________________________________________________________|
-2014-02-18 21:00:00+00:00 > ([1959 NCMI] & [1786 MDCA]) failed tests --> X Alpha nan
-2014-02-18 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	1609 KMPR	-43.2%  +56.8%	     107 AIZ		|
-			|_______________________________________________________________|
-2014-02-19 21:00:00+00:00 > ([2398 RFP] & [1223 GLT]) failed tests --> X Alpha nan
-2014-02-19 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	1609 KMPR	-46.7%  +53.3%	     107 AIZ		|
-			|_______________________________________________________________|
-2014-02-20 21:00:00+00:00 > ALLOCATING...
-			 _______________________________________________________________
-			|	1609 KMPR	-56.7%  +43.3%	     107 AIZ		|
-			|_______________________________________________________________|
-2014-02-21 21:00:00+00:00 > ([1609 KMPR] & [107 AIZ]) failed tests --> X Alpha nan
-2014-02-21 21:00:00+00:00 > ALLOCATING...
 			 _______________________________________________________________
 			|			all weights 0				|
 			|_______________________________________________________________|
+2014-02-20 21:00:00+00:00 > ([1817 MGRC] & [475 CAR]) failed tests --> X Alpha nan
+2014-02-21 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-68.3%  +31.7%	     1194 GEF		|
+			|_______________________________________________________________|
+2014-02-24 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-71.2%  +28.8%	     1194 GEF		|
+			|_______________________________________________________________|
+2014-02-25 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-70.8%  +29.2%	     1194 GEF		|
+			|_______________________________________________________________|
+2014-02-26 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-69.3%  +30.7%	     1194 GEF		|
+			|_______________________________________________________________|
+2014-02-27 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-68.9%  +31.1%	     1194 GEF		|
+			|_______________________________________________________________|
+2014-02-28 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	254 ATR		-70.2%  +29.8%	     1194 GEF		|
+			|_______________________________________________________________|
 2014-03-03 21:00:00+00:00 > Pulling all Polygon companies
+2014-03-03 21:00:00+00:00 > Pulled 3955 tickers
+2014-03-03 21:00:00+00:00 > Setting Universe...
+2014-03-03 21:00:00+00:00 > Calculating Price Histories...
+			Conglomerates (3)	Beverages - Alcoholic (4)	Utilities - Independent Power Producers (4)
+			Tobacco Products (4)	Truck Manufacturing (5)	Coal (5)
+			Oil & Gas - Midstream (5)	Oil & Gas - Drilling (5)	Beverages - Non-Alcoholic (5)
+			Personal Services (6)	Oil & Gas - Integrated (6)	Agriculture (7)
+			Medical Distribution (7)	Publishing (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Farm & Construction Machinery (10)	Insurance (10)	Industrial Distribution (10)
+			Airlines (11)	Education (12)	Waste Management (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (13)
+			Packaging & Containers (14)	Real Estate Services (14)	Insurance - Specialty (15)
+			Health Care Providers (19)	Online Media (20)	Metals & Mining (20)
+			Homebuilding & Construction (20)	Consulting & Outsourcing (20)
+
+			Total Tickers = 352
+			Total Pairs = 4806
+2014-03-03 21:00:00+00:00 > Price Testing Pairs...
+2014-03-03 21:00:00+00:00 > Price test passed: 433
+2014-03-03 21:00:00+00:00 > CHOOSING 10 PAIRS --> FOUND 6
+			1) ([375 BKD] & [2301 PRSC])
+				Industry Code:	Health Care Providers
+				Half-life: 	2.221190299255751
+				Zscore: 	1.6963580403224894
+				Hurst: 		0.2171103579143817
+				ADFuller: 	0.0003431497596642315
+				Shapiro-Wilke: 	1.691772837375538e-07
+				Correlation: 	0.9818551943164165
+				Alpha: 		1.7207080631592495
+				ADF-Prices: 	0.04965553514787378
+			2) ([1967 NEM] & [521 CDE])
+				Industry Code:	Metals & Mining
+				Half-life: 	3.715386277468265
+				Zscore: 	3.530541094001997
+				Hurst: 		0.22228114041049984
+				ADFuller: 	0.0005263361218850273
+				Shapiro-Wilke: 	5.4099732551549096e-06
+				Correlation: 	0.962663857229757
+				Alpha: 		0.8272979176027532
+				ADF-Prices: 	0.7317518718945838
+			3) ([1325 HEES] & [2955 URI])
+				Industry Code:	Consulting & Outsourcing
+				Half-life: 	5.51745447511847
+				Zscore: 	1.7677507259544545
+				Hurst: 		0.24377093688957674
+				ADFuller: 	0.001756733242156606
+				Shapiro-Wilke: 	0.0007907039835117757
+				Correlation: 	0.9189574370799038
+				Alpha: 		0.5645199812927036
+				ADF-Prices: 	0.2597108849817048
+			4) ([787 DAL] & [2 AAL])
+				Industry Code:	Airlines
+				Half-life: 	4.398706638924788
+				Zscore: 	2.0911266187011996
+				Hurst: 		0.24920204128135506
+				ADFuller: 	2.4355705245709034e-06
+				Shapiro-Wilke: 	0.0009221434593200684
+				Correlation: 	0.9676513015969928
+				Alpha: 		1.1136210850140194
+				ADF-Prices: 	0.4859952628028455
+			5) ([2622 SON] & [2593 SLGN])
+				Industry Code:	Packaging & Containers
+				Half-life: 	4.418271181581684
+				Zscore: 	2.480196413268288
+				Hurst: 		0.272778453393271
+				ADFuller: 	0.0016474975426215522
+				Shapiro-Wilke: 	6.850767385913059e-05
+				Correlation: 	0.9816056199621751
+				Alpha: 		0.594980658341124
+				ADF-Prices: 	0.03330839080337919
+			6) ([1597 KFRC] & [824 DHX])
+				Industry Code:	Employment Services
+				Half-life: 	3.5923748165723377
+				Zscore: 	1.5438828718006143
+				Hurst: 		0.34020035192755554
+				ADFuller: 	0.0008814570224926262
+				Shapiro-Wilke: 	1.4394837322129206e-08
+				Correlation: 	0.8824209805381784
+				Alpha: 		1.5387993485456946
+				ADF-Prices: 	0.03497066278021538
+2014-03-03 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		+13.7%  -19.6%	     2301 PRSC		|
+			|	1967 NEM	-23.9%  +9.4%	     521 CDE		|
+			|	2622 SON	-19.8%  +13.6%	     2593 SLGN		|
+			|_______________________________________________________________|
+2014-03-04 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1325 HEES	-11.7%  +21.6%	     2955 URI		|
+			|	2622 SON	-19.5%  +13.8%	     2593 SLGN		|
+			|	1597 KFRC	-22.0%  +11.3%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-05 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1325 HEES	-9.7%  +23.6%	     2955 URI		|
+			|	2622 SON	-20.0%  +13.3%	     2593 SLGN		|
+			|	1597 KFRC	-22.3%  +11.0%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-06 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1325 HEES	-8.7%  +24.7%	     2955 URI		|
+			|	2622 SON	-20.9%  +12.4%	     2593 SLGN		|
+			|	1597 KFRC	-21.8%  +11.5%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-07 21:00:00+00:00 > ([1325 HEES] & [2955 URI]) failed tests --> X Alpha nan
+2014-03-07 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2622 SON	-32.7%  +17.3%	     2593 SLGN		|
+			|	1597 KFRC	-33.6%  +16.4%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-10 20:00:00+00:00 > ([1967 NEM] & [521 CDE]) failed tests --> X Alpha nan
+2014-03-10 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2622 SON	-35.1%  +14.9%	     2593 SLGN		|
+			|	1597 KFRC	-34.6%  +15.4%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-11 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2622 SON	-35.0%  +15.0%	     2593 SLGN		|
+			|	1597 KFRC	-36.8%  +13.2%	     824 DHX		|
+			|_______________________________________________________________|
+2014-03-12 20:00:00+00:00 > ([1597 KFRC] & [824 DHX]) failed tests --> X Alpha nan
+2014-03-12 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2622 SON	-69.3%  +30.7%	     2593 SLGN		|
+			|_______________________________________________________________|
+2014-03-13 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|			all weights 0				|
+			|_______________________________________________________________|
+2014-03-14 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		-65.4%  +34.6%	     2301 PRSC		|
+			|_______________________________________________________________|
+2014-03-17 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		-34.3%  +15.7%	     2301 PRSC		|
+			|	787 DAL		-22.2%  +27.8%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-18 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		-35.1%  +14.9%	     2301 PRSC		|
+			|	787 DAL		-21.8%  +28.2%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-19 20:00:00+00:00 > ([2622 SON] & [2593 SLGN]) failed tests --> X Alpha nan
+2014-03-19 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		-35.4%  +14.6%	     2301 PRSC		|
+			|	787 DAL		-21.5%  +28.5%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-20 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	375 BKD		-36.9%  +13.1%	     2301 PRSC		|
+			|	787 DAL		-22.6%  +27.4%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-21 20:00:00+00:00 > ([375 BKD] & [2301 PRSC]) failed tests --> X Alpha nan
+2014-03-21 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	787 DAL		-45.9%  +54.1%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-24 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	787 DAL		-47.8%  +52.2%	     2 AAL		|
+			|_______________________________________________________________|
+2014-03-25 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|			all weights 0				|
+			|_______________________________________________________________|
+2014-04-01 20:00:00+00:00 > Pulling all Polygon companies
+2014-04-01 20:00:00+00:00 > Pulled 3955 tickers
+2014-04-01 20:00:00+00:00 > Setting Universe...
+2014-04-01 20:00:00+00:00 > Calculating Price Histories...
+			Conglomerates (3)	Beverages - Alcoholic (4)	Utilities - Independent Power Producers (4)
+			Tobacco Products (4)	Truck Manufacturing (5)	Coal (5)
+			Oil & Gas - Midstream (5)	Oil & Gas - Drilling (5)	Beverages - Non-Alcoholic (5)
+			Personal Services (6)	Oil & Gas - Integrated (6)	Agriculture (7)
+			Medical Distribution (7)	Publishing (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Farm & Construction Machinery (10)	Insurance (10)	Industrial Distribution (10)
+			Airlines (11)	Education (12)	Waste Management (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (13)
+			Packaging & Containers (14)	Real Estate Services (14)	Insurance - Specialty (15)
+			Health Care Providers (19)	Online Media (20)	Metals & Mining (20)
+			Homebuilding & Construction (20)	Consulting & Outsourcing (20)
+
+			Total Tickers = 352
+			Total Pairs = 4806
+2014-04-01 20:00:00+00:00 > Price Testing Pairs...
+2014-04-01 20:00:00+00:00 > Price test passed: 327
+2014-04-01 20:00:00+00:00 > CHOOSING 9 PAIRS --> FOUND 4
+			1) ([1325 HEES] & [1889 MSA])
+				Industry Code:	Consulting & Outsourcing
+				Half-life: 	4.098444049231578
+				Zscore: 	2.8958990713145116
+				Hurst: 		0.21941827845523085
+				ADFuller: 	0.000750387697254414
+				Shapiro-Wilke: 	1.4087132849116557e-10
+				Correlation: 	0.953392093511252
+				Alpha: 		0.4937981505690044
+				ADF-Prices: 	0.4747159835618728
+			2) ([2677 STLD] & [2516 SCHN])
+				Industry Code:	Steel
+				Half-life: 	4.086249590850759
+				Zscore: 	2.1155723143486047
+				Hurst: 		0.2757074115988309
+				ADFuller: 	4.1362856083145527e-08
+				Shapiro-Wilke: 	0.0004530634905677289
+				Correlation: 	0.8191784847436318
+				Alpha: 		0.42219490428192785
+				ADF-Prices: 	0.9465724208187581
+			3) ([1504 IP] & [254 ATR])
+				Industry Code:	Packaging & Containers
+				Half-life: 	4.244333416524958
+				Zscore: 	1.7094079582672326
+				Hurst: 		0.2758805448186205
+				ADFuller: 	0.0017336278080137338
+				Shapiro-Wilke: 	1.0310826837667264e-05
+				Correlation: 	0.8570211076163908
+				Alpha: 		0.9089754449724965
+				ADF-Prices: 	0.06343284390765438
+			4) ([2663 SSTK] & [3025 VRSN])
+				Industry Code:	Online Media
+				Half-life: 	4.216678337314026
+				Zscore: 	1.6335050926649934
+				Hurst: 		0.3275968906284841
+				ADFuller: 	6.445672349726257e-05
+				Shapiro-Wilke: 	5.016229098764313e-11
+				Correlation: 	0.9502913980892801
+				Alpha: 		2.6818077696373117
+				ADF-Prices: 	0.413213829869623
+2014-04-01 20:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2663 SSTK	-34.6%  +65.4%	     3025 VRSN		|
+			|_______________________________________________________________|

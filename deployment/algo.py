@@ -71,6 +71,16 @@ LOOSE_PARAMS              = {
     'ADF-Prices':       {'min': LOOSE_PVALUE, 'max': 1.00,     'run': False}
     }
 
+def write_to_file(filename, data):
+	file = open(filename, 'w')
+	print(data, file=file)
+	file.close()
+
+def log(message):
+	print(str(get_datetime()) + " > " + str(message))
+	with open("logs.txt", "a") as myfile:
+		myfile.write("\n"+ str(get_datetime()) + " > " + str(message))
+
 class Stock:
     def __init__(self, equity):
         self.equity = equity
@@ -121,12 +131,13 @@ class Pair:
             current_test = get_test_by_name(test)
             result = "N/A"
             if TEST_PARAMS[test]['type'] == "price":
-                if test == "Alpha":
-                    result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], self.right.price_history[-HEDGE_LOOKBACK:])
-                else:
-                    result = current_test(self.left.filtered_price_history[-HEDGE_LOOKBACK:], self.right.filtered_price_history[-HEDGE_LOOKBACK:])
-                
-
+                try:
+                    if test == "Alpha":
+                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], self.right.price_history[-HEDGE_LOOKBACK:])
+                    else:
+                        result = current_test(self.left.filtered_price_history[-HEDGE_LOOKBACK:], self.right.filtered_price_history[-HEDGE_LOOKBACK:])
+                except:
+                    pass
                 # try:
                 #     if loose_screens and test == "Alpha":
                 #         hl = int(round(self.latest_test_results['Half-life'], 0))
@@ -189,29 +200,16 @@ class Pair:
 
         return True
 
-def write_to_file(filename, data):
-	file = open(filename, 'w')
-	print(data, file=file)
-	file.close()
-def log(message):
-	print(str(get_datetime()) + " > " + str(message))
-	with open("logs.txt", "a") as myfile:
-		myfile.write("\n"+ str(get_datetime()) + " > " + str(message))
-
 def collect_polygon_tickers(base_url, key_id, secret_key):
     
-    API = tradeapi.REST(
-        base_url=base_url,
-        key_id=key_id,
-        secret_key=secret_key
-    )
+    API = tradeapi.REST(base_url=base_url, key_id=key_id, secret_key=secret_key)
     assets = API.list_assets()
     symbols = [asset.symbol for asset in assets if asset.tradable]
 
     num_requests = int(len(symbols)/MAX_COMPANY)+(1 if len(symbols) % MAX_COMPANY > 0 else 0)
 
     log("Pulling all Polygon companies")
-    bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
     bar.start()
     companies = {}
     for r in range(num_requests):
@@ -272,7 +270,6 @@ def set_universe(context, data):
     context.curr_month = context.next_month
     context.pairs = []
     context.universes = {}
-    # context.industries = {}
     context.target_weights = {}
     for equity in context.portfolio.positions:  
         order_target_percent(equity, 0)
@@ -300,7 +297,7 @@ def set_universe(context, data):
 
     temp = copy.deepcopy(context.industries)
     for i in temp:
-        if temp[i]['size'] > 10 or temp[i]['size'] < 1:
+        if temp[i]['size'] < 1 or temp[i]['size'] > 20:
             del context.industries[i]
 
     if not context.industries:
@@ -331,7 +328,7 @@ def set_universe(context, data):
         count += context.industries[context.codes[i]]['size']
     log (report + "\n\n\t\t\tTotal Tickers = " + str(count) + "\n\t\t\tTotal Pairs = " + str(comps))
 
-    bar = progressbar.ProgressBar(maxval=count, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    bar = progressbar.ProgressBar(maxval=count, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
     bar.start()
     count = 0
     for code in context.codes:
@@ -348,7 +345,7 @@ def set_universe(context, data):
     context.all_pairs = {}
     log("Price Testing Pairs...")
     counter = 0
-    bar = progressbar.ProgressBar(maxval=1148, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    bar = progressbar.ProgressBar(maxval=comps, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
     bar.start()
     for code in context.codes:
         context.all_pairs[code] = []
@@ -385,7 +382,7 @@ def set_universe(context, data):
     report = "CHOOSING " + str(context.desired_pairs) + " PAIR" + "S"*(context.desired_pairs > 1)
     
     new_pairs = []
-    bar = progressbar.ProgressBar(maxval=counter, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    bar = progressbar.ProgressBar(maxval=counter, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
     bar.start()
     count = 0
     for code in context.all_pairs:
@@ -656,7 +653,7 @@ def get_test_by_name(name):
         return pvalue
     
     def adf_pvalue(spreads):
-        return sm.adfuller(spreads)[1]
+        return sm.adfuller(spreads,autolag='t-stat')[1]
     
     def hurst_hvalue(series):
         
@@ -714,8 +711,8 @@ def get_test_by_name(name):
         return p
     
     def adf_prices(s1_price, s2_price):
-        p1 = sm.adfuller(s1_price)[1]
-        p2 = sm.adfuller(s2_price)[1]
+        p1 = sm.adfuller(s1_price, autolag='t-stat')[1]
+        p2 = sm.adfuller(s2_price, autolag='t-stat')[1]
         return min(p1,p2)
     
     def jb_pvalue(spreads):
