@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
-from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett, linregress
+from scipy.stats import shapiro, jarque_bera, pearsonr, linregress
 import math
 from pykalman import KalmanFilter
 
@@ -19,6 +19,7 @@ EXCHANGES = ['New York Stock Exchange', 'Nasdaq Global Select', 'NYSE American',
 BASE_URL = "https://paper-api.alpaca.markets"
 KEY_ID = "PKSL6HFOBBRWI3ZYB3CE"
 SECRET_KEY = "oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV"
+EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs']
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
@@ -54,7 +55,7 @@ TEST_PARAMS               = {
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
     'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
     'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
-    'ADF-Prices':   {'lookback': LOOKBACK, 'min': DESIRED_PVALUE, 'max': 1.00,         'type': 'price',  'run': True }
+    'ADF-Prices':   {'lookback': LOOKBACK, 'min': LOOSE_PVALUE, 'max': 1.00,         'type': 'price',  'run': True }
     }
     
 LOOSE_PARAMS              = {
@@ -62,7 +63,7 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True },
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': False },
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
@@ -235,7 +236,8 @@ def collect_polygon_tickers(base_url, key_id, secret_key):
             industries[company.industry] = []
         industries[company.industry].append(ticker)
 
-    delete = [key for key in industries if len(industries[key]) < 2]
+    delete = [key for key in industries if len(industries[key]) < 2 or key in EXCLUDED_INDUSTRIES]
+
     for key in delete:
         del industries[key]
 
@@ -261,7 +263,7 @@ def initialize(context):
     schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(hours = 1))
 
 def set_universe(context, data):
-    this_month = get_datetime('US/Eastern').month
+    this_month = get_datetime('US/Eastern').month 
     if context.curr_month < 0:
         context.curr_month = this_month
     context.next_month = context.curr_month + INTERVAL - 12*(context.curr_month + INTERVAL > 12)
@@ -271,7 +273,7 @@ def set_universe(context, data):
     context.pairs = []
     context.universes = {}
     context.target_weights = {}
-    for equity in context.portfolio.positions:
+    for equity in context.portfolio.positions:  
         order_target_percent(equity, 0)
     
     context.industries = collect_polygon_tickers(BASE_URL, KEY_ID, SECRET_KEY)
@@ -416,7 +418,7 @@ def set_universe(context, data):
 
 def check_pair_status(context, data):
     if (not context.pairs_chosen):
-        return
+        return   
     num_pairs = len(context.pairs)
     if (num_pairs == 0):
         month = get_datetime('US/Eastern').month
@@ -492,14 +494,14 @@ def check_pair_status(context, data):
         context.pairs[pair_index].spreads = spreads
         zscore = (spreads[-1] - spreads.mean()) / spreads.std()
 
-        if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):
+        if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):     
             sell_pair(context, data, pair)
         elif pair.currently_short:
             y_target_shares = -1
             X_target_shares = slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
         elif pair.currently_long:
-            y_target_shares = 1
+            y_target_shares = 1    
             X_target_shares = -slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, pair.left.price_history, pair.right.price_history, new_pair=False)
 
@@ -519,7 +521,7 @@ def check_pair_status(context, data):
     allocate(context, data)
 
 def run_kalman(price_history):
-    kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history[0],
+    kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1], initial_state_mean = price_history[0], 
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
     try:
@@ -563,7 +565,7 @@ def allocate(context, data):
     table = ""
     for pair in context.pairs:
         if (context.target_weights[pair.left.equity] != 0 or context.target_weights[pair.right.equity] != 0):
-            table += ("\n\t\t\t|\t"+str(pair.left.name)+"\t"+ "\t"*(1 if len(pair.left.name) < 8 else 0) + "+"*(1 if context.target_weights[pair.left.equity] >= 0 else 0)
+            table += ("\n\t\t\t|\t"+str(pair.left.name)+"\t"+ "\t"*(1 if len(pair.left.name) < 8 else 0) + "+"*(1 if context.target_weights[pair.left.equity] >= 0 else 0) 
                   +('%.1f' % round(context.target_weights[pair.left.equity]*100,1))+"%  "+"+"*(1 if context.target_weights[pair.right.equity] >= 0 else 0)
                   +('%.1f' % round(context.target_weights[pair.right.equity]*100,1))+"%\t     "+str(pair.right.name) + "\t\t|")
         order_target_percent(pair.left.equity, context.target_weights[pair.left.equity])
@@ -593,7 +595,7 @@ def scale_pair_pct(context, factor):
 def update_target_weight(context, data, stock, new_weight):
     if (stock.purchase_price['price'] == 0):
         is_long = True if new_weight > 0 else False
-        stock.update_purchase_price(data.current(stock.equity, 'price'), is_long)
+        stock.update_purchase_price(data.current(stock.equity, 'price'), is_long)        
     else:
         is_long = stock.purchase_price['long']
         if ((is_long and new_weight < 0) or (not is_long and new_weight > 0)):
@@ -660,7 +662,7 @@ def get_test_by_name(name):
         #From Ernie Chan
         
         # tau, lagvec = [], []
-        # for lag in range(2,20):
+        # for lag in range(2,20):  
         #     pp = np.subtract(series[lag:],series[:-lag])
         #     lagvec.append(lag)
         #     tau.append(np.sqrt(np.std(pp)))
@@ -700,7 +702,7 @@ def get_test_by_name(name):
         H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
         return H
     
-    def half_life(spreads):
+    def half_life(spreads): 
         lag = np.roll(spreads, 1)
         ret = spreads - lag
         slope, intercept = linreg(lag,ret)
