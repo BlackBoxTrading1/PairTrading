@@ -1,0 +1,518 @@
+BACKTEST LOGS
+
+2014-01-02 21:00:00+00:00 > Pulling all Polygon companies
+2014-01-02 21:00:00+00:00 > Pulled 3935 tickers
+2014-01-02 21:00:00+00:00 > Setting Universe...
+2014-01-02 21:00:00+00:00 > Calculating Price Histories...
+			Conglomerates (3)	Oil & Gas - Drilling (4)	Beverages - Alcoholic (4)
+			Utilities - Independent Power Producers (4)	Tobacco Products (4)	Oil & Gas - Midstream (5)
+			Coal (5)	Beverages - Non-Alcoholic (5)	Truck Manufacturing (5)
+			Oil & Gas - Integrated (6)	Personal Services (6)	Agriculture (7)
+			Publishing (7)	Medical Distribution (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Industrial Distribution (10)	Insurance (10)	Farm & Construction Machinery (10)
+			Airlines (11)	Waste Management (12)	Education (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (14)
+			Packaging & Containers (15)	Insurance - Specialty (15)	Real Estate Services (15)
+			Health Care Providers (19)	Consulting & Outsourcing (20)	Homebuilding & Construction (20)
+			Online Media (21)	Metals & Mining (21)	Engineering & Construction (21)
+			Aerospace & Defense (21)	Building Materials (22)	Retail - Defensive (23)
+			Oil & Gas - Services (24)	Medical Devices (24)	Credit Services (25)
+			Communication Equipment (27)	Medical Instruments & Equipment (28)	Restaurants (28)
+			Communication Services (29)	Entertainment (30)	Medical Diagnostics & Research (30)
+			Brokers & Exchanges (32)	Drug Manufacturers (33)	Travel & Leisure (34)
+			Insurance - Property & Casualty (35)	Manufacturing - Apparel & Furniture (38)	Chemicals (38)
+			Oil & Gas - E&P (45)	Transportation & Logistics (47)	Asset Management (49)
+			Consumer Packaged Goods (51)	Autos (51)	Utilities - Regulated (54)
+			Business Services (56)	Semiconductors (59)	Computer Hardware (64)
+			Retail - Apparel & Specialty (69)	REITs (90)	Industrial Products (92)
+			Biotechnology (98)	Application Software (119)	Banks (177)
+
+			Total Tickers = 2019
+			Total Pairs = 124508
+2014-01-02 21:00:00+00:00 > Price Testing Pairs...
+2014-01-02 21:00:00+00:00 > Price test passed: 12151
+2014-01-02 21:00:00+00:00 > CHOOSING 10 PAIRS --> FOUND 10
+			1) ([898 EBAY] & [3089 WINA])
+				Industry Code:	Retail - Apparel & Specialty
+				Alpha: 		0.43398937600393445
+				Correlation: 	0.9643740733161266
+				ADF-Prices: 	0.7464384983795602
+				Hurst: 		0.04568049384692506
+				Half-life: 	3.9693793416634624
+				Zscore: 	2.295284029565438
+				ADFuller: 	2.5271914647117514e-05
+				Shapiro-Wilke: 	0.00014846018166281283
+			2) ([2503 SBCF] & [1294 HAFC])
+				Industry Code:	Banks
+				Alpha: 		0.3735384500395658
+				Correlation: 	0.9668208200013855
+				ADF-Prices: 	0.16412137944991795
+				Hurst: 		0.13813639146818882
+				Half-life: 	4.6532416249760145
+				Zscore: 	1.5651310038314326
+				ADFuller: 	0.00031329727127301987
+				Shapiro-Wilke: 	0.00017383608792442828
+			3) ([3123 WSO] & [228 ARW])
+				Industry Code:	Computer Hardware
+				Alpha: 		0.8313581487941638
+				Correlation: 	0.9491274825277419
+				ADF-Prices: 	0.07357717469588816
+				Hurst: 		0.13816158345342358
+				Half-life: 	4.2150252024230435
+				Zscore: 	1.7705084868023702
+				ADFuller: 	0.0004769962367764203
+				Shapiro-Wilke: 	0.00017654726980254054
+			4) ([2747 TBI] & [1591 KELYA])
+				Industry Code:	Employment Services
+				Alpha: 		0.7667850436489881
+				Correlation: 	0.9398038299391593
+				ADF-Prices: 	0.5941422447994003
+				Hurst: 		0.14848192680065417
+				Half-life: 	8.453856922837364
+				Zscore: 	1.5691623057146535
+				ADFuller: 	0.0012301137308857605
+				Shapiro-Wilke: 	0.00021998629381414503
+			5) ([3070 WEC] & [2621 SO])
+				Industry Code:	Utilities - Regulated
+				Alpha: 		0.9941550783326827
+				Correlation: 	0.8572586334403562
+				ADF-Prices: 	0.012104586670239231
+				Hurst: 		0.14959937063594447
+				Half-life: 	10.508669006786478
+				Zscore: 	2.0643520742021844
+				ADFuller: 	0.000298997014661439
+				Shapiro-Wilke: 	4.8212878027698025e-05
+			6) ([2970 UTHR] & [179 ANIK])
+				Industry Code:	Biotechnology
+				Alpha: 		1.8163741228915113
+				Correlation: 	0.9801183149504725
+				ADF-Prices: 	0.020033172442745564
+				Hurst: 		0.15226556640727296
+				Half-life: 	4.646201870117975
+				Zscore: 	1.692189970485345
+				ADFuller: 	0.0017128460706514312
+				Shapiro-Wilke: 	6.314884376479313e-05
+			7) ([2606 SNA] & [1964 NDSN])
+				Industry Code:	Industrial Products
+				Alpha: 		1.015363839329947
+				Correlation: 	0.9814297103680599
+				ADF-Prices: 	0.014273894664747294
+				Hurst: 		0.15730416124012667
+				Half-life: 	2.9087322026082716
+				Zscore: 	1.7968542603471613
+				ADFuller: 	0.0005094314296222317
+				Shapiro-Wilke: 	0.0005816391785629094
+			8) ([2336 QADA] & [2040 NUAN])
+				Industry Code:	Application Software
+				Alpha: 		1.254915609186127
+				Correlation: 	0.958123460798777
+				ADF-Prices: 	0.31692345679930745
+				Hurst: 		0.1646946965873642
+				Half-life: 	2.669017086758951
+				Zscore: 	1.9964691625876785
+				ADFuller: 	3.1421318890302047e-06
+				Shapiro-Wilke: 	0.0014547219034284353
+			9) ([3128 WTBA] & [2023 NRIM])
+				Industry Code:	Banks
+				Alpha: 		1.68512104416907
+				Correlation: 	0.9791402480867857
+				ADF-Prices: 	0.05894296229891861
+				Hurst: 		0.16775412528936054
+				Half-life: 	5.403148464635139
+				Zscore: 	1.8257567246484525
+				ADFuller: 	0.00011692383264697333
+				Shapiro-Wilke: 	1.6484405932715163e-05
+			10) ([594 CLI] & [106 AIV])
+				Industry Code:	REITs
+				Alpha: 		0.9749929427382503
+				Correlation: 	0.9824334415982837
+				ADF-Prices: 	0.08982137020787034
+				Hurst: 		0.1737067690002439
+				Half-life: 	3.983955263523104
+				Zscore: 	1.8700714519317583
+				ADFuller: 	0.0018851168191161786
+				Shapiro-Wilke: 	1.592142871231772e-05
+2014-01-02 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2336 QADA	-47.0%  +53.0%	     2040 NUAN		|
+			|_______________________________________________________________|
+2014-01-03 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-65.8%  +34.2%	     179 ANIK		|
+			|_______________________________________________________________|
+2014-01-06 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-62.4%  +37.6%	     179 ANIK		|
+			|_______________________________________________________________|
+2014-01-07 21:00:00+00:00 > ([3128 WTBA] & [2023 NRIM]) failed tests --> X Alpha nan
+2014-01-07 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-31.8%  +18.2%	     179 ANIK		|
+			|	2606 SNA	-30.9%  +19.1%	     1964 NDSN		|
+			|_______________________________________________________________|
+2014-01-08 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-32.0%  +18.0%	     179 ANIK		|
+			|	2606 SNA	-32.4%  +17.6%	     1964 NDSN		|
+			|_______________________________________________________________|
+2014-01-09 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-32.0%  +18.0%	     179 ANIK		|
+			|	2606 SNA	-32.8%  +17.2%	     1964 NDSN		|
+			|_______________________________________________________________|
+2014-01-10 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2970 UTHR	-32.0%  +18.0%	     179 ANIK		|
+			|	2606 SNA	-33.2%  +16.8%	     1964 NDSN		|
+			|_______________________________________________________________|
+2014-01-13 21:00:00+00:00 > ([594 CLI] & [106 AIV]) failed tests --> X Alpha nan
+2014-01-13 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-18.1%  +15.2%	     1591 KELYA		|
+			|	2970 UTHR	-21.3%  +12.1%	     179 ANIK		|
+			|	2606 SNA	-23.5%  +9.9%	     1964 NDSN		|
+			|_______________________________________________________________|
+2014-01-14 21:00:00+00:00 > ([2606 SNA] & [1964 NDSN]) failed tests --> X Alpha nan
+2014-01-14 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-18.6%  +14.7%	     1591 KELYA		|
+			|	2970 UTHR	-21.3%  +12.0%	     179 ANIK		|
+			|	2336 QADA	-13.5%  +19.9%	     2040 NUAN		|
+			|_______________________________________________________________|
+2014-01-15 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-29.9%  +20.1%	     1591 KELYA		|
+			|	2336 QADA	-21.3%  +28.7%	     2040 NUAN		|
+			|_______________________________________________________________|
+2014-01-16 21:00:00+00:00 > ([898 EBAY] & [3089 WINA]) failed tests --> X Alpha nan
+2014-01-16 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-30.2%  +19.8%	     1591 KELYA		|
+			|	2336 QADA	-23.0%  +27.0%	     2040 NUAN		|
+			|_______________________________________________________________|
+2014-01-17 21:00:00+00:00 > ([2970 UTHR] & [179 ANIK]) failed tests --> X Alpha nan
+2014-01-17 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-62.3%  +37.7%	     1591 KELYA		|
+			|_______________________________________________________________|
+2014-01-21 21:00:00+00:00 > ([2336 QADA] & [2040 NUAN]) failed tests --> X Alpha nan
+2014-01-21 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	2747 TBI	-65.3%  +34.7%	     1591 KELYA		|
+			|_______________________________________________________________|
+2014-01-22 21:00:00+00:00 > ([2747 TBI] & [1591 KELYA]) failed tests --> X Alpha nan
+2014-01-22 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|			all weights 0				|
+			|_______________________________________________________________|
+2014-01-23 21:00:00+00:00 > ([3123 WSO] & [228 ARW]) failed tests --> X Alpha nan
+2014-01-27 21:00:00+00:00 > ([2503 SBCF] & [1294 HAFC]) failed tests --> X Alpha nan
+2014-01-30 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	3070 WEC	-52.4%  +47.6%	     2621 SO		|
+			|_______________________________________________________________|
+2014-01-31 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	3070 WEC	-48.5%  +51.5%	     2621 SO		|
+			|_______________________________________________________________|
+2014-02-03 21:00:00+00:00 > Pulling all Polygon companies
+2014-02-03 21:00:00+00:00 > Pulled 3935 tickers
+2014-02-03 21:00:00+00:00 > Setting Universe...
+2014-02-03 21:00:00+00:00 > Calculating Price Histories...
+			Conglomerates (3)	Oil & Gas - Drilling (4)	Beverages - Alcoholic (4)
+			Utilities - Independent Power Producers (4)	Tobacco Products (4)	Oil & Gas - Midstream (5)
+			Coal (5)	Beverages - Non-Alcoholic (5)	Truck Manufacturing (5)
+			Oil & Gas - Integrated (6)	Personal Services (6)	Agriculture (7)
+			Publishing (7)	Medical Distribution (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Industrial Distribution (10)	Insurance (10)	Farm & Construction Machinery (10)
+			Airlines (11)	Waste Management (12)	Education (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (14)
+			Packaging & Containers (15)	Insurance - Specialty (15)	Real Estate Services (15)
+			Health Care Providers (19)	Consulting & Outsourcing (20)	Homebuilding & Construction (20)
+			Online Media (21)	Metals & Mining (21)	Engineering & Construction (21)
+			Aerospace & Defense (21)	Building Materials (22)	Retail - Defensive (23)
+			Oil & Gas - Services (24)	Medical Devices (24)	Credit Services (25)
+			Communication Equipment (27)	Medical Instruments & Equipment (28)	Restaurants (28)
+			Communication Services (29)	Entertainment (30)	Medical Diagnostics & Research (30)
+			Brokers & Exchanges (32)	Drug Manufacturers (33)	Travel & Leisure (34)
+			Insurance - Property & Casualty (35)	Manufacturing - Apparel & Furniture (38)	Chemicals (38)
+			Oil & Gas - E&P (45)	Transportation & Logistics (47)	Asset Management (49)
+			Consumer Packaged Goods (51)	Autos (51)	Utilities - Regulated (54)
+			Business Services (56)	Semiconductors (59)	Computer Hardware (64)
+			Retail - Apparel & Specialty (69)	REITs (90)	Industrial Products (92)
+			Biotechnology (98)	Application Software (119)	Banks (177)
+
+			Total Tickers = 2019
+			Total Pairs = 124508
+2014-02-03 21:00:00+00:00 > Price Testing Pairs...
+2014-02-03 21:00:00+00:00 > Price test passed: 14098
+2014-02-03 21:00:00+00:00 > CHOOSING 12 PAIRS --> FOUND 12
+			1) ([919 EFSC] & [2049 NWBI])
+				Industry Code:	Banks
+				Alpha: 		1.1698319361809564
+				Correlation: 	0.8600612895782216
+				ADF-Prices: 	0.25110165789785616
+				Hurst: 		0.08701937136290876
+				Half-life: 	3.6122959892607427
+				Zscore: 	2.354306073784611
+				ADFuller: 	2.74521887671279e-06
+				Shapiro-Wilke: 	0.0002602481108624488
+			2) ([1414 HTLF] & [783 CZNC])
+				Industry Code:	Banks
+				Alpha: 		1.156917270190733
+				Correlation: 	0.9429414667836662
+				ADF-Prices: 	0.5158080329050932
+				Hurst: 		0.11034025195331351
+				Half-life: 	3.805446886005632
+				Zscore: 	1.778478286235354
+				ADFuller: 	0.0019661618110744547
+				Shapiro-Wilke: 	0.0013427713420242071
+			3) ([1099 FLS] & [2870 TTC])
+				Industry Code:	Industrial Products
+				Alpha: 		1.794477538658668
+				Correlation: 	0.8380569984997073
+				ADF-Prices: 	0.3695712977697907
+				Hurst: 		0.11774042007692583
+				Half-life: 	2.457026387852956
+				Zscore: 	1.7362113445619116
+				ADFuller: 	0.0003572029042399722
+				Shapiro-Wilke: 	8.458636875730008e-05
+			4) ([1074 FFIV] & [2336 QADA])
+				Industry Code:	Application Software
+				Alpha: 		2.9857206404692653
+				Correlation: 	0.9791235056281785
+				ADF-Prices: 	0.24209545070893917
+				Hurst: 		0.12190530060400603
+				Half-life: 	6.466262394353997
+				Zscore: 	1.863349065959578
+				ADFuller: 	0.0002947978650058631
+				Shapiro-Wilke: 	0.00022473254648502916
+			5) ([3119 WSBC] & [415 BPOP])
+				Industry Code:	Banks
+				Alpha: 		0.746814509437142
+				Correlation: 	0.9348074119017105
+				ADF-Prices: 	0.09749767268269904
+				Hurst: 		0.12368945854890333
+				Half-life: 	4.405912456848178
+				Zscore: 	2.802993090539686
+				ADFuller: 	1.9786487592095517e-05
+				Shapiro-Wilke: 	0.0005834908806718886
+			6) ([1193 GE] & [1839 MLHR])
+				Industry Code:	Industrial Products
+				Alpha: 		1.1527097719164043
+				Correlation: 	0.9964004843829846
+				ADF-Prices: 	0.5760331009575741
+				Hurst: 		0.12550500724208896
+				Half-life: 	3.725248487710437
+				Zscore: 	1.8432645663677723
+				ADFuller: 	0.00029276160418175616
+				Shapiro-Wilke: 	6.0538892284967005e-05
+			7) ([1080 FIBK] & [1180 GBCI])
+				Industry Code:	Banks
+				Alpha: 		0.5257785241265386
+				Correlation: 	0.9502267567748853
+				ADF-Prices: 	0.7285169858158402
+				Hurst: 		0.14196511105273787
+				Half-life: 	2.9081036591366134
+				Zscore: 	1.865146613010993
+				ADFuller: 	0.0004799639178764389
+				Shapiro-Wilke: 	1.1133842235722113e-05
+			8) ([1313 HCCI] & [1149 FSS])
+				Industry Code:	Industrial Products
+				Alpha: 		0.6915494521472779
+				Correlation: 	0.9421021702105199
+				ADF-Prices: 	0.44434620822005405
+				Hurst: 		0.1496199513468835
+				Half-life: 	3.4551524619058203
+				Zscore: 	2.2002752363895692
+				ADFuller: 	0.0005529932716783608
+				Shapiro-Wilke: 	0.0002559080021455884
+			9) ([1858 MNTX] & [99 AIMC])
+				Industry Code:	Industrial Products
+				Alpha: 		0.5253782675581352
+				Correlation: 	0.9216256071664297
+				ADF-Prices: 	0.20407283541965215
+				Hurst: 		0.1502242949605046
+				Half-life: 	4.591297038730265
+				Zscore: 	1.8845157051586663
+				ADFuller: 	0.0013552102577243357
+				Shapiro-Wilke: 	0.0010813861154019833
+			10) ([2786 THFF] & [3047 WABC])
+				Industry Code:	Banks
+				Alpha: 		0.6552610634758532
+				Correlation: 	0.9833612522121534
+				ADF-Prices: 	0.016143947819984027
+				Hurst: 		0.15227140435834655
+				Half-life: 	3.6356898564974944
+				Zscore: 	1.6281231374144622
+				ADFuller: 	8.55753433140156e-05
+				Shapiro-Wilke: 	4.748403625853825e-06
+			11) ([1638 KWR] & [525 CE])
+				Industry Code:	Chemicals
+				Alpha: 		0.926920213296879
+				Correlation: 	0.9566364746762411
+				ADF-Prices: 	0.9893175456951955
+				Hurst: 		0.1552265696757247
+				Half-life: 	11.252107129570058
+				Zscore: 	1.5297662532565575
+				ADFuller: 	0.001826930415612725
+				Shapiro-Wilke: 	0.00024714029859751463
+			12) ([1060 FDP] & [1213 GIS])
+				Industry Code:	Consumer Packaged Goods
+				Alpha: 		1.3006468084948097
+				Correlation: 	0.9916658144036848
+				ADF-Prices: 	0.997013388056407
+				Hurst: 		0.15878183867390702
+				Half-life: 	3.755401580058786
+				Zscore: 	1.9551243816316084
+				ADFuller: 	8.730879224076954e-05
+				Shapiro-Wilke: 	0.0008012193138711154
+2014-02-03 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	919 EFSC	-10.6%  +9.4%	     2049 NWBI		|
+			|	1099 FLS	-7.7%  +12.3%	     2870 TTC		|
+			|	3119 WSBC	-11.8%  +8.2%	     415 BPOP		|
+			|	1193 GE		-8.9%  +11.1%	     1839 MLHR		|
+			|	1313 HCCI	-13.3%  +6.7%	     1149 FSS		|
+			|_______________________________________________________________|
+2014-02-04 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	919 EFSC	-13.6%  +11.4%	     2049 NWBI		|
+			|	1099 FLS	+9.5%  -15.5%	     2870 TTC		|
+			|	1193 GE		-11.5%  +13.5%	     1839 MLHR		|
+			|	1313 HCCI	-16.2%  +8.8%	     1149 FSS		|
+			|_______________________________________________________________|
+2014-02-05 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	919 EFSC	-17.8%  +15.5%	     2049 NWBI		|
+			|	1099 FLS	+12.3%  -21.0%	     2870 TTC		|
+			|	1193 GE		-15.8%  +17.5%	     1839 MLHR		|
+			|_______________________________________________________________|
+2014-02-06 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	919 EFSC	-10.9%  +9.1%	     2049 NWBI		|
+			|	1099 FLS	+8.1%  -11.9%	     2870 TTC		|
+			|	3119 WSBC	+10.7%  -9.3%	     415 BPOP		|
+			|	1193 GE		-9.9%  +10.1%	     1839 MLHR		|
+			|	2786 THFF	+8.9%  -11.1%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-07 21:00:00+00:00 > ([1074 FFIV] & [2336 QADA]) failed tests --> X Alpha nan
+2014-02-07 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	919 EFSC	-10.9%  +9.1%	     2049 NWBI		|
+			|	1099 FLS	+8.9%  -11.1%	     2870 TTC		|
+			|	3119 WSBC	+10.5%  -9.5%	     415 BPOP		|
+			|	1193 GE		-10.2%  +9.8%	     1839 MLHR		|
+			|	2786 THFF	+9.5%  -10.5%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-10 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	+15.3%  -18.0%	     2870 TTC		|
+			|	3119 WSBC	+17.6%  -15.8%	     415 BPOP		|
+			|	1193 GE		-17.0%  +16.3%	     1839 MLHR		|
+			|_______________________________________________________________|
+2014-02-11 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	+16.4%  -16.9%	     2870 TTC		|
+			|	3119 WSBC	+18.0%  -15.4%	     415 BPOP		|
+			|	1193 GE		-17.3%  +16.0%	     1839 MLHR		|
+			|_______________________________________________________________|
+2014-02-12 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	+16.8%  -16.6%	     2870 TTC		|
+			|	3119 WSBC	+18.2%  -15.1%	     415 BPOP		|
+			|	1193 GE		-17.5%  +15.9%	     1839 MLHR		|
+			|_______________________________________________________________|
+2014-02-13 21:00:00+00:00 > ([1313 HCCI] & [1149 FSS]) failed tests --> X Alpha nan
+2014-02-13 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	+12.9%  -12.1%	     2870 TTC		|
+			|	3119 WSBC	+13.7%  -11.3%	     415 BPOP		|
+			|	1193 GE		-13.3%  +11.7%	     1839 MLHR		|
+			|	2786 THFF	-12.0%  +13.0%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-14 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	3119 WSBC	+28.1%  -21.9%	     415 BPOP		|
+			|	2786 THFF	-22.7%  +27.3%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-18 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	3119 WSBC	+29.0%  -21.0%	     415 BPOP		|
+			|	2786 THFF	-22.0%  +28.0%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-19 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	3119 WSBC	+19.0%  -14.3%	     415 BPOP		|
+			|	2786 THFF	-15.0%  +18.3%	     3047 WABC		|
+			|	1060 FDP	+18.2%  -15.1%	     1213 GIS		|
+			|_______________________________________________________________|
+2014-02-20 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-12.8%  +12.2%	     2870 TTC		|
+			|	3119 WSBC	+14.7%  -10.3%	     415 BPOP		|
+			|	2786 THFF	-12.6%  +12.4%	     3047 WABC		|
+			|	1060 FDP	+16.3%  -8.7%	     1213 GIS		|
+			|_______________________________________________________________|
+2014-02-21 21:00:00+00:00 > ([1060 FDP] & [1213 GIS]) failed tests --> X Alpha nan
+2014-02-21 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-16.3%  +17.1%	     2870 TTC		|
+			|	3119 WSBC	+21.2%  -12.2%	     415 BPOP		|
+			|	2786 THFF	-18.3%  +15.0%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-24 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-23.8%  +26.2%	     2870 TTC		|
+			|	2786 THFF	-30.1%  +19.9%	     3047 WABC		|
+			|_______________________________________________________________|
+2014-02-25 21:00:00+00:00 > ([2786 THFF] & [3047 WABC]) failed tests --> X Alpha nan
+2014-02-25 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-43.6%  +56.4%	     2870 TTC		|
+			|_______________________________________________________________|
+2014-02-26 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-41.1%  +58.9%	     2870 TTC		|
+			|_______________________________________________________________|
+2014-02-27 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-38.6%  +61.4%	     2870 TTC		|
+			|_______________________________________________________________|
+2014-02-28 21:00:00+00:00 > ALLOCATING...
+			 _______________________________________________________________
+			|	1099 FLS	-36.6%  +63.4%	     2870 TTC		|
+			|_______________________________________________________________|
+2014-03-03 21:00:00+00:00 > Pulling all Polygon companies
+2014-03-03 21:00:00+00:00 > Pulled 3935 tickers
+2014-03-03 21:00:00+00:00 > Setting Universe...
+2014-03-03 21:00:00+00:00 > Calculating Price Histories...
+			Conglomerates (3)	Oil & Gas - Drilling (4)	Beverages - Alcoholic (4)
+			Utilities - Independent Power Producers (4)	Tobacco Products (4)	Oil & Gas - Midstream (5)
+			Coal (5)	Beverages - Non-Alcoholic (5)	Truck Manufacturing (5)
+			Oil & Gas - Integrated (6)	Personal Services (6)	Agriculture (7)
+			Publishing (7)	Medical Distribution (7)	Health Care Plans (8)
+			Advertising & Marketing Services (8)	Steel (9)	Forest Products (10)
+			Industrial Distribution (10)	Insurance (10)	Farm & Construction Machinery (10)
+			Airlines (11)	Waste Management (12)	Education (12)
+			Employment Services (12)	Oil & Gas - Refining & Marketing (12)	Insurance - Life (14)
+			Packaging & Containers (15)	Insurance - Specialty (15)	Real Estate Services (15)
+			Health Care Providers (19)	Consulting & Outsourcing (20)	Homebuilding & Construction (20)
+			Online Media (21)	Metals & Mining (21)	Engineering & Construction (21)
+			Aerospace & Defense (21)	Building Materials (22)	Retail - Defensive (23)
+			Oil & Gas - Services (24)	Medical Devices (24)	Credit Services (25)
+			Communication Equipment (27)	Medical Instruments & Equipment (28)	Restaurants (28)
+			Communication Services (29)	Entertainment (30)	Medical Diagnostics & Research (30)
+			Brokers & Exchanges (32)	Drug Manufacturers (33)	Travel & Leisure (34)
+			Insurance - Property & Casualty (35)	Manufacturing - Apparel & Furniture (38)	Chemicals (38)
+			Oil & Gas - E&P (45)	Transportation & Logistics (47)	Asset Management (49)
+			Consumer Packaged Goods (51)	Autos (51)	Utilities - Regulated (54)
+			Business Services (56)	Semiconductors (59)	Computer Hardware (64)
+			Retail - Apparel & Specialty (69)	REITs (90)	Industrial Products (92)
+			Biotechnology (98)	Application Software (119)	Banks (177)
+
+			Total Tickers = 2019
+			Total Pairs = 124508
+2014-03-03 21:00:00+00:00 > Price Testing Pairs...
