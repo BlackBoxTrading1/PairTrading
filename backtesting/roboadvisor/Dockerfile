@@ -90,5 +90,5 @@ RUN tar -xvzf /root/.zipline/dotzipline.tgz -C /root/.zipline/
 RUN mkdir /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/minute_equities.bcolz
 RUN cp `find /root/.zipline/ -name "metadata.json"` /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/minute_equities.bcolz/
 RUN cp $(find /root/.zipline/data/quantopian-quandl -name "adjustments.sqlite") /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/
-RUN zipline run -f algo.py -b alpaca --start 2005-01-01 --end 2018-06-01 -o output.pickle
+RUN zipline run -f algo.py -b alpaca --start 2018-01-01 --end 2018-06-01 -o output.pickle
 RUN curl --upload-file output.pickle https://transfer.sh/output.pickle
