@@ -19,11 +19,11 @@ EXCHANGES = ['New York Stock Exchange', 'Nasdaq Global Select', 'NYSE American',
 BASE_URL = "https://paper-api.alpaca.markets"
 KEY_ID = "PKSL6HFOBBRWI3ZYB3CE"
 SECRET_KEY = "oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV"
-EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs']
+EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs', 'Conglomerates', 'Credit Services', 'Utilities - Independent Power Producers', 'Utilities - Regulated']
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
-DESIRED_PAIRS          = 10
+DESIRED_PAIRS          = 20
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
 EXIT                   = 0.1 #usually 0.0

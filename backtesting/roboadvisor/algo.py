@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.tsa.stattools as sm
 import statsmodels.stats.diagnostic as sd
-from scipy.stats import shapiro, jarque_bera, pearsonr, bartlett, linregress
+from scipy.stats import shapiro, jarque_bera, pearsonr, linregress
 import math
 from pykalman import KalmanFilter
 
@@ -19,10 +19,11 @@ EXCHANGES = ['New York Stock Exchange', 'Nasdaq Global Select', 'NYSE American',
 BASE_URL = "https://paper-api.alpaca.markets"
 KEY_ID = "PKSL6HFOBBRWI3ZYB3CE"
 SECRET_KEY = "oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV"
+EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs', 'Conglomerates', 'Credit Services', 'Utilities - Independent Power Producers', 'Utilities - Regulated', 'Health Care Plans', 'Real Estate Services']
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
-DESIRED_PAIRS          = 10
+DESIRED_PAIRS          = 20
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
 EXIT                   = 0.1 #usually 0.0
@@ -48,13 +49,13 @@ TEST_PARAMS               = {
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 2, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
     'Alpha':        {'lookback': HEDGE_LOOKBACK,   'min': 0.00, 'max': np.inf,         'type': 'price',  'run': True },
     'Ljung-Box':    {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
-    'ADF-Prices':   {'lookback': LOOKBACK, 'min': DESIRED_PVALUE, 'max': 1.00,         'type': 'price',  'run': True }
+    'ADF-Prices':   {'lookback': LOOKBACK, 'min': LOOSE_PVALUE, 'max': 1.00,         'type': 'price',  'run': True }
     }
     
 LOOSE_PARAMS              = {
@@ -62,7 +63,7 @@ LOOSE_PARAMS              = {
     'Cointegration':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'ADFuller':         {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Hurst':            {'min': 0.00,     'max': 0.49,         'run': False},
-    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': True },
+    'Half-life':        {'min': 1,        'max': HEDGE_LOOKBACK*2,'run': False },
     'Shapiro-Wilke':    {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Jarque-Bera':      {'min': 0.00,     'max': LOOSE_PVALUE, 'run': False},
     'Zscore':           {'min': 0,        'max': Z_STOP,       'run': True },
@@ -235,7 +236,8 @@ def collect_polygon_tickers(base_url, key_id, secret_key):
             industries[company.industry] = []
         industries[company.industry].append(ticker)
 
-    delete = [key for key in industries if len(industries[key]) < 2]
+    delete = [key for key in industries if len(industries[key]) < 2 or key in EXCLUDED_INDUSTRIES]
+
     for key in delete:
         del industries[key]
 
@@ -297,7 +299,7 @@ def set_universe(context, data):
 
     temp = copy.deepcopy(context.industries)
     for i in temp:
-        if temp[i]['size'] < 1 or temp[i]['size'] > 20:
+        if temp[i]['size'] < 1:
             del context.industries[i]
 
     if not context.industries:

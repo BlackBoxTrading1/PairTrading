@@ -20,13 +20,13 @@ INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
-EXIT                   = 0.1 #usually 0.0
+EXIT                   = 0.2 #usually 0.0
 Z_STOP                 = 4.0 #usually >4.0
 STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.25
-BETA_LOWER             = 0.0
-BETA_UPPER             = 1.0
+BETA_LOWER             = 1.0
+BETA_UPPER             = 1.5
 
 # Quantopian constraints
 PIPE_SIZE              = 9
@@ -67,7 +67,7 @@ TEST_PARAMS               = {
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 3, 'max': np.inf,            'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
@@ -242,21 +242,17 @@ def make_pipeline(context, start, end):
         if (i >= len(REAL_UNIVERSE)):
             continue
             
-        columns[str(REAL_UNIVERSE[i]+0.11)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.12)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.13)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta < BETA_LOWER)
+        columns[str(REAL_UNIVERSE[i]+0.11)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.12)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta >= BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.13)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest<1*(10**9)) & (beta < BETA_LOWER) & (beta > 0)
         
-        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
+        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER) & (beta > 0)
         
-        columns[str(REAL_UNIVERSE[i]+0.21)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.22)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta >= BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.23)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>1*(10**9)) & (ms.valuation.market_cap.latest<10*(10**9)) & (beta < BETA_LOWER)
-        
-        columns[str(REAL_UNIVERSE[i]+0.31)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.32)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_UPPER)
-        columns[str(REAL_UNIVERSE[i]+0.33)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta < BETA_LOWER)
+        columns[str(REAL_UNIVERSE[i]+0.31)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_LOWER) & (beta < BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.32)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta >= BETA_UPPER) & (beta > 0)
+        columns[str(REAL_UNIVERSE[i]+0.33)] = (sma_short < max_share_price) & (sma_short>MIN_SHARE) & industry_code.eq(REAL_UNIVERSE[i]) & (ms.valuation.market_cap.latest>10*(10**9)) & (beta < BETA_LOWER) & (beta > 0)
         
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.11)]
         securities = securities | columns[str(REAL_UNIVERSE[i]+0.12)]
@@ -639,9 +635,9 @@ def run_kalman(price_history):
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
     try:
-        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+        filtered_prices = np.log(kf_stock.smooth(price_history)[0].flatten())
     except:
-        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+        filtered_prices = np.log(kf_stock.smooth(price_history)[0].flatten())
     return filtered_prices
 
 def update_target_weight(context, data, stock, new_weight):
