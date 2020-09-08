@@ -19,7 +19,7 @@ EXCHANGES = ['New York Stock Exchange', 'Nasdaq Global Select', 'NYSE American',
 BASE_URL = "https://paper-api.alpaca.markets"
 KEY_ID = "PKSL6HFOBBRWI3ZYB3CE"
 SECRET_KEY = "oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV"
-EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs', 'Conglomerates', 'Credit Services', 'Utilities - Independent Power Producers', 'Utilities - Regulated']
+EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Specialty', 'Brokers & Exchanges', 'Insurance - Property & Casualty', 'Asset Management', 'REITs', 'Conglomerates', 'Credit Services', 'Utilities - Independent Power Producers', 'Utilities - Regulated', 'Health Care Plans', 'Real Estate Services']
 
 LEVERAGE               = 1.0
 INTERVAL               = 1
@@ -49,7 +49,7 @@ TEST_PARAMS               = {
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 1, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 2, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },

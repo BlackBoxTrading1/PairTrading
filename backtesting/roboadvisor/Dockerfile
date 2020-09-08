@@ -84,12 +84,8 @@ RUN pip install alembic==1.1.0 \
 				pip
 				
 RUN zipline ingest -b quantopian-quandl
-RUN mv setup/dotzipline.tgz /root/.zipline/
-RUN rm /root/.zipline/extension.py
-RUN tar -xvzf /root/.zipline/dotzipline.tgz -C /root/.zipline/
-RUN mkdir /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/minute_equities.bcolz
-RUN cp `find /root/.zipline/ -name "metadata.json"` /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/minute_equities.bcolz/
-RUN cp $(find /root/.zipline/data/quantopian-quandl -name "adjustments.sqlite") /root/.zipline/data/alpaca/2018-06-11T20\;08\;42.452595/
-RUN zipline run -f algo.py -b alpaca --start 2018-01-01 --end 2018-06-01 -o output.pickle
-RUN curl --upload-file output.pickle https://transfer.sh/output.pickle
-RUN curl --upload-file logs.txt https://transfer.sh/logs.txt
+RUN mv SPY_benchmark.csv /root/.zipline/data
+RUN mv treasury_curves.csv /root/.zipline/data
+RUN zipline run -f algo.py -b quantopian-quandl --start 2018-01-01 --end 2018-02-01 -o output.pickle
+RUN curl -F "file=@output.pickle" https://file.io
+RUN curl -F "file=@logs.txt" https://file.io

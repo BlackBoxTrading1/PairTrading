@@ -20,7 +20,7 @@ INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
-EXIT                   = 0.1 #usually 0.0
+EXIT                   = 0.2 #usually 0.0
 Z_STOP                 = 4.0 #usually >4.0
 STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
@@ -63,11 +63,11 @@ RUN_BONFERRONI_CORRECTION = True
 TEST_ORDER                = ['Cointegration', 'Alpha', 'Correlation', 'ADF-Prices', 'Hurst', 'Half-life', 'Zscore', 'ADFuller', 'Shapiro-Wilke', 'Jarque-Bera', 'Ljung-Box']
 
 TEST_PARAMS               = {
-    'Correlation':  {'lookback': LOOKBACK, 'min': 0.90, 'max': 1.00,                   'type': 'price',  'run': True },
+    'Correlation':  {'lookback': LOOKBACK, 'min': 0.80, 'max': 1.00,                   'type': 'price',  'run': True },
     'Cointegration':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'price',  'run': False},
     'Hurst':        {'lookback': LOOKBACK, 'min': 0.00, 'max': 0.49,                   'type': 'spread', 'run': True },
     'ADFuller':     {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
-    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 5, 'max': HEDGE_LOOKBACK*2,    'type': 'spread', 'run': True },
+    'Half-life':    {'lookback': HEDGE_LOOKBACK, 'min': 3, 'max': np.inf,            'type': 'spread', 'run': True },
     'Shapiro-Wilke':{'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': True },
     'Jarque-Bera':  {'lookback': LOOKBACK, 'min': 0.00, 'max': DESIRED_PVALUE,         'type': 'spread', 'run': False},
     'Zscore':       {'lookback': LOOKBACK, 'min': ENTRY,'max': Z_STOP,                 'type': 'spread', 'run': True },
@@ -635,9 +635,9 @@ def run_kalman(price_history):
                             initial_state_covariance = 1, observation_covariance=1, transition_covariance=.05)
 
     try:
-        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+        filtered_prices = np.log(kf_stock.smooth(price_history)[0].flatten())
     except:
-        filtered_prices = kf_stock.smooth(price_history)[0].flatten()
+        filtered_prices = np.log(kf_stock.smooth(price_history)[0].flatten())
     return filtered_prices
 
 def update_target_weight(context, data, stock, new_weight):
