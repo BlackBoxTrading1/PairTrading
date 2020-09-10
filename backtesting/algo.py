@@ -8,7 +8,6 @@ from scipy.stats import shapiro, jarque_bera, pearsonr, linregress
 import math
 from pykalman import KalmanFilter
 
-import requests
 import json
 import alpaca_trade_api_fixed as tradeapi
 import progressbar
