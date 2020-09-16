@@ -32,6 +32,7 @@ MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.25
 BETA_LOWER             = 0.0
 BETA_UPPER             = 1.0
+MAX_PAIR_WEIGHT        = 0.2
 
 #Ranking metric: select key from TEST_PARAMS
 RANK_BY                   = 'Hurst'
@@ -550,12 +551,13 @@ def buy_pair(context, data, pair, y_target_shares, X_target_shares, s1_price, s2
         pair.currently_short = (y_target_shares < 0)
         pair.currently_long = (y_target_shares > 0)
         scale_stocks(context, n/(n+2))
-        scale_pair_pct(context, 2/(n+2))
         update_target_weight(context, data, pair.left, LEVERAGE * y_target_pct * (2/(n+2)))
         update_target_weight(context, data, pair.right, LEVERAGE * x_target_pct * (2/(n+2)))
+        scale_pair_pct(context, 2/(n+2))
     else:
-        update_target_weight(context, data, pair.left, LEVERAGE * y_target_pct* 2/n)
-        update_target_weight(context, data, pair.right, LEVERAGE * x_target_pct* 2/n)
+        factor = 2/n if (2/n <= MAX_PAIR_WEIGHT) else MAX_PAIR_WEIGHT
+        update_target_weight(context, data, pair.left, LEVERAGE * y_target_pct* factor)
+        update_target_weight(context, data, pair.right, LEVERAGE * x_target_pct* factor)
 
 def allocate(context, data):
     if (not context.weight_change):
@@ -583,6 +585,7 @@ def scale_stocks(context, factor):
         context.target_weights[k] = context.target_weights[k]*factor
 
 def scale_pair_pct(context, factor):
+    factor = factor if factor <= MAX_PAIR_WEIGHT else MAX_PAIR_WEIGHT
     for pair in context.pairs:
         s1_weight = context.target_weights[pair.left.equity]
         s2_weight = context.target_weights[pair.right.equity]
