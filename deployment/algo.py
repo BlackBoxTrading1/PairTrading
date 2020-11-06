@@ -155,11 +155,15 @@ class Pair:
             if TEST_PARAMS[test]['type'] == "price":
                 try:
                     if test == "Alpha":
-                        current_prices = data.current([self.left.equity, self.right.equity], 'price')
-                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], self.right.price_history[-HEDGE_LOOKBACK:], 
-                                              current_prices[self.left.equity], current_prices[self.right.equity])
+                        current_prices = data.current([self.left.equity, self.right.equity],
+                                                         'price')
+                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], 
+                                              self.right.price_history[-HEDGE_LOOKBACK:], 
+                                              current_prices[self.left.equity], 
+                                              current_prices[self.right.equity])
                     else:
-                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], self.right.price_history[-HEDGE_LOOKBACK:])
+                        result = current_test(self.left.price_history[-HEDGE_LOOKBACK:], 
+                                              self.right.price_history[-HEDGE_LOOKBACK:])
                 except:
                     pass
 
@@ -169,9 +173,12 @@ class Pair:
                     return False
                 try:
                     if test == "Zscore":
-                        s1_price_history = data.history(self.left.equity, "price", LOOKBACK+2*HEDGE_LOOKBACK, '1d')
-                        s2_price_history = data.history(self.right.equity, "price", LOOKBACK+2*HEDGE_LOOKBACK, '1d')
-                        self.unfiltered_spreads, self.latest_residuals = get_spreads(data, s1_price_history, s2_price_history, LOOKBACK)
+                        s1_price_history = data.history(self.left.equity, "price", 
+                                                        LOOKBACK+2*HEDGE_LOOKBACK, '1d')
+                        s2_price_history = data.history(self.right.equity, "price", 
+                                                        LOOKBACK+2*HEDGE_LOOKBACK, '1d')
+                        self.unfiltered_spreads, self.latest_residuals = get_spreads(data,
+                                                 s1_price_history, s2_price_history, LOOKBACK)
                         result = current_test(self.unfiltered_spreads[-HEDGE_LOOKBACK:])
                     if test == "Half-life":
                         result = current_test(self.spreads[-HEDGE_LOOKBACK:])
@@ -192,15 +199,18 @@ class Pair:
                 self.failed_test = test
                 return False
 
-            if (not loose_screens) and (test == RANK_BY) and (len(context.industries[self.industry]['top']) >= context.desired_pairs):
+            if ((not loose_screens) and (test == RANK_BY) 
+                and (len(context.industries[self.industry]['top']) >= context.desired_pairs)):
                 bottom_result = context.industries[self.industry]['top'][-1].latest_test_results[test]
-                if (RANK_DESCENDING and result < bottom_result) or (not RANK_DESCENDING and result > bottom_result):
+                if ((RANK_DESCENDING and result < bottom_result) 
+                    or (not RANK_DESCENDING and result > bottom_result)):
                     self.failed_test = "no_space"
                     return False
 
         if (not loose_screens) and test_type == "spread":
             context.industries[self.industry]['top'].append(self)
-            context.industries[self.industry]['top'] = sorted(context.industries[self.industry]['top'], key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
+            context.industries[self.industry]['top'] = sorted(context.industries[self.industry]['top'], 
+                            key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
             stock_list = []
             new_list = []
             for pair in context.industries[self.industry]['top']:
@@ -227,7 +237,8 @@ def collect_polygon_tickers(base_url, key_id, secret_key):
     num_requests = int(len(symbols)/MAX_COMPANY)+(1 if len(symbols) % MAX_COMPANY > 0 else 0)
 
     log("Pulling all Polygon companies")
-    bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
+    bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), 
+                                    ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
     bar.start()
     companies = {}
     for r in range(num_requests):
@@ -393,7 +404,8 @@ def set_universe(context, data):
                                           context.industries[code]['list'][i], code)
                 if pair_forward.test(context, data, test_type="price"):
                     counter += 1
-                    pair_forward.spreads, _ = get_spreads(data, pair_forward.left.price_history, pair_forward.right.price_history, LOOKBACK)
+                    pair_forward.spreads, _ = get_spreads(data, pair_forward.left.price_history,
+                                                        pair_forward.right.price_history, LOOKBACK)
                     context.all_pairs[code].append(pair_forward)
                 else:
                     failure_counts[pair_forward.failed_test] = failure_counts.get(
@@ -403,7 +415,8 @@ def set_universe(context, data):
                     
                 if pair_reverse.test(context, data, test_type="price"):
                     counter += 1
-                    pair_reverse.spreads, _ = get_spreads(data, pair_reverse.left.price_history, pair_reverse.right.price_history, LOOKBACK)
+                    pair_reverse.spreads, _ = get_spreads(data, pair_reverse.left.price_history,
+                                                        pair_reverse.right.price_history, LOOKBACK)
                     context.all_pairs[code].append(pair_reverse)
                 else:
                     failure_counts[pair_reverse.failed_test] = failure_counts.get(
