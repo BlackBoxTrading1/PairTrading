@@ -2,14 +2,15 @@ import requests
 import json
 import alpaca_trade_api as tradeapi
 import progressbar
+import env_constants
 
 MAX_COMPANY = 50
 EXCHANGES = ['New York Stock Exchange', 'Nasdaq Global Select', 'NYSE American', 'NASDAQ Global Market', 'NASDAQ Capital Market']
 
 API = tradeapi.REST(
-    base_url="https://paper-api.alpaca.markets",
-    key_id="PKSL6HFOBBRWI3ZYB3CE",
-    secret_key="oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV"
+    base_url=env_constants.APCA_BASE_URL,
+    key_id=env_constants.APCA_KEY_ID,
+    secret_key=env_constants.APCA_SECRET_KEY
 )
 assets = API.list_assets()
 symbols = [asset.symbol for asset in assets if asset.tradable]
@@ -47,4 +48,4 @@ delete = [key for key in industries if len(industries[key]) < 2]
 for key in delete:
     del industries[key]
 
-print(sum(len(industries[key]) for key in industries))
+print(industries)
