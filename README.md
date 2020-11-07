@@ -17,6 +17,7 @@ Market neutral algorithm to trade pairs of stocks based on historical correlatio
     - [Price Tests](#price-tests)
     - [Spread Tests](#spread-tests)
   - [Testing Logic](#testing-logic)
+- [Scheduling](#scheduling)
 - [Logging](#logging)
 
 ## CLASS DEFINITIONS
@@ -92,6 +93,7 @@ Correlation     | correlation(s1, s2)       |
 Cointegration   | cointegration(s1, s2)     |
 AD Fuller       | adf_prices(s1, s2)        |
 Alpha           | alpha(s1, s2, s1_p, s2_p) |
+
 Note: Alpha test also takes in the current price of s1 and s2 along with their filtered price histories
 
 #### Spread Tests
@@ -106,7 +108,7 @@ Z-Score         | zscore (zscores)          |
 
 ### Testing Logic
 #### get_test_by_name(test)
-> returns appropriate test function from [list](#tests) give string name
+> returns appropriate test function from [list](#tests) given string name
 
 #### Pair.test(context, data, loose_screens=False, test_type="spread")
 Pseudo code for the pair testing algorithm:
@@ -133,6 +135,15 @@ IF test type = 'spread'
 RETURN success
 ```
 The final two conditionals do not take place if loose_screens is set to True; loose screening only takes place after all pairs are chosen to make sure their quality does not significantly drop.
+
+## SCHEDULING
+There are two functions in this algorithm that are scheduled: set_universe and check_pair_status. The universe must be set on the first trading day that is not after the 19th trading day of the month every single month. The status of the chosen pairs must be checked every day after that. The code for this schedule is below:
+```python
+day = get_datetime().day - (int)(2*get_datetime().day/7) - 3
+
+schedule_function(set_universe, date_rules.month_start(day * (not (day < 0 or day > 19))), time_rules.market_open(hours=0, minutes=1))
+schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(hours = 1))
+```
 
 ## LOGGING
 #### write_to_file(filename, data)
