@@ -796,7 +796,7 @@ def get_test_by_name(name):
         return min(p1,p2)
     
     def zscore(spreads):
-        return spreads[-1]
+        return abs(spreads[-1])
     
     def alpha(price1, price2, stock1_price, stock2_price):
         slope, intercept = linreg(price2, price1)
