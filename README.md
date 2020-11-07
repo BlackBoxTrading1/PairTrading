@@ -18,6 +18,11 @@ Market neutral algorithm to trade pairs of stocks based on historical correlatio
     - [Spread Tests](#spread-tests)
   - [Testing Logic](#testing-logic)
 - [Scheduling](#scheduling)
+- [Collecting Ticker Data](#collecting-ticker-data)
+- [Selecting Pairs](#selecting-pairs)
+- [Trading Pairs](#trading-pairs)
+  - [check_pair_status()](#check_pair_status)
+  - [Helper Functions](#helper-functions-for-trading-logic)
 - [Logging](#logging)
 
 ## CLASS DEFINITIONS
@@ -144,6 +149,86 @@ day = get_datetime().day - (int)(2*get_datetime().day/7) - 3
 schedule_function(set_universe, date_rules.month_start(day * (not (day < 0 or day > 19))), time_rules.market_open(hours=0, minutes=1))
 schedule_function(check_pair_status, date_rules.every_day(), time_rules.market_close(hours = 1))
 ```
+
+## COLLECTING TICKER DATA
+#### collect_polygon_tickers(base_url, key_id, secret_key)
+> returns dictionary mapping all tradable Polygon tickers to an industry given Alpaca authentication
+
+#### context.industries
+> dictionary mapping industry to list of Stock objects, number of Stocks, and list of top pairs
+
+#### context.universe_set
+> True if there exists an industry with more than 1 stock. Pairs will not be chosen if False
+
+#### context.target_weights
+> dictionary mapping each ticker to its current position weight in portfolio
+
+#### context.remaining_codes
+> sorted list of industries from largest to smallest
+
+#### run_kalman(price_history)
+> returns kalman filtered price history; every ticker's price history gets filtered before pair selection process
+
+## SELECTING PAIRS
+Every possible pair within each industry is generated and tested. The pairs that pass the price tests move on to the spread tests. The pairs that pass the spread tests move on to the ranking. The top pairs as determined by the ranking metric are then selected to be traded. The ranking metric and number of desired top pairs are specified as [testing parameters](#testing-parameters).
+
+#### context.all_pairs
+> dictionary mapping industry to Pairs within the idustry that are still 'alive' in testing
+
+#### context.pairs
+> master list of Pair objects that have been selected to trade
+
+## TRADING PAIRS
+### check_pair_status
+Pseudo code of trading logic:
+```
+FOR each selected pair
+  IF pair fails stoploss test
+    REMOVE pair
+  IF pair contains untradable stock
+    REMOVE pair
+  IF pair fails loose parameter testing
+    REMOVE pair
+
+  IF pair is being shorted and zscore too low or pair is being longed and zscore too high
+    SELL pair
+  IF pair is not being longed and zscore in long entry window
+    BUY pair
+  IF pair is not being shorted and zscore in short entry window
+    BUY pair
+```
+
+### Helper functions for trading logic
+#### sell_pair(context, data, pair)
+> empties position on pair and scales weights of other trading pairs appropriately
+
+#### buy_pair(context, data, pair, y_target_shares, X_target_shares, s1, s2, new_pair=True)
+> calculates target percentages based on target shares of pair (s1, s2) and scales other pairs appropriately; set new_pair to True if pair had no position before this call
+
+#### calculate_target_pcts(y_target_shares, X_target_shares, s1_price, s2_price)
+> determines target weight percentages for pair given desired target shares
+
+#### allocate(context, data)
+> goes through context.target_weights after trading logic executes to officially place the orders
+
+#### num_allocated_stocks(context)
+> returns number of stocks that currently have non-zero weight
+
+#### scale_stocks(context, factor)
+> scales weight of all stocks in portfolio by factor
+
+#### scale_pair_pct(context, factor)
+> scales weight of every selected pair by factor
+
+#### update_target_weight(context, data, stock, new_weight)
+> updates context.target_weights for given stock
+
+#### remove_pair(context, pair, index)
+> removes pair from context.pairs and increments number of desired pairs
+
+#### get_spreads(data, s1_price, s2_price, length)
+> returns (historical zscores, final HEDGE_LOOKBACK residuals) for given pair of price histories
+
 
 ## LOGGING
 #### write_to_file(filename, data)
