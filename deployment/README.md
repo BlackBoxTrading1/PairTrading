@@ -2,7 +2,7 @@
 The files in this folder are used for local backtesting thru the Zipline API and Alpaca
 
 ### Run Algorithm Locally on Zipline 
-Run the following command. Replacing START and END with format YYYY-DD-MM to indicate start and end dates. Replace NAME with a unique name for the backtest. The logs and output of the backtest will be stored in a folder with this name:
+Run the following command. Replace START and END with format YYYY-DD-MM to indicate start and end dates. Replace NAME with a unique name for the backtest. The logs and output of the backtest will be stored in a folder with this name:
 ```
 make algo start=START end=END name=NAME
 ```
