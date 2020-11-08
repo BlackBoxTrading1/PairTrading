@@ -33,7 +33,7 @@ A Stock contains the following information:
 ```
 Attributes
 
-equity            symbol obect of a string ticker
+equity            symbol object of a string ticker
 name              string of stock sid and symbol
 price_history     list of historical price data for stock
 purchase_price    dictionary that holds price of stock when purchased as well as if the position was long or short
