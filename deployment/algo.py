@@ -17,7 +17,7 @@ import copy
 #######################
 # SANITY CHECK PARAMS #
 ####################################################################################################
-RUN_TEST_STOCKS = True
+RUN_TEST_STOCKS = False
 TEST_STOCKS = ['AAPL', 'MSFT', 'NFLX', 'AMZN', 'TSLA', 'FB']
 MAX_INDUSTRY_SIZE = 15
 
