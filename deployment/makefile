@@ -18,4 +18,4 @@ industries:
 	python3 polygon_companies.py
 
 returns:
-	python unpickle.py -n $(name)
+	python unpickle.py -f backtests/$(name)/out.pickle
