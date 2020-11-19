@@ -602,12 +602,14 @@ def buy_pair(context, data, pair, y_target_shares, X_target_shares, s1, s2, new_
     (y_target_pct, x_target_pct) = calculate_target_pcts(y_target_shares, X_target_shares,
                                                          current_prices[s1], current_prices[s2])
     if EQUAL_WEIGHTS:
-    	if x_target_pct<0:
-    		x_target_pct = -0.5
-    		y_target_pct = 0.5
-		else:
-			x_target_pct = 0.5
-			y_target_pct = -0.5
+        if x_target_pct<0:
+            x_target_pct = -0.5
+            y_target_pct = 0.5
+        else:
+            x_target_pct = 0.5
+            y_target_pct = -0.5
+    else:
+        pass
     if new_pair:
         pair.currently_short = (y_target_shares < 0)
         pair.currently_long = (y_target_shares > 0)
