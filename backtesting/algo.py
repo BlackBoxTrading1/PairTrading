@@ -608,8 +608,6 @@ def buy_pair(context, data, pair, y_target_shares, X_target_shares, s1, s2, new_
         else:
             x_target_pct = 0.5
             y_target_pct = -0.5
-    else:
-        pass
     if new_pair:
         pair.currently_short = (y_target_shares < 0)
         pair.currently_long = (y_target_shares > 0)
