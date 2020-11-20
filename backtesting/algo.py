@@ -303,6 +303,9 @@ def set_universe(context, data):
     if (this_month != context.curr_month):
         return
     context.curr_month = context.next_month
+    log("New interval start. Portfolio Value: {0}".format(context.portfolio.portfolio_value))
+    for pair in context.pairs:
+        log("Closing pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
     context.pairs = []
     context.universes = {}
     context.target_weights = {}
@@ -480,13 +483,14 @@ def check_pair_status(context, data):
         if (i >= len(context.pairs)):
             break
         pair = context.pairs[i]
-        
+
         if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
             log (pair.to_string + " failed stoploss --> X")
             if (context.target_weights[pair.left.equity] != 0 
                 or context.target_weights[pair.right.equity]) != 0:
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             i = i-1
         is_tradable = pair.is_tradable(data)
         if not is_tradable[0]:
@@ -495,6 +499,7 @@ def check_pair_status(context, data):
                 or context.target_weights[pair.right.equity] != 0):
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             i = i-1
             del context.target_weights[pair.left.equity]
             del context.target_weights[pair.right.equity]
@@ -530,6 +535,7 @@ def check_pair_status(context, data):
             if context.target_weights[s1.equity] != 0 or context.target_weights[s2.equity] != 0:
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=pair_index)
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             continue
 
         s1_raw_price = data.history(s1.equity, "price", HEDGE_LOOKBACK, '1d')
@@ -544,6 +550,7 @@ def check_pair_status(context, data):
 
         if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):     
             sell_pair(context, data, pair)
+            log("Sold pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
         elif pair.currently_short:
             y_target_shares = -1
             X_target_shares = slope
