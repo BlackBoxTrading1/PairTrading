@@ -40,7 +40,7 @@ EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Sp
 ####################################################################################################
 LEVERAGE               = 1.0
 INTERVAL               = 1
-DESIRED_PAIRS          = 2
+DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
 EXIT                   = 0.1 #usually 0.0
