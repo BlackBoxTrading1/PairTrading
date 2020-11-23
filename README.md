@@ -94,10 +94,10 @@ The 'type' field indicates if the test is a spread test or price test. More on t
 Here are the 'price' tests that are run on every single pair:
 Test            | Function                  | Description
 ----------------| --------------------------| --------------
-Correlation     | correlation(s1, s2)       | 
-Cointegration   | cointegration(s1, s2)     |
-AD Fuller       | adf_prices(s1, s2)        |
-Alpha           | alpha(s1, s2, s1_p, s2_p) |
+Correlation     | correlation(s1, s2)       | Returns correlation coefficient.
+Cointegration   | cointegration(s1, s2)     | Returns cointegration p-value.
+AD Fuller       | adf_prices(s1, s2)        | Unit root test for stationarity. Returns p-value.
+Alpha           | alpha(s1, s2, s1_p, s2_p) | Returns slope of regression if projected target weights are greater than minimum.
 
 Note: Alpha test also takes in the current price of s1 and s2 along with their filtered price histories
 
@@ -105,11 +105,11 @@ Note: Alpha test also takes in the current price of s1 and s2 along with their f
 Here are the 'spread' tests that are run on every pair that passes the price tests (run on pair's zscores):
 Test            | Function                  | Description
 ----------------| --------------------------| --------------
-AD Fuller       | adf_pvalue(zscores)       |
-Hurst Exponent  | hurst(zscores)            |
-Half-life       | half_life(zscores)        |
-Shapiro-Wilke   | shapiro_pvalue(zscores)   |
-Z-Score         | zscore (zscores)          |
+AD Fuller       | adf_pvalue(zscores)       | Unit root test for stationarity. Returns p-value.
+Hurst Exponent  | hurst(zscores)            | Measures autocorrelation of Z-Scores.
+Half-life       | half_life(zscores)        | Returns half-life of spreads converging.
+Shapiro-Wilke   | shapiro_pvalue(zscores)   | Tests normality of Z-Scores. Returns p-value.
+Z-Score         | zscore (zscores)          | Tests if latest Z-Score is within acceptable range.
 
 ### Testing Logic
 #### get_test_by_name(test)
