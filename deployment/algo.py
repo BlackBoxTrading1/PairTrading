@@ -18,7 +18,7 @@ import copy
 # SANITY CHECK PARAMS #
 ####################################################################################################
 RUN_TEST_STOCKS = False
-TEST_STOCKS = ['AAPL', 'MSFT', 'NFLX', 'AMZN', 'TSLA', 'FB']
+TEST_STOCKS = ['AAPL', 'MSFT', 'NFLX', 'AMZN', 'TSLA', 'FB', 'YELP', 'AMD', 'NVDA', 'EA', 'INTC', 'XRX']
 MAX_INDUSTRY_SIZE = 15
 
 #########################
@@ -40,7 +40,7 @@ EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Sp
 ####################################################################################################
 LEVERAGE               = 1.0
 INTERVAL               = 1
-DESIRED_PAIRS          = 2
+DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
 EXIT                   = 0.1 #usually 0.0
@@ -562,17 +562,19 @@ def check_pair_status(context, data):
             buy_pair(context, data, pair, y_target_shares, X_target_shares, 
                         pair.left.equity, pair.right.equity, new_pair=False)
 
+        new_pair = True
         if zscore < -ENTRY and (not pair.currently_long):
             y_target_shares = 1
             X_target_shares = -slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, 
-                        pair.left.equity, pair.right.equity, new_pair=True)
+                        pair.left.equity, pair.right.equity, new_pair=new_pair)
+            new_pair = False
 
         if zscore > ENTRY and (not pair.currently_short):
             y_target_shares = -1
             X_target_shares = slope
             buy_pair(context, data, pair, y_target_shares, X_target_shares, 
-                        pair.left.equity, pair.right.equity, new_pair=True)
+                        pair.left.equity, pair.right.equity, new_pair=new_pair)
 
         pair_index = pair_index+1
 
@@ -648,8 +650,7 @@ def allocate(context, data):
 def num_allocated_stocks(context):
     total = 0
     for pair in context.pairs:
-        total = total + (1 if context.target_weights[pair.left.equity] != 0 else 0) 
-        + (1 if context.target_weights[pair.right.equity] != 0 else 0)
+        total = total + (1 if context.target_weights[pair.left.equity] != 0 else 0) + (1 if context.target_weights[pair.right.equity] != 0 else 0)
     return total
 
 def scale_stocks(context, factor):
@@ -742,7 +743,7 @@ def get_test_by_name(name):
         return sm.adfuller(spreads,autolag='t-stat')[1]
     
     def hurst_hvalue(series):
-        
+
         #From Ernie Chan
         
         # tau, lagvec = [], []
