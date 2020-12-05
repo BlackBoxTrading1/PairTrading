@@ -49,7 +49,7 @@ STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.25
 MAX_PAIR_WEIGHT        = 0.2
-EQUAL_WEIGHTS        = True
+EQUAL_WEIGHTS        = False
 
 ##################
 # TESTING PARAMS #
@@ -665,6 +665,7 @@ def scale_stocks(context, factor):
         context.target_weights[k] = context.target_weights[k]*factor
 
 def scale_pair_pct(context, factor):
+    log(factor)
     factor = factor if factor <= MAX_PAIR_WEIGHT else MAX_PAIR_WEIGHT
     for pair in context.pairs:
         s1_weight = context.target_weights[pair.left.equity]
