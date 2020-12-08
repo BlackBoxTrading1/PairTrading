@@ -40,7 +40,7 @@ EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Sp
 ####################################################################################################
 LEVERAGE               = 1.0
 INTERVAL               = 1
-DESIRED_PAIRS          = 2
+DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300
 ENTRY                  = 1.5 #usually 1.5
 EXIT                   = 0.1 #usually 0.0
@@ -49,7 +49,7 @@ STOPLOSS               = 0.15
 MIN_SHARE              = 1.00
 MIN_WEIGHT             = 0.25
 MAX_PAIR_WEIGHT        = 0.2
-EQUAL_WEIGHTS        = True
+EQUAL_WEIGHTS        = False
 
 ##################
 # TESTING PARAMS #
@@ -665,6 +665,7 @@ def scale_stocks(context, factor):
         context.target_weights[k] = context.target_weights[k]*factor
 
 def scale_pair_pct(context, factor):
+    log(factor)
     factor = factor if factor <= MAX_PAIR_WEIGHT else MAX_PAIR_WEIGHT
     for pair in context.pairs:
         s1_weight = context.target_weights[pair.left.equity]

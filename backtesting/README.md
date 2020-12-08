@@ -20,6 +20,11 @@ Specify the primary language used:
 heroku buildpacks:set heroku/python
 ```
 
+Set the stack of the app to conatiner:
+```
+heroku stack:set container
+```
+
 Add the Heroku app as a Git remote:
 ```
 heroku git:remote -a yourapp
