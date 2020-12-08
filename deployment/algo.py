@@ -11,7 +11,7 @@ from pykalman import KalmanFilter
 import requests
 import json
 import alpaca_trade_api_fixed as tradeapi
-import progressbar
+# import progressbar
 import copy
 
 #######################
@@ -237,9 +237,9 @@ def collect_polygon_tickers(base_url, key_id, secret_key):
     num_requests = int(len(symbols)/MAX_COMPANY)+(1 if len(symbols) % MAX_COMPANY > 0 else 0)
 
     log("Pulling all Polygon companies")
-    bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), 
-                                    ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
-    bar.start()
+    # bar = progressbar.ProgressBar(maxval=num_requests, widgets=[progressbar.Bar('=', '[', ']'), 
+    #                                 ' ', progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
+    # bar.start()
     companies = {}
     for r in range(num_requests):
         new_companies = {}
@@ -248,8 +248,8 @@ def collect_polygon_tickers(base_url, key_id, secret_key):
         else:
             new_companies = API.polygon.company(symbols[r*MAX_COMPANY:(r+1)*MAX_COMPANY])
         companies.update(new_companies)
-        bar.update(r+1)
-    bar.finish()
+        # bar.update(r+1)
+    # bar.finish()
 
     industries = {}
     for ticker, company in companies.items():
@@ -373,17 +373,17 @@ def set_universe(context, data):
         count += size
     log (report + "\n\n\t\t\tTotal Tickers = {0}\n\t\t\tTotal Pairs = {1}".format(count, comps))
 
-    bar = progressbar.ProgressBar(maxval=count, widgets=[progressbar.Bar('=', '[', ']'), ' ', 
-                                    progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
-    bar.start()
+    # bar = progressbar.ProgressBar(maxval=count, widgets=[progressbar.Bar('=', '[', ']'), ' ', 
+                                    # progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
+    # bar.start()
     count = 0
     for code in context.codes:
         for stock in context.industries[code]['list']:
             price_history = data.history(stock.equity, "price", LOOKBACK+2*HEDGE_LOOKBACK, '1d')
             stock.price_history = run_kalman(price_history.values.tolist())
-            bar.update(count+1)
+            # bar.update(count+1)
             count += 1
-    bar.finish()
+    # bar.finish()
 
     ####################
     # PRICE TEST PAIRS #
@@ -393,9 +393,9 @@ def set_universe(context, data):
     counter = 0
     context.all_pairs = {}
     failure_counts = {}
-    bar = progressbar.ProgressBar(maxval=comps, widgets=[progressbar.Bar('=', '[', ']'), ' ', 
-                                    progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
-    bar.start()
+    # bar = progressbar.ProgressBar(maxval=comps, widgets=[progressbar.Bar('=', '[', ']'), ' ', 
+                                    # progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
+    # bar.start()
     for code in context.codes:
         context.all_pairs[code] = []
         for i in range (context.industries[code]['size']):
@@ -413,7 +413,7 @@ def set_universe(context, data):
                 else:
                     failure_counts[pair_forward.failed_test] = failure_counts.get(
                                                                     pair_forward.failed_test, 0) + 1
-                bar.update(pair_counter+1)
+                # bar.update(pair_counter+1)
                 pair_counter += 1
                     
                 if pair_reverse.test(context, data, test_type="price"):
@@ -424,9 +424,9 @@ def set_universe(context, data):
                 else:
                     failure_counts[pair_reverse.failed_test] = failure_counts.get(
                                                                     pair_reverse.failed_test, 0) + 1
-                bar.update(pair_counter+1)
+                # bar.update(pair_counter+1)
                 pair_counter += 1
-    bar.finish()
+    # bar.finish()
     log ("Price test passed: {0}\n\t\t\t\tFailure Report: {1}".format(counter, failure_counts))
     if (counter == 0):
         return
@@ -438,19 +438,19 @@ def set_universe(context, data):
     
     new_pairs = []
     failure_counts = {}
-    bar = progressbar.ProgressBar(maxval=counter, widgets=[progressbar.Bar('=', '[', ']'), ' ',
-                                     progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
-    bar.start()
+    # bar = progressbar.ProgressBar(maxval=counter, widgets=[progressbar.Bar('=', '[', ']'), ' ',
+    #                                  progressbar.Percentage(),' ', '<',progressbar.Timer(),'>'])
+    # bar.start()
     count = 0
     for code in context.all_pairs:
         for pair in context.all_pairs[code]:
             result = pair.test(context, data, test_type="spread")
             if (not result):
                 failure_counts[pair.failed_test] = failure_counts.get(pair.failed_test, 0) + 1
-            bar.update(count+1)
+            # bar.update(count+1)
             count += 1
         new_pairs = new_pairs + context.industries[code]['top']
-    bar.finish()
+    # bar.finish()
 
     new_pairs = sorted(new_pairs, 
                         key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
@@ -486,20 +486,20 @@ def check_pair_status(context, data):
 
         if (not pair.left.test_stoploss(data)) or (not pair.right.test_stoploss(data)):
             log (pair.to_string + " failed stoploss --> X")
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             if (context.target_weights[pair.left.equity] != 0 
                 or context.target_weights[pair.right.equity]) != 0:
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
-            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             i = i-1
         is_tradable = pair.is_tradable(data)
         if not is_tradable[0]:
             log ("cannot trade  " + str(pair.left.equity) + " & " + str(pair.right.equity))
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             if (context.target_weights[pair.left.equity] != 0 
                 or context.target_weights[pair.right.equity] != 0):
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=i)
-            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             i = i-1
             del context.target_weights[pair.left.equity]
             del context.target_weights[pair.right.equity]
@@ -532,10 +532,10 @@ def check_pair_status(context, data):
             result = pair.test(context,data,loose_screens=True)
         if not result:
             log(pair.to_string + " failed test: " + pair.failed_test)
+            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             if context.target_weights[s1.equity] != 0 or context.target_weights[s2.equity] != 0:
                 sell_pair(context, data, pair)
             remove_pair(context, pair, index=pair_index)
-            log("Removed pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
             continue
 
         s1_raw_price = data.history(s1.equity, "price", HEDGE_LOOKBACK, '1d')
@@ -548,9 +548,9 @@ def check_pair_status(context, data):
         zscore = current_residual/std
         pair.unfiltered_spreads = np.append(pair.unfiltered_spreads, zscore)
 
-        if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):     
+        if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):   
+            log("Sold pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))  
             sell_pair(context, data, pair)
-            log("Sold pair {0}.\n\t\t\t\t{1} --> Current Price: {2}, Purchase Info: {3}\n\t\t\t\t{4} --> Current Price: {5}, Purchase Info: {6}".format(pair.to_string, pair.left.name, data.current(pair.left.equity, 'price'), pair.left.purchase_price, pair.right.name, data.current(pair.right.equity, 'price'), pair.right.purchase_price))
         elif pair.currently_short:
             y_target_shares = -1
             X_target_shares = slope
