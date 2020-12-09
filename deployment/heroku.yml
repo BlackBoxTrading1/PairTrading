@@ -1,0 +1,10 @@
+build:
+  config:
+    APCA_API_KEY_ID: PKSL6HFOBBRWI3ZYB3CE
+    APCA_API_SECRET_KEY: oFil1E/0DN1WTatQMGoo6YahQXudVRED9t6dBNbV
+  docker:
+    worker: Dockerfile
+
+run:
+  worker:
+    image: worker

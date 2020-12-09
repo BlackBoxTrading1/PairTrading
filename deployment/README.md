@@ -1,20 +1,59 @@
 # Pair Trading Deployment Code
-The files in this folder are used for local backtesting thru the Zipline API and Alpaca
+The files in this folder are used for deployment thru the Pylivetrader API and Alpaca
 
-### Run Algorithm Locally on Zipline 
-Run the following command. Replace START and END with format YYYY-DD-MM to indicate start and end dates. Replace NAME with a unique name for the backtest. The logs and output of the backtest will be stored in a folder with this name:
-```
-make algo start=START end=END name=NAME
-```
+### Install Heroku CLI
+[Click here to download appropriate installer](https://devcenter.heroku.com/articles/heroku-cli)
 
-### View Returns of Algorithm 
-Run the following command AFTER running the trading algorithm to view a graph of returns. Replace NAME with the desired backtest:
+### Setup
+Initalize a new repository:
 ```
-make returns name=NAME
+git init
 ```
 
-### View All Polygon Tickers by Industry
-Run this command to view a map of all Polygon industries to their tickers:
+Create a new empty Heroku application:
 ```
-make industries
+heroku create
+```
+
+Set the stack of the app to conatiner:
+```
+heroku stack:set container
+```
+
+Add the Heroku app as a Git remote:
+```
+heroku git:remote -a yourapp
+```
+
+Install the Papertrail add-on to your app:
+```
+heroku addons:create papertrail
+```
+
+### Set environmental variables for Heroku
+```
+heroku config:set APCA_API_KEY_ID=<ReplaceWithSuppliedKey>
+heroku config:set APCA_API_SECRET_KEY=<ReplaceWithSuppliedSecKey>
+heroku config:set APCA_API_base_url=https://paper-api.alpaca.markets
+```
+
+### Push to Heroku
+Add the changes in the working directory to the staging area:
+```
+git add .
+```
+
+Locally record changes to the repository:
+```
+git commit -m "initial commit"
+```
+
+Deploy the app to Heroku:
+```
+git push heroku master
+```
+
+Activate dyno
+```
+heroku ps:scale worker=1
 ```
