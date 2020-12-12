@@ -78,3 +78,8 @@ Deploy the app to Heroku:
 ```
 git push heroku master
 ```
+
+Activate dyno
+```
+heroku ps:scale worker=1
+```
