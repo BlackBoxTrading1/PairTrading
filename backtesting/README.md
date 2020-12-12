@@ -1,6 +1,31 @@
 # Pair Trading Backtesting Code
 The files in this folder are used for local backtesting thru the Zipline API and Alpaca
 
+## Local Backtesting
+
+### Run Algorithm Locally on Zipline 
+Run the following command. Replace START and END with format YYYY-DD-MM to indicate start and end dates. Replace NAME with a unique name for the backtest. The logs and output of the backtest will be stored in a folder with this name:
+```
+make algo start=START end=END
+```
+
+### View Returns of Algorithm 
+Run the following command AFTER running the trading algorithm to view a graph of returns. Replace NAME with the desired backtest:
+```
+make returns
+```
+
+### View All Tickers by Industry
+Run one of the following two command to view a map of tickers to their industries from either Polygon or Yahoo Finance:
+```
+make industries-polygon
+make industries-yahoo
+```
+
+- - - -
+
+## Heroku Backtesting
+
 ### Install Heroku CLI
 [Click here to download appropriate installer](https://devcenter.heroku.com/articles/heroku-cli)
 
