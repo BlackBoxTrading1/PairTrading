@@ -1,4 +1,4 @@
-from zipline.api import symbol, order_target_percent, schedule_function, get_datetime, time_rules, date_rules
+from pylivetrader.api import symbol, order_target_percent, schedule_function, get_datetime, time_rules, date_rules
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ EXCLUDED_INDUSTRIES = ['Banks', 'Insurance', 'Insurance - Life', 'Insurance - Sp
 ##################
 # TRADING PARAMS #
 ####################################################################################################
-LEVERAGE               = 1.0
+LEVERAGE               = 0.5
 INTERVAL               = 1
 DESIRED_PAIRS          = 10
 HEDGE_LOOKBACK         = 21  #usually 15-300

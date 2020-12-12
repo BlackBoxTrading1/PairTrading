@@ -9,7 +9,6 @@ RUN pip install asyncio-nats-client \
 				pyyaml \
 				websocket-client \
 				websockets \
-				matplotlib \
 				pykalman \
 				alpaca_trade_api_fixed \
 				progressbar;  zipline ingest -b quantopian-quandl
