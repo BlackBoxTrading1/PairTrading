@@ -36,10 +36,48 @@ class StatsLibrary:
     def adfuller(self, series):
         return sm.adfuller(series,autolag='t-stat')[1]
     
-    def hurst(self, series):
+    # def hurst(self,series):
+    #     # Ernie
+    #     tau, lagvec = [], []
+    #     for lag in range(2,20):  
+    #         pp = np.subtract(series[lag:],series[:-lag])
+    #         lagvec.append(lag)
+    #         tau.append(np.sqrt(np.std(pp)))
+    #     slope, intercept = linreg(np.log10(lagvec),np.log10(tau))
+    #     hurst = slope*2
+    #     return hurst
+    
+    # def hurst(self, series):
+    #     # Simplified
+    #     max_window = len(series)-1
+    #     min_window = 10
+    #     window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), 
+    #                         math.log10(max_window), 0.25)))
+    #     window_sizes.append(len(series))
+    #     RS = []
+    #     for w in window_sizes:
+    #         rs = []
+    #         for start in range(0, len(series), w):
+    #             if (start+w)>len(series):
+    #                 break
+
+    #             incs = series[start:start+w][1:] - series[start:start+w][:-1]
+    #             R = max(series[start:start+w]) - min(series[start:start+w])
+    #             S = np.std(incs, ddof=1)
+                
+    #             if R != 0 and S != 0:
+    #                 rs.append(R/S)
+    #         RS.append(np.mean(rs))
+    #     A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
+    #     H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+    #     return H
+    
+    def hurst(self,series):
+        # Full
         max_window = len(series)-1
         min_window = 10
-        window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), math.log10(max_window), 0.25)))
+        window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), 
+                            math.log10(max_window), 0.25)))
         window_sizes.append(len(series))
         RS = []
         for w in window_sizes:
@@ -49,7 +87,11 @@ class StatsLibrary:
                     break
 
                 incs = series[start:start+w][1:] - series[start:start+w][:-1]
-                R = max(series[start:start+w]) - min(series[start:start+w])
+
+                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                deviations = incs - mean_inc
+                Z = np.cumsum(deviations)
+                R = max(Z) - min(Z)
                 S = np.std(incs, ddof=1)
 
                 if R != 0 and S != 0:
@@ -81,8 +123,9 @@ class StatsLibrary:
         slope, intercept = self.linreg(series2, series1)
         y_target_shares = 1
         X_target_shares = -slope
-        (y_target_pct, x_target_pct) = calculate_target_pcts(y_target_shares, X_target_shares, series1[-1], series2[-1])
-        if (min (abs(x_target_pct),abs(y_target_pct)) > self.min_weight):
+        notionalDol =  abs(y_target_shares * series1[-1]) + abs(X_target_shares * series2[-1])
+        (y_target_pct, x_target_pct) = (y_target_shares * series1[-1] / notionalDol, X_target_shares * series2[-1] / notionalDol)
+        if (min (abs(x_target_pct),abs(y_target_pct)) > 0.25):
             return slope
         return float('NaN')
     
@@ -114,20 +157,20 @@ class StatsLibrary:
         return zscores, residuals[-self.hedge_lookback:]
     
     def linreg(self, series1, series2):
-        try:
-            slope, intercept, rvalue, pvalue, stderr = linregress(series1,series2)
-        except:
-            try:
-                reg = np.polynomial.polynomial.polyfit(series1, series2)
-                slope = reg[1]
-                intercept = reg[0]
-            except:
-                try:
-                    series1 = sm.add_constant(series1)
-                    model = sm.OLS(series2, series1).fit()
-                    intercept = model.params[0]
-                    slope = model.params[1]
-                except:
-                    slope = float('NaN')
-                    intercept = float('NaN')
+        # try:
+        slope, intercept, rvalue, pvalue, stderr = linregress(series1,series2)
+        # except:
+        #     try:
+        #         reg = np.polynomial.polynomial.polyfit(series1, series2)
+        #         slope = reg[1]
+        #         intercept = reg[0]
+        #     except:
+        #         try:
+        #             series1 = sm.add_constant(series1)
+        #             model = sm.OLS(series2, series1).fit()
+        #             intercept = model.params[0]
+        #             slope = model.params[1]
+        #         except:
+        #             slope = float('NaN')
+        #             intercept = float('NaN')
         return slope, intercept

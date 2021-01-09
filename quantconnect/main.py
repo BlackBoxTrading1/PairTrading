@@ -8,7 +8,8 @@ from params import *
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
-        self.SetStartDate(2020, 11, 25)
+        self.SetStartDate(2019, 6, 1)
+        # self.SetEndDate(2013, 1, 1)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.curr_month, self.last_month = -1, -1
@@ -36,8 +37,8 @@ class PairsTrader(QCAlgorithm):
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
-            spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-42)
-            spreads_raw, residuals = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-42)
+            spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
+            spreads_raw, residuals = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
             pair.spreads, pair.spreads_raw, pair.latest_residuals = spreads, spreads_raw, residuals
         self.strict_tester.reset()
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
@@ -72,7 +73,7 @@ class PairsTrader(QCAlgorithm):
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
-                spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-42)
+                spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
                 pair.spreads = spreads
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
@@ -159,7 +160,7 @@ class PairsTrader(QCAlgorithm):
         if self.Time.month == self.last_month:
             return Universe.Unchanged
 
-        sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > 0 and x.Price > 0], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
+        sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
         self.dv_by_symbol = {x.Symbol:x.DollarVolume for x in sortedByDollarVolume}
         if len(self.dv_by_symbol) == 0:
             return Universe.Unchanged
@@ -169,8 +170,13 @@ class PairsTrader(QCAlgorithm):
     def select_fine(self, fine):
         sortedBySector = sorted([x for x in fine if x.CompanyReference.CountryId == "USA"
                                         and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
-                                        and (self.Time - x.SecurityReference.IPODate).days > 540
-                                        and x.MarketCap > 5e8],
+                                        and (self.Time - x.SecurityReference.IPODate).days > 1095
+                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
+                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
+                                        and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
+                                        and MKTCAP_MIN <= x.MarketCap 
+                                        and x.MarketCap <= MKTCAP_MAX
+                                        and not x.SecurityReference.IsDepositaryReceipt],
                                key = lambda x: x.CompanyReference.IndustryTemplateCode)
 
         count = len(sortedBySector)
@@ -367,9 +373,9 @@ class PairTester:
             result = None
             test_function = self.library.get_func_by_name(test.lower())
             try:
-                if test == "Alpha":
-                    result = 1
-                elif test == "HalfLife":
+                # if test == "Alpha":
+                #     result = 1
+                if test == "HalfLife":
                     result = test_function(pair.spreads[-HEDGE_LOOKBACK:])
                 elif test == "ZScore":
                     result = test_function(pair.spreads_raw[-HEDGE_LOOKBACK])
