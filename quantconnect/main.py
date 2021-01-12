@@ -8,8 +8,7 @@ from params import *
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
-        self.SetStartDate(2019, 6, 1)
-        # self.SetEndDate(2013, 1, 1)
+        self.SetStartDate(2020, 7, 1)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.curr_month, self.last_month = -1, -1
@@ -31,7 +30,7 @@ class PairsTrader(QCAlgorithm):
         self.industries = self.create_industries()
         sizes = "".join([(("\n\t\t\t" if i%3 == 0 else "\t") + str(self.industries[i])) for i in range(len(self.industries))])
         self.Log(sizes + "\n\n\t\t\tTotal Tickers = {0}\n\t\t\tTotal Pairs = {1}".format(sum([i.size() for i in self.industries]), sum([len(i.get_pairs()) for i in self.industries])))
-        
+
         # Testing pairs
         pairs = [pair for industry in self.industries for pair in industry.get_pairs()]
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
@@ -43,7 +42,7 @@ class PairsTrader(QCAlgorithm):
         self.strict_tester.reset()
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
-        
+
         # Sorting and removing overlapping pairs 
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         for pair in pairs:
@@ -60,16 +59,18 @@ class PairsTrader(QCAlgorithm):
         # Check validity
         for pair in list(self.pairs):
             if not self.loose_tester.test_stoploss(pair):
+                self.Log("Removing {0}. Failed stoploss. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
             if not self.istradable(pair):
+                self.Log("Removing {0}. Not Tradable. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
-                self.weight_mgr.delete(pair)
-        
+                self.weight_mgr.delete([pair.left.id, pair.right.id])
+
         # Run loose tests
         for pair in list(self.pairs):
-            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, 365+2*30), self.daily_close(pair.right.ticker, 365+2*30)
+            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*30), self.daily_close(pair.right.ticker, LOOKBACK+2*30)
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
@@ -77,6 +78,7 @@ class PairsTrader(QCAlgorithm):
                 pair.spreads = spreads
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
+                self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
                 continue
@@ -97,7 +99,12 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.assign(pair=pair, X_target_shares=-slope, y_target_shares=1)
 
         # Place orders
-        self.allocate()
+        if self.weight_mgr.isupdated():
+            weights = self.weight_mgr.get_weights()
+            for pair in self.pairs:
+                self.SetHoldings(pair.left.ticker, weights[pair.left.id])
+                self.SetHoldings(pair.right.ticker, weights[pair.right.id])
+            self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr.__str__(self.pairs)))
     
     def create_industries(self):
         if RUN_TEST_STOCKS:
@@ -108,10 +115,10 @@ class PairsTrader(QCAlgorithm):
             industry = Industry(code)
             for ticker in self.industry_map[code]:
                 equity = self.AddEquity(ticker)
-                price_history = self.History(self.Symbol(ticker), TimeSpan.FromDays(365+2*30), Resolution.Daily).close
+                price_history = self.daily_close(ticker, LOOKBACK+2*30)
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
-                    stock.ph_raw = price_history.values.tolist()
+                    stock.ph_raw = price_history
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
             if industry.size() > 1:
@@ -134,18 +141,9 @@ class PairsTrader(QCAlgorithm):
         self.loose_tester.reset()
         self.Liquidate()
         
-        self.true_lookback = len(self.daily_close("SPY", 365 + 2*30))
+        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*30))
         self.desired_pairs = int(round(DESIRED_PAIRS * (self.Portfolio.TotalPortfolioValue / INITIAL_PORTFOLIO_VALUE)))
         return True
-        
-    def allocate(self):
-        if not self.weight_mgr.isupdated():
-            return
-        weights = self.weight_mgr.get_weights()
-        for pair in self.pairs:
-            self.SetHoldings(pair.left.ticker, weights[pair.left.id])
-            self.SetHoldings(pair.right.ticker, weights[pair.right.id])
-        self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr.__str__(self.pairs)))
         
     def istradable(self, pair):
         left = self.Securities[self.Symbol(pair.left.ticker)].IsTradable
@@ -153,7 +151,12 @@ class PairsTrader(QCAlgorithm):
         return (left and right)
     
     def daily_close(self, ticker, length):
-        return self.History(self.Symbol(ticker), TimeSpan.FromDays(length), Resolution.Daily).close.values.tolist()
+        history = []
+        try:
+            history = self.History(self.Symbol(ticker), TimeSpan.FromDays(length), Resolution.Daily).close.values.tolist()
+        except:
+            pass
+        return history
         
     def select_coarse(self, coarse):
         self.industry_map.clear()
@@ -170,7 +173,7 @@ class PairsTrader(QCAlgorithm):
     def select_fine(self, fine):
         sortedBySector = sorted([x for x in fine if x.CompanyReference.CountryId == "USA"
                                         and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
-                                        and (self.Time - x.SecurityReference.IPODate).days > 1095
+                                        and (self.Time - x.SecurityReference.IPODate).days > MIN_AGE
                                         and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
                                         and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
                                         and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
@@ -292,6 +295,9 @@ class Stock:
         
     def __str__(self):
         return "{1}".format(self.id)
+        
+    def purchase_info(self):
+        return {"long": self.long, "purchase": self.purchase_price, "current": self.ph_raw[-1]}
 
     def update_purchase_info(self, price, is_long):
         self.purchase_price = price
@@ -373,8 +379,6 @@ class PairTester:
             result = None
             test_function = self.library.get_func_by_name(test.lower())
             try:
-                # if test == "Alpha":
-                #     result = 1
                 if test == "HalfLife":
                     result = test_function(pair.spreads[-HEDGE_LOOKBACK:])
                 elif test == "ZScore":
