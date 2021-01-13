@@ -105,6 +105,7 @@ class PairsTrader(QCAlgorithm):
                 self.SetHoldings(pair.left.ticker, weights[pair.left.id])
                 self.SetHoldings(pair.right.ticker, weights[pair.right.id])
             self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr.__str__(self.pairs)))
+            self.weight_mgr.updated = False
     
     def create_industries(self):
         if RUN_TEST_STOCKS:
