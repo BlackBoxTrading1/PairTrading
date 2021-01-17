@@ -72,6 +72,7 @@ class PairsTrader(QCAlgorithm):
         for pair in list(self.pairs):
             pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*30), self.daily_close(pair.right.ticker, LOOKBACK+2*30)
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
+            pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
                 spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
@@ -257,8 +258,12 @@ class WeightManager:
         notionalDol =  abs(y_target_shares * pair.left.ph_raw[-1]) + abs(X_target_shares * pair.right.ph_raw[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * pair.left.ph_raw[-1] / notionalDol, X_target_shares * pair.right.ph_raw[-1] / notionalDol)
         if EQUAL_WEIGHTS:
-            x_target_pct = (x_target_pct > 0) * 0.5
-            y_target_pct = (y_target_pct < 0) * 0.5
+            if x_target_pct<0:
+                x_target_pct = -0.5
+                y_target_pct = 0.5
+            else:
+                x_target_pct = 0.5
+                y_target_pct = -0.5
         pair.currently_short = (y_target_pct < 0)
         pair.currently_long = (y_target_pct > 0)
         if (self.weights[pair.left.id] == 0) and (self.weights[pair.right.id] == 0):
