@@ -8,7 +8,8 @@ from params import *
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
-        self.SetStartDate(2020, 7, 1)
+        self.SetStartDate(START_YEAR, START_MONTH, START_DAY)
+        self.SetEndDate(END_YEAR, END_MONTH, END_DAY)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.curr_month, self.last_month = -1, -1
@@ -84,7 +85,7 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
                 
-            slope, intercept = self.library.linreg(pair.right.ph_raw, pair.left.ph_raw)
+            slope, intercept = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
             current_residual = pair.left.ph_raw[-1] - slope*pair.right.ph_raw[-1] + intercept
             pair.latest_residuals = np.delete(pair.latest_residuals, 0)
             pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
@@ -94,10 +95,10 @@ class PairsTrader(QCAlgorithm):
             
             if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
-            elif pair.currently_short or (zscore > ENTRY and (not pair.currently_short)):
-                self.weight_mgr.assign(pair=pair, X_target_shares=slope, y_target_shares=-1)
-            elif pair.currently_long or (zscore < -ENTRY and (not pair.currently_long)):
-                self.weight_mgr.assign(pair=pair, X_target_shares=-slope, y_target_shares=1)
+            elif (zscore > ENTRY and (not pair.currently_short)):
+                self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
+            elif (zscore < -ENTRY and (not pair.currently_long)):
+                self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
         # Place orders
         if self.weight_mgr.isupdated():
@@ -189,7 +190,7 @@ class PairsTrader(QCAlgorithm):
             return Universe.Unchanged
 
         self.last_month = self.Time.month
-        percent = 500 / count
+        percent = FINE_LIMIT / count
         sortedByDollarVolume = []
 
         for code, g in groupby(sortedBySector, lambda x: x.CompanyReference.IndustryTemplateCode):
@@ -388,7 +389,9 @@ class PairTester:
                 if test == "HalfLife":
                     result = test_function(pair.spreads[-HEDGE_LOOKBACK:])
                 elif test == "ZScore":
-                    result = test_function(pair.spreads_raw[-HEDGE_LOOKBACK])
+                    result = abs(pair.spreads_raw[-1])
+                elif test == "Alpha":
+                    result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
                 elif spreads:
                     result = test_function(pair.spreads)
                 else:
