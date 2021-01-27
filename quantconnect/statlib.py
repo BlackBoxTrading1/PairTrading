@@ -125,7 +125,7 @@ class StatsLibrary:
         X_target_shares = -slope
         notionalDol =  abs(y_target_shares * series1[-1]) + abs(X_target_shares * series2[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * series1[-1] / notionalDol, X_target_shares * series2[-1] / notionalDol)
-        if (min (abs(x_target_pct),abs(y_target_pct)) > 0.25):
+        if (min (abs(x_target_pct), abs(y_target_pct)) > 0.25):
             return slope
         return float('NaN')
     
@@ -157,20 +157,5 @@ class StatsLibrary:
         return zscores, residuals[-self.hedge_lookback:]
     
     def linreg(self, series1, series2):
-        # try:
         slope, intercept, rvalue, pvalue, stderr = linregress(series1,series2)
-        # except:
-        #     try:
-        #         reg = np.polynomial.polynomial.polyfit(series1, series2)
-        #         slope = reg[1]
-        #         intercept = reg[0]
-        #     except:
-        #         try:
-        #             series1 = sm.add_constant(series1)
-        #             model = sm.OLS(series2, series1).fit()
-        #             intercept = model.params[0]
-        #             slope = model.params[1]
-        #         except:
-        #             slope = float('NaN')
-        #             intercept = float('NaN')
         return slope, intercept
