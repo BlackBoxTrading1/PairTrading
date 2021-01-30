@@ -11,10 +11,10 @@ COARSE_LIMIT        = 10000
 FINE_LIMIT          = 400
 
 # BACKTEST PARAMS
-START_YEAR          = 2020
+START_YEAR          = 2019
 START_MONTH         = 1
 START_DAY           = 1
-END_YEAR            = 2020
+END_YEAR            = 2019
 END_MONTH           = 2
 END_DAY             = 28
 
@@ -43,7 +43,7 @@ EQUAL_WEIGHTS          = False
 # TESTING PARAMS
 RANK_BY                   = 'Hurst' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.05
+PVALUE                    = 0.01
 
 TEST_PARAMS               = {
     'Correlation':  {'min': -1.00, 'max': 1.00,            'spreads': 0,  'run': 1 },

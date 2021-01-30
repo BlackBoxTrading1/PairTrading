@@ -90,7 +90,8 @@ class PairsTrader(QCAlgorithm):
             pair.latest_residuals = np.delete(pair.latest_residuals, 0)
             pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
             std = np.std(pair.latest_residuals)
-            zscore = current_residual/std
+            avg = np.mean(pair.latest_residuals)
+            zscore = (current_residual-avg)/std
             pair.spreads_raw = np.append(pair.spreads_raw, zscore)
             
             if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):   

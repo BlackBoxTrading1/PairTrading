@@ -107,7 +107,7 @@ class StatsLibrary:
         ret = series - lag
         slope, intercept = self.linreg(lag,ret)
         halflife = (-np.log(2) / slope)
-        return halflife        
+        return halflife
     
     def shapirowilke(self, series):
         w, p = shapiro(series)
@@ -148,15 +148,15 @@ class StatsLibrary:
                                       series1[start_index-self.hedge_lookback:start_index])
             residuals = np.append(residuals, series1[i] - hedge*series2[i] + intercept)
             
-        avg_residual = np.mean(residuals)
         for i in range(length):
             start_index = len(series1) - length + i
             hedge, intercept = self.linreg(series2[start_index-self.hedge_lookback:start_index], 
                                       series1[start_index-self.hedge_lookback:start_index])
             current_residual = series1[i] - hedge*series2[i] + intercept
             residuals = np.append(residuals, current_residual)
+            avg = np.mean(residuals)
             std = np.std(residuals[-self.hedge_lookback:])
-            zscores = np.append(zscores, (current_residual-avg_residual)/std)
+            zscores = np.append(zscores, (current_residual-avg)/std)
         return zscores, residuals[-self.hedge_lookback:]
     
     def linreg(self, series1, series2):
