@@ -11,6 +11,7 @@ import statsmodels.stats.diagnostic as sd
 from scipy.stats import shapiro, pearsonr, linregress
 from pykalman import KalmanFilter
 import math
+from params import *
 
 class StatsLibrary:
     
@@ -23,7 +24,7 @@ class StatsLibrary:
 
     def correlation(self, series1, series2):
         r, p = pearsonr(series1, series2)
-        if p < 0.01:
+        if p < PVALUE:
             return r
         else:
             return float('NaN')
@@ -105,7 +106,8 @@ class StatsLibrary:
         lag = np.roll(series, 1)
         ret = series - lag
         slope, intercept = self.linreg(lag,ret)
-        return(-np.log(2) / slope)
+        halflife = (-np.log(2) / slope)
+        return halflife        
     
     def shapirowilke(self, series):
         w, p = shapiro(series)
@@ -125,7 +127,7 @@ class StatsLibrary:
         X_target_shares = -slope
         notionalDol =  abs(y_target_shares * series1[-1]) + abs(X_target_shares * series2[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * series1[-1] / notionalDol, X_target_shares * series2[-1] / notionalDol)
-        if (min (abs(x_target_pct), abs(y_target_pct)) > 0.25):
+        if (min (abs(x_target_pct), abs(y_target_pct)) > MIN_WEIGHT):
             return slope
         return float('NaN')
     
@@ -146,6 +148,7 @@ class StatsLibrary:
                                       series1[start_index-self.hedge_lookback:start_index])
             residuals = np.append(residuals, series1[i] - hedge*series2[i] + intercept)
             
+        avg_residual = np.mean(residuals)
         for i in range(length):
             start_index = len(series1) - length + i
             hedge, intercept = self.linreg(series2[start_index-self.hedge_lookback:start_index], 
@@ -153,7 +156,7 @@ class StatsLibrary:
             current_residual = series1[i] - hedge*series2[i] + intercept
             residuals = np.append(residuals, current_residual)
             std = np.std(residuals[-self.hedge_lookback:])
-            zscores = np.append(zscores, current_residual/std)
+            zscores = np.append(zscores, (current_residual-avg_residual)/std)
         return zscores, residuals[-self.hedge_lookback:]
     
     def linreg(self, series1, series2):
