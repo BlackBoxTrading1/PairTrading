@@ -6,15 +6,15 @@
 
 # UNIVERSE PARAMS
 RUN_TEST_STOCKS     = False
-TEST_STOCKS         = ['F', 'GM', 'FB', "TWTR", 'KO', 'PEP']
+TEST_STOCKS         = ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']
 COARSE_LIMIT        = 10000
-FINE_LIMIT          = 400
+FINE_LIMIT          = 10000
 
 # BACKTEST PARAMS
-START_YEAR          = 2019
+START_YEAR          = 2006
 START_MONTH         = 1
 START_DAY           = 1
-END_YEAR            = 2019
+END_YEAR            = 2020
 END_MONTH           = 2
 END_DAY             = 28
 
@@ -38,23 +38,23 @@ MIN_VOLUME             = 1e4
 MKTCAP_MIN             = 1e8
 MKTCAP_MAX             = 1e11
 
-EQUAL_WEIGHTS          = False
+EQUAL_WEIGHTS          = True
 
 # TESTING PARAMS
 RANK_BY                   = 'Hurst' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.01
+PVALUE                    = 0.01/3
 
 TEST_PARAMS               = {
-    'Correlation':  {'min': -1.00, 'max': 1.00,            'spreads': 0,  'run': 1 },
+    'Correlation':  {'min': 0.75,  'max': 1.00,            'spreads': 0,  'run': 1 },
     'Cointegration':{'min': 0.00,  'max': 0.01,            'spreads': 0,  'run': 0 },
-    'Hurst':        {'min': 0.00,  'max': 0.45,            'spreads': 1,  'run': 1 },
+    'Hurst':        {'min': 0.00,  'max': 0.49,            'spreads': 1,  'run': 1 },
     'ADFuller':     {'min': 0.00,  'max': PVALUE,          'spreads': 1,  'run': 1 },
     'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK,  'spreads': 1,  'run': 1 },
     'ShapiroWilke': {'min': 0.00,  'max': PVALUE,          'spreads': 1,  'run': 1 },
     'Zscore':       {'min': ENTRY, 'max': Z_STOP-ENTRY,    'spreads': 1,  'run': 1 },
     'Alpha':        {'min': 1e-1,  'max': 1e1,             'spreads': 0,  'run': 1 },
-    'ADFPrices':    {'min': 0.05,  'max': 1.00,            'spreads': 0,  'run': 1 }
+    'ADFPrices':    {'min': 0.10,  'max': 1.00,            'spreads': 0,  'run': 1 }
 }
 
 LOOSE_PARAMS              = {

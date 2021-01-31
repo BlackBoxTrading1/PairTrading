@@ -154,7 +154,7 @@ class StatsLibrary:
                                       series1[start_index-self.hedge_lookback:start_index])
             current_residual = series1[i] - hedge*series2[i] + intercept
             residuals = np.append(residuals, current_residual)
-            avg = np.mean(residuals)
+            avg = np.mean(residuals[-self.hedge_lookback:])
             std = np.std(residuals[-self.hedge_lookback:])
             zscores = np.append(zscores, (current_residual-avg)/std)
         return zscores, residuals[-self.hedge_lookback:]

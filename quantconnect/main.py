@@ -71,7 +71,7 @@ class PairsTrader(QCAlgorithm):
 
         # Run loose tests
         for pair in list(self.pairs):
-            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*round(HEDGE_LOOKBACK*7/5,0)), self.daily_close(pair.right.ticker, LOOKBACK+2*round(HEDGE_LOOKBACK*7/5,0))
+            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5))), self.daily_close(pair.right.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
@@ -94,7 +94,7 @@ class PairsTrader(QCAlgorithm):
             zscore = (current_residual-avg)/std
             pair.spreads_raw = np.append(pair.spreads_raw, zscore)
             
-            if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):   
+            if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
             elif (zscore > ENTRY and (not pair.currently_short)):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
@@ -119,7 +119,7 @@ class PairsTrader(QCAlgorithm):
             industry = Industry(code)
             for ticker in self.industry_map[code]:
                 equity = self.AddEquity(ticker)
-                price_history = self.daily_close(ticker, LOOKBACK+2*round(HEDGE_LOOKBACK*7/5,0))
+                price_history = self.daily_close(ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
                     stock.ph_raw = price_history
@@ -145,7 +145,7 @@ class PairsTrader(QCAlgorithm):
         self.loose_tester.reset()
         self.Liquidate()
         
-        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*round(HEDGE_LOOKBACK*7/5,0)))
+        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*int(np.ceil(HEDGE_LOOKBACK*7/5))))
         self.desired_pairs = int(round(DESIRED_PAIRS * (self.Portfolio.TotalPortfolioValue / INITIAL_PORTFOLIO_VALUE)))
         return True
         
