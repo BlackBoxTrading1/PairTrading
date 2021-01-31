@@ -44,7 +44,7 @@ class PairsTrader(QCAlgorithm):
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
 
-        # Sorting and removing overlapping pairs 
+        # Sorting and removing overlapping pairs
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         for pair in pairs:
             if not any((p.contains(pair.left.id) or p.contains(pair.right.id)) for p in self.pairs):
@@ -71,7 +71,7 @@ class PairsTrader(QCAlgorithm):
 
         # Run loose tests
         for pair in list(self.pairs):
-            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*30), self.daily_close(pair.right.ticker, LOOKBACK+2*30)
+            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5))), self.daily_close(pair.right.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
@@ -90,10 +90,11 @@ class PairsTrader(QCAlgorithm):
             pair.latest_residuals = np.delete(pair.latest_residuals, 0)
             pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
             std = np.std(pair.latest_residuals)
-            zscore = current_residual/std
+            avg = np.mean(pair.latest_residuals)
+            zscore = (current_residual-avg)/std
             pair.spreads_raw = np.append(pair.spreads_raw, zscore)
             
-            if (pair.currently_short and zscore < EXIT)or(pair.currently_long and zscore > -EXIT):   
+            if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
             elif (zscore > ENTRY and (not pair.currently_short)):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
@@ -118,7 +119,7 @@ class PairsTrader(QCAlgorithm):
             industry = Industry(code)
             for ticker in self.industry_map[code]:
                 equity = self.AddEquity(ticker)
-                price_history = self.daily_close(ticker, LOOKBACK+2*30)
+                price_history = self.daily_close(ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
                     stock.ph_raw = price_history
@@ -144,7 +145,7 @@ class PairsTrader(QCAlgorithm):
         self.loose_tester.reset()
         self.Liquidate()
         
-        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*30))
+        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*int(np.ceil(HEDGE_LOOKBACK*7/5))))
         self.desired_pairs = int(round(DESIRED_PAIRS * (self.Portfolio.TotalPortfolioValue / INITIAL_PORTFOLIO_VALUE)))
         return True
         
@@ -166,7 +167,7 @@ class PairsTrader(QCAlgorithm):
         if self.Time.month == self.last_month:
             return Universe.Unchanged
 
-        sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
+        sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
         self.dv_by_symbol = {x.Symbol:x.DollarVolume for x in sortedByDollarVolume}
         if len(self.dv_by_symbol) == 0:
             return Universe.Unchanged
@@ -178,10 +179,10 @@ class PairsTrader(QCAlgorithm):
                                         and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
                                         and (self.Time - x.SecurityReference.IPODate).days > MIN_AGE
                                         and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
-                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
-                                        and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
-                                        and MKTCAP_MIN <= x.MarketCap 
-                                        and x.MarketCap <= MKTCAP_MAX
+                                        # and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
+                                        # and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
+                                        and MKTCAP_MIN < x.MarketCap 
+                                        and x.MarketCap < MKTCAP_MAX
                                         and not x.SecurityReference.IsDepositaryReceipt],
                                key = lambda x: x.CompanyReference.IndustryTemplateCode)
 
@@ -392,6 +393,8 @@ class PairTester:
                     result = abs(pair.spreads_raw[-1])
                 elif test == "Alpha":
                     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
+                elif test == "ADFPrices":
+                    result = test_function(pair.left.ph, pair.right.ph_raw)    
                 elif spreads:
                     result = test_function(pair.spreads)
                 else:
