@@ -386,7 +386,7 @@ class PairTester:
                 elif test == "Alpha":
                     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
                 elif test == "ADFPrices":
-                    result = test_function(pair.left.ph, pair.right.ph_raw)    
+                    result = test_function(pair.left.ph, pair.right.ph)    
                 elif spreads:
                     result = test_function(pair.spreads)
                 else:
