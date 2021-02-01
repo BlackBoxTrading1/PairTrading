@@ -13,13 +13,12 @@ class PairsTrader(QCAlgorithm):
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.curr_month, self.last_month = -1, -1
-        self.industries, self.pairs = [], []
+        self.industries= []
         self.industry_map, self.dv_by_symbol = {}, {}
         
         self.library = StatsLibrary(hedge_lookback=HEDGE_LOOKBACK, min_weight=MIN_WEIGHT)
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
-        self.weight_mgr = WeightManager(max_pair_weight=MAX_PAIR_WEIGHT)
         self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.MonthStart(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.check_pair_status))
@@ -30,10 +29,10 @@ class PairsTrader(QCAlgorithm):
         self.Log("Creating Industries...")
         self.industries = self.create_industries()
         sizes = "".join([(("\n\t\t\t" if i%3 == 0 else "\t") + str(self.industries[i])) for i in range(len(self.industries))])
-        self.Log(sizes + "\n\n\t\t\tTotal Tickers = {0}\n\t\t\tTotal Pairs = {1}".format(sum([i.size() for i in self.industries]), sum([len(i.get_pairs()) for i in self.industries])))
+        self.Log(sizes + "\n\n\t\t\tTotal Tickers = {0}\n\t\t\tTotal Pairs = {1}".format(sum([i.size() for i in self.industries]), sum([len(i.pairs) for i in self.industries])))
 
         # Testing pairs
-        pairs = [pair for industry in self.industries for pair in industry.get_pairs()]
+        pairs = [pair for industry in self.industries for pair in industry.pairs]
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
@@ -46,31 +45,29 @@ class PairsTrader(QCAlgorithm):
 
         # Sorting and removing overlapping pairs
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
+        final_pairs = []
         for pair in pairs:
-            if not any((p.contains(pair.left.id) or p.contains(pair.right.id)) for p in self.pairs):
-                self.pairs.append(pair)
-        self.pairs = self.pairs[:min(len(self.pairs), self.desired_pairs)]
-        self.weight_mgr.add_pairs(self.pairs)
-        self.Log("Pair List" + "".join(["\n\t{0}) {1} {2}".format(i+1, self.pairs[i], self.pairs[i].formatted_results()) for i in range(len(self.pairs))]))
+            if not any((p.contains(pair.left.id) or p.contains(pair.right.id)) for p in final_pairs):
+                final_pairs.append(pair)
+        final_pairs = final_pairs[:min(len(final_pairs), self.desired_pairs)]
+        self.Log("Pair List" + "".join(["\n\t{0}) {1} {2}".format(i+1, final_pairs[i], final_pairs[i].formatted_results()) for i in range(len(final_pairs))]))
+        self.weight_mgr = WeightManager(max_pair_weight=MAX_PAIR_WEIGHT, pairs=final_pairs)
 
     def check_pair_status(self):
-        if self.pairs == []:
+        if self.industries == []:
             return
         
         # Check validity
-        for pair in list(self.pairs):
+        for pair in list(self.weight_mgr.pairs):
             if not self.loose_tester.test_stoploss(pair):
                 self.Log("Removing {0}. Failed stoploss. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
-                self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
             if not self.istradable(pair):
                 self.Log("Removing {0}. Not Tradable. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
-                self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
-                self.weight_mgr.delete([pair.left.id, pair.right.id])
 
         # Run loose tests
-        for pair in list(self.pairs):
+        for pair in list(self.weight_mgr.pairs):
             pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5))), self.daily_close(pair.right.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             pair.latest_test_results.clear()
@@ -81,7 +78,6 @@ class PairsTrader(QCAlgorithm):
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
                 self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
-                self.pairs.remove(pair)
                 self.weight_mgr.zero(pair)
                 continue
                 
@@ -102,13 +98,13 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
         # Place orders
-        if self.weight_mgr.isupdated():
-            weights = self.weight_mgr.get_weights()
-            for pair in self.pairs:
-                self.SetHoldings(pair.left.ticker, weights[pair.left.id])
-                self.SetHoldings(pair.right.ticker, weights[pair.right.id])
-            self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr.__str__(self.pairs)))
-            self.weight_mgr.updated = False
+        weights = self.weight_mgr.weights
+        for pair in self.weight_mgr.updated:
+            self.SetHoldings(pair.left.ticker, weights[pair.left.id])
+            self.SetHoldings(pair.right.ticker, weights[pair.right.id])
+        if len(self.weight_mgr.updated) > 0:
+            self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr))
+        self.weight_mgr.reset()
     
     def create_industries(self):
         if RUN_TEST_STOCKS:
@@ -139,8 +135,6 @@ class PairsTrader(QCAlgorithm):
             return False
         self.curr_month = self.next_month
         self.industries.clear()
-        self.pairs.clear()
-        self.weight_mgr.reset()
         self.strict_tester.reset()
         self.loose_tester.reset()
         self.Liquidate()
@@ -212,38 +206,33 @@ class PairsTrader(QCAlgorithm):
 ####################################################################################################
 class WeightManager:
     
-    def __init__(self, max_pair_weight):
+    def __init__(self, max_pair_weight, pairs):
         self.weights = {}
         self.num_allocated = 0        
         self.max_pair_weight = max_pair_weight
-        self.updated = False
+        self.pairs = pairs
+        self.updated = set()
         
-    def __str__(self, pairs):
-        lines = []
-        for pair in pairs:
-            lines.append("{0}\t{1}\t{2}".format(pair, f"{round(self.weights[pair.left.id],2):+g}", f"{round(self.weights[pair.right.id],2):+g}"))
-        return "\n\t\t\t".join(lines)
-    
-    def reset(self):
-        self.weights.clear()
-        self.num_allocated = 0
-        
-    def isupdated(self):
-        return self.updated
-    
-    def add_pairs(self, pairs):
         for pair in pairs:
             self.weights[pair.left.id] = 0.0
             self.weights[pair.right.id] = 0.0
-    
-    def get_weights(self):
-        return self.weights
-    
-    def delete(self, items):
-        for item in items:
-            del self.weights[item]
         
+    def __str__(self):
+        lines = []
+        for pair in self.pairs:
+            lines.append("{0}\t{1}\t{2}\t{3}".format(pair, f"{round(self.weights[pair.left.id],2):+g}", f"{round(self.weights[pair.right.id],2):+g}", "U"*(pair in self.updated)))
+        return "\n\t\t\t".join(lines)
+    
+    def reset(self):
+        for pair in self.updated:
+            if self.weights[pair.left.id] == 0 and self.weights[pair.right.id] == 0:
+                del self.weights[pair.left.id]
+                del self.weights[pair.right.id]
+                self.pairs.remove(pair)
+        self.updated.clear()
+    
     def zero(self, pair):
+        self.updated.add(pair)
         if (self.weights[pair.left.id] == 0) and (self.weights[pair.right.id] == 0):
             return
         self.weights[pair.left.id] = 0.0
@@ -254,7 +243,6 @@ class WeightManager:
         if (self.num_allocated/2) > (1/self.max_pair_weight):
             self.scale_keys(self.num_allocated/(self.num_allocated-2))
         self.num_allocated = self.num_allocated - 2
-        self.updated = True
         
     def assign(self, pair, y_target_shares, X_target_shares):
         notionalDol =  abs(y_target_shares * pair.left.ph_raw[-1]) + abs(X_target_shares * pair.right.ph_raw[-1])
@@ -275,7 +263,7 @@ class WeightManager:
             self.num_allocated = self.num_allocated+2
         else:
             self.calculate_weights(pair, y_target_pct, x_target_pct, factor=2/self.num_allocated, new=False)
-        self.updated = True
+        self.updated.add(pair)
     
     def calculate_weights(self, pair, y_target_pct, x_target_pct, factor, new=True):
         if (self.num_allocated/2) < (1/self.max_pair_weight):
@@ -287,9 +275,16 @@ class WeightManager:
             self.weights[pair.left.id] =  y_target_pct * factor
             self.weights[pair.right.id] =  x_target_pct * factor
     
+    def get_pair_from_id(self, id):
+        for pair in self.pairs:
+            if id == pair.left.id or id == pair.right.id:
+                return pair
+    
     def scale_keys(self, factor):
         for key in self.weights:
-            self.weights[key] = self.weights[key]*factor
+            if self.weights[key] != 0:
+                self.weights[key] = self.weights[key]*factor
+                self.updated.add(self.get_pair_from_id(key))
 
 class Stock:
     
@@ -346,9 +341,6 @@ class Industry:
     
     def size(self):
         return len(self.stocks)
-        
-    def get_pairs(self):
-        return self.pairs
     
     def add_stock(self, stock):
         self.stocks.append(stock)
