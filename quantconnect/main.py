@@ -173,8 +173,8 @@ class PairsTrader(QCAlgorithm):
                                         and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
                                         and (self.Time - x.SecurityReference.IPODate).days > MIN_AGE
                                         and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
-                                        # and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
-                                        # and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
+                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
+                                        and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
                                         and MKTCAP_MIN < x.MarketCap 
                                         and x.MarketCap < MKTCAP_MAX
                                         and not x.SecurityReference.IsDepositaryReceipt],
@@ -382,11 +382,13 @@ class PairTester:
                 if test == "HalfLife":
                     result = test_function(pair.spreads[-HEDGE_LOOKBACK:])
                 elif test == "ZScore":
-                    result = abs(pair.spreads_raw[-1])
+                    result = test_function(pair.spreads_raw)
                 elif test == "Alpha":
                     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
                 elif test == "ADFPrices":
                     result = test_function(pair.left.ph, pair.right.ph)    
+                elif test == "ShapiroWilke":
+                    result = test_function(pair.spreads_raw)
                 elif spreads:
                     result = test_function(pair.spreads)
                 else:
