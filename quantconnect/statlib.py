@@ -142,21 +142,12 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         residuals = []
-        for i in range(1, self.hedge_lookback):
-            start_index = len(series1) - length - self.hedge_lookback + i
+        for i in range(length):
+            start_index = len(series1) - length + i
             hedge, intercept = self.linreg(series2[start_index-self.hedge_lookback:start_index], 
                                       series1[start_index-self.hedge_lookback:start_index])
-            residuals = np.append(residuals, series1[i] - hedge*series2[i] + intercept)
-            
-        # for i in range(length):
-        #     start_index = len(series1) - length + i
-        #     hedge, intercept = self.linreg(series2[start_index-self.hedge_lookback:start_index], 
-        #                               series1[start_index-self.hedge_lookback:start_index])
-        #     current_residual = series1[i] - hedge*series2[i] + intercept
-        #     residuals = np.append(residuals, current_residual)
-        #     avg = np.mean(residuals[-self.hedge_lookback:])
-        #     std = np.std(residuals[-self.hedge_lookback:])
-        #     zscores = np.append(zscores, (current_residual-avg)/std)
+            current_residual = series1[i] - hedge*series2[i] + intercept
+            residuals = np.append(residuals, current_residual)
         return residuals, residuals[-self.hedge_lookback:]
     
     def zscore(self, series):

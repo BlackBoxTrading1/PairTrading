@@ -8,7 +8,7 @@
 RUN_TEST_STOCKS     = False
 TEST_STOCKS         = ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']
 COARSE_LIMIT        = 100000
-FINE_LIMIT          = 10000
+FINE_LIMIT          = 500
 
 # BACKTEST PARAMS
 START_YEAR          = 2020
@@ -43,14 +43,14 @@ EQUAL_WEIGHTS          = True
 # TESTING PARAMS
 RANK_BY                   = 'HalfLife' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.01/3
+PVALUE                    = 0.05
 
 TEST_PARAMS               = {
     'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 1 },
-    'Cointegration':{'min': 0.00,  'max': 0.01,                     'spreads': 0,  'run': 0 },
-    'Hurst':        {'min': 0.00,  'max': 0.45,                     'spreads': 1,  'run': 1 },
+    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
+    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },
     'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
-    'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 1 },
+    'HalfLife':     {'min': 1,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 1 },
     'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
     'Zscore':       {'min': ENTRY, 'max': Z_STOP,                   'spreads': 1,  'run': 1 },
     'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 1 },
@@ -59,7 +59,7 @@ TEST_PARAMS               = {
 
 LOOSE_PARAMS              = {
     'Correlation':  {'min': -1.00, 'max': 1.00,                     'spreads': 0,  'run': 0 },
-    'Cointegration':{'min': 0.00,  'max': 0.01,                     'spreads': 0,  'run': 0 },
+    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
     'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 0 },
     'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
     'HalfLife':     {'min': 0,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 0 },
