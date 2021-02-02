@@ -35,7 +35,7 @@ class StatsLibrary:
         return pvalue
     
     def adfuller(self, series):
-        return sm.adfuller(series,autolag='t-stat')[1]
+        return sm.adfuller(series,autolag='BIC')[0]
     
     # def hurst(self,series):
     #     # Ernie
@@ -114,8 +114,8 @@ class StatsLibrary:
         return p
     
     def adfprices(self, series1, series2):
-        p1 = sm.adfuller(series1, autolag='t-stat')[1]
-        p2 = sm.adfuller(series2, autolag='t-stat')[1]
+        p1 = sm.adfuller(series1, autolag='BIC')[1]
+        p2 = sm.adfuller(series2, autolag='BIC')[1]
         return min(p1,p2)
     
     def zscore(self, series):
@@ -130,6 +130,12 @@ class StatsLibrary:
         if (min (abs(x_target_pct), abs(y_target_pct)) > MIN_WEIGHT):
             return slope
         return float('NaN')
+        
+    def sm_resids(self, series1, series2):
+        X = sm.add_constant(series1)
+        model = sm.OLS(series2, X)
+        results = model.fit()
+        return results.resid[-1]
     
     def run_kalman(self, series):
         # kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1],
@@ -142,12 +148,22 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         residuals = []
+        zscores = []
+        
+        for i in range(1, self.hedge_lookback):
+            start_index = len(series1) - length - self.hedge_lookback + i
+            resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
+                                      series1[start_index-self.hedge_lookback:start_index])
+            residuals = np.append(residuals, resid)
+    
         for i in range(length):
             start_index = len(series1) - length + i
-            hedge, intercept = self.linreg(series2[start_index-self.hedge_lookback:start_index], 
+            resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
                                       series1[start_index-self.hedge_lookback:start_index])
-            current_residual = series1[i] - hedge*series2[i] + intercept
-            residuals = np.append(residuals, current_residual)
+            residuals = np.append(residuals, resid)
+            avg = np.mean(residuals[-self.hedge_lookback:])
+            std = np.std(residuals[-self.hedge_lookback:])
+            zscores = np.append(zscores, (resid-avg)/std)
         return residuals, residuals[-self.hedge_lookback:]
     
     def zscore(self, series):

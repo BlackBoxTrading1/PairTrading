@@ -81,8 +81,8 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
                 
+            current_residual = self.library.sm_resids(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
             slope, intercept = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-            current_residual = pair.left.ph_raw[-1] - slope*pair.right.ph_raw[-1] + intercept
             pair.latest_residuals = np.delete(pair.latest_residuals, 0)
             pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
             std = np.std(pair.latest_residuals)
@@ -380,7 +380,7 @@ class PairTester:
             test_function = self.library.get_func_by_name(test.lower())
             try:
                 if test == "HalfLife":
-                    result = test_function(pair.spreads[-HEDGE_LOOKBACK:])
+                    result = test_function(pair.spreads)
                 elif test == "ZScore":
                     result = test_function(pair.spreads_raw)
                 elif test == "Alpha":
