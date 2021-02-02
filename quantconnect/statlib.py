@@ -48,33 +48,8 @@ class StatsLibrary:
     #     hurst = slope*2
     #     return hurst
     
-    def hurst(self, series):
-        # Simplified
-        max_window = len(series)-1
-        min_window = 10
-        window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), 
-                            math.log10(max_window), 0.25)))
-        window_sizes.append(len(series))
-        RS = []
-        for w in window_sizes:
-            rs = []
-            for start in range(0, len(series), w):
-                if (start+w)>len(series):
-                    break
-
-                incs = series[start:start+w][1:] - series[start:start+w][:-1]
-                R = max(series[start:start+w]) - min(series[start:start+w])
-                S = np.std(incs, ddof=1)
-                
-                if R != 0 and S != 0:
-                    rs.append(R/S)
-            RS.append(np.mean(rs))
-        A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
-        H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
-        return H
-    
-    # def hurst(self,series):
-    #     # Full
+    # def hurst(self, series):
+    #     # Simplified
     #     max_window = len(series)-1
     #     min_window = 10
     #     window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), 
@@ -88,19 +63,44 @@ class StatsLibrary:
     #                 break
 
     #             incs = series[start:start+w][1:] - series[start:start+w][:-1]
-
-    #             mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
-    #             deviations = incs - mean_inc
-    #             Z = np.cumsum(deviations)
-    #             R = max(Z) - min(Z)
+    #             R = max(series[start:start+w]) - min(series[start:start+w])
     #             S = np.std(incs, ddof=1)
-
+                
     #             if R != 0 and S != 0:
     #                 rs.append(R/S)
     #         RS.append(np.mean(rs))
     #     A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
     #     H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
     #     return H
+    
+    def hurst(self,series):
+        # Full
+        max_window = len(series)-1
+        min_window = 10
+        window_sizes = list(map(lambda x: int(10**x),np.arange(math.log10(min_window), 
+                            math.log10(max_window), 0.25)))
+        window_sizes.append(len(series))
+        RS = []
+        for w in window_sizes:
+            rs = []
+            for start in range(0, len(series), w):
+                if (start+w)>len(series):
+                    break
+
+                incs = series[start:start+w][1:] - series[start:start+w][:-1]
+
+                mean_inc = (series[start:start+w][-1] - series[start:start+w][0]) / len(incs)
+                deviations = incs - mean_inc
+                Z = np.cumsum(deviations)
+                R = max(Z) - min(Z)
+                S = np.std(incs, ddof=1)
+
+                if R != 0 and S != 0:
+                    rs.append(R/S)
+            RS.append(np.mean(rs))
+        A = np.vstack([np.log10(window_sizes), np.ones(len(RS))]).T
+        H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+        return H
     
     def halflife(self, series): 
         lag = np.roll(series, 1)
@@ -161,17 +161,15 @@ class StatsLibrary:
             resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
                                       series1[start_index-self.hedge_lookback:start_index])
             residuals = np.append(residuals, resid)
-            avg = np.mean(residuals[-self.hedge_lookback:])
             std = np.std(residuals[-self.hedge_lookback:])
-            zscores = np.append(zscores, (resid-avg)/std)
+            zscores = np.append(zscores, (resid)/std)
         return residuals, residuals[-self.hedge_lookback:]
     
     def zscore(self, series):
         current_residual = series[-1]
         latest_residuals = series[-self.hedge_lookback:]
         std = np.std(latest_residuals)
-        avg = np.mean(latest_residuals)
-        zscore = (current_residual-avg)/std
+        zscore = (current_residual)/std
         return abs(zscore)
         
     def linreg(self, series1, series2):

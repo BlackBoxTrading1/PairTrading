@@ -43,13 +43,13 @@ EQUAL_WEIGHTS          = True
 # TESTING PARAMS
 RANK_BY                   = 'ADFuller' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.01/2
+PVALUE                    = 0.01
 
 TEST_PARAMS               = {
     'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 1 },
     'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
     'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },
-    'ADFuller':     {'min': -1e9,  'max': -3.4548957220044336,      'spreads': 1,  'run': 1 },
+    'ADFuller':     {'min': -1e9,  'max': -2.8723451788613157,      'spreads': 1,  'run': 1 },
     'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 1 },
     'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
     'Zscore':       {'min': ENTRY, 'max': Z_STOP-ENTRY,             'spreads': 1,  'run': 1 },

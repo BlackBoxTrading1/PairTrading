@@ -82,12 +82,11 @@ class PairsTrader(QCAlgorithm):
                 continue
                 
             current_residual = self.library.sm_resids(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-            slope, intercept = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
+            slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
             pair.latest_residuals = np.delete(pair.latest_residuals, 0)
             pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
             std = np.std(pair.latest_residuals)
-            avg = np.mean(pair.latest_residuals)
-            zscore = (current_residual-avg)/std
+            zscore = (current_residual)/std
             pair.spreads_raw = np.append(pair.spreads_raw, zscore)
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
