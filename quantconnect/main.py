@@ -396,6 +396,7 @@ class PairTester:
             
             if (not result) or (not self.test_value_bounds(test, result)):
                 self.failures[test] = self.failures.get(test, 0) + 1
+                pair.latest_test_results[test] = result
                 return False
             pair.latest_test_results[test] = round(result, 5)
         return True
