@@ -7,7 +7,7 @@
 # UNIVERSE PARAMS
 RUN_TEST_STOCKS     = False
 TEST_STOCKS         = ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']
-COARSE_LIMIT        = 100000
+COARSE_LIMIT        = 1000
 FINE_LIMIT          = 500
 
 # BACKTEST PARAMS
@@ -15,8 +15,8 @@ START_YEAR          = 2016
 START_MONTH         = 1
 START_DAY           = 1
 END_YEAR            = 2016
-END_MONTH           = 12
-END_DAY             = 30
+END_MONTH           = 1
+END_DAY             = 28
 
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 1e4

@@ -36,9 +36,8 @@ class PairsTrader(QCAlgorithm):
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
-            spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
-            spreads_raw, residuals = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
-            pair.spreads, pair.spreads_raw, pair.latest_residuals = spreads, spreads_raw, residuals
+            pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
+            pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
         self.strict_tester.reset()
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
@@ -73,21 +72,17 @@ class PairsTrader(QCAlgorithm):
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
-                spreads, _ = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
-                pair.spreads = spreads
+                pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
+                pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
                 self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.weight_mgr.zero(pair)
                 continue
                 
-            current_residual = self.library.sm_resids(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
             slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-            pair.latest_residuals = np.delete(pair.latest_residuals, 0)
-            pair.latest_residuals = np.append(pair.latest_residuals, current_residual)
-            std = np.std(pair.latest_residuals)
-            zscore = (current_residual)/std
-            pair.spreads_raw = np.append(pair.spreads_raw, zscore)
+            std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
+            zscore = (pair.spreads_raw[-1])/std
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
@@ -311,7 +306,6 @@ class Pair:
         self.left, self.right = s1, s2
         self.spreads, self.spreads_raw = [], []
         self.industry = industry
-        self.latest_residuals = []
         self.latest_test_results = {}
         self.currently_long, self.currently_short = False, False
     

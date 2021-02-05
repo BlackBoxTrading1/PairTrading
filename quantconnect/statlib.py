@@ -119,7 +119,11 @@ class StatsLibrary:
         return min(p1,p2)
     
     def zscore(self, series):
-        return abs(series[-1])
+        current_residual = series[-1]
+        latest_residuals = series[-self.hedge_lookback:]
+        std = np.std(latest_residuals)
+        zscore = (current_residual)/std
+        return abs(zscore)
     
     def alpha(self, series1, series2):
         slope, intercept = self.linreg(series2, series1)
@@ -148,8 +152,6 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         residuals = []
-        zscores = []
-        
         for i in range(1, self.hedge_lookback):
             start_index = len(series1) - length - self.hedge_lookback + i
             resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
@@ -161,16 +163,7 @@ class StatsLibrary:
             resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
                                       series1[start_index-self.hedge_lookback:start_index])
             residuals = np.append(residuals, resid)
-            std = np.std(residuals[-self.hedge_lookback:])
-            zscores = np.append(zscores, (resid)/std)
-        return residuals, residuals[-self.hedge_lookback:]
-    
-    def zscore(self, series):
-        current_residual = series[-1]
-        latest_residuals = series[-self.hedge_lookback:]
-        std = np.std(latest_residuals)
-        zscore = (current_residual)/std
-        return abs(zscore)
+        return residuals
         
     def linreg(self, series1, series2):
         slope, intercept, rvalue, pvalue, stderr = linregress(series1,series2)
