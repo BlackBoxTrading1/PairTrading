@@ -36,8 +36,8 @@ class PairsTrader(QCAlgorithm):
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
-            pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
-            pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
+            pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
+            pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
         self.strict_tester.reset()
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
@@ -72,8 +72,8 @@ class PairsTrader(QCAlgorithm):
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
-                pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(2*HEDGE_LOOKBACK))
-                pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(2*HEDGE_LOOKBACK))
+                pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
+                pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
                 self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))

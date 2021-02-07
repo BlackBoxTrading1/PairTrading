@@ -152,11 +152,6 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         residuals = []
-        for i in range(1, self.hedge_lookback):
-            start_index = len(series1) - length - self.hedge_lookback + i
-            resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
-                                      series1[start_index-self.hedge_lookback:start_index])
-            residuals = np.append(residuals, resid)
     
         for i in range(length):
             start_index = len(series1) - length + i
