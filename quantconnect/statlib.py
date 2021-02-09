@@ -134,12 +134,6 @@ class StatsLibrary:
         if (min (abs(x_target_pct), abs(y_target_pct)) > MIN_WEIGHT):
             return slope
         return float('NaN')
-        
-    def sm_resids(self, series1, series2):
-        X = sm.add_constant(series1)
-        model = sm.OLS(series2, X)
-        results = model.fit()
-        return results.resid[-1]
     
     def run_kalman(self, series):
         # kf_stock = KalmanFilter(transition_matrices = [1], observation_matrices = [1],
@@ -152,11 +146,12 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         residuals = []
-    
         for i in range(length):
             start_index = len(series1) - length + i
-            resid = self.sm_resids(series2[start_index-self.hedge_lookback:start_index], 
-                                      series1[start_index-self.hedge_lookback:start_index])
+            X = sm.add_constant(series2[(start_index-self.hedge_lookback):start_index])
+            model = sm.OLS(series1[(start_index-self.hedge_lookback):start_index], X)
+            results = model.fit()
+            resid = results.resid[-1]
             residuals = np.append(residuals, resid)
         return residuals
         

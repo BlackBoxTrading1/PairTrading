@@ -55,7 +55,6 @@ class PairsTrader(QCAlgorithm):
     def check_pair_status(self):
         if self.industries == []:
             return
-        
         # Check validity
         for pair in list(self.weight_mgr.pairs):
             if not self.loose_tester.test_stoploss(pair):
@@ -64,10 +63,9 @@ class PairsTrader(QCAlgorithm):
             if not self.istradable(pair):
                 self.Log("Removing {0}. Not Tradable. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.weight_mgr.zero(pair)
-
         # Run loose tests
         for pair in list(self.weight_mgr.pairs):
-            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5))), self.daily_close(pair.right.ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
+            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+100), self.daily_close(pair.right.ticker, LOOKBACK+100)
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
@@ -79,7 +77,7 @@ class PairsTrader(QCAlgorithm):
                 self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.weight_mgr.zero(pair)
                 continue
-                
+            
             slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
             std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
             zscore = (pair.spreads_raw[-1])/std
@@ -109,7 +107,7 @@ class PairsTrader(QCAlgorithm):
             industry = Industry(code)
             for ticker in self.industry_map[code]:
                 equity = self.AddEquity(ticker)
-                price_history = self.daily_close(ticker, LOOKBACK+2*int(np.ceil(HEDGE_LOOKBACK*7/5)))
+                price_history = self.daily_close(ticker, LOOKBACK+100)
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
                     stock.ph_raw = price_history
@@ -133,7 +131,7 @@ class PairsTrader(QCAlgorithm):
         self.loose_tester.reset()
         self.Liquidate()
         
-        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + 2*int(np.ceil(HEDGE_LOOKBACK*7/5))))
+        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + int(np.ceil(HEDGE_LOOKBACK*7/5))))
         self.desired_pairs = int(round(DESIRED_PAIRS * (self.Portfolio.TotalPortfolioValue / INITIAL_PORTFOLIO_VALUE)))
         return True
         
@@ -391,7 +389,6 @@ class PairTester:
             
             if (not result) or (not self.test_value_bounds(test, result)):
                 self.failures[test] = self.failures.get(test, 0) + 1
-                pair.latest_test_results[test] = result
                 return False
             pair.latest_test_results[test] = round(result, 5)
         return True
