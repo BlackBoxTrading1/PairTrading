@@ -12,7 +12,7 @@ class PairsTrader(QCAlgorithm):
         self.SetEndDate(END_YEAR, END_MONTH, END_DAY)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
-        self.curr_month, self.last_month = -1, -1
+        self.last_month = -1
         self.industries= []
         self.industry_map, self.dv_by_symbol = {}, {}
         
@@ -20,14 +20,17 @@ class PairsTrader(QCAlgorithm):
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
         self.AddUniverse(self.select_coarse, self.select_fine)
-        self.Schedule.On(self.DateRules.MonthStart(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
-        self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.check_pair_status))
+        self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
+        self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
     
     def choose_pairs(self):
-        if not self.reset_vars():
+        if not self.industry_map:
             return
+        
+        self.reset_vars()
         self.Log("Creating Industries...")
         self.industries = self.create_industries()
+        self.industry_map.clear()
         sizes = "".join([(("\n\t\t\t" if i%3 == 0 else "\t") + str(self.industries[i])) for i in range(len(self.industries))])
         self.Log(sizes + "\n\n\t\t\tTotal Tickers = {0}\n\t\t\tTotal Pairs = {1}".format(sum([i.size() for i in self.industries]), sum([len(i.pairs) for i in self.industries])))
 
@@ -101,7 +104,6 @@ class PairsTrader(QCAlgorithm):
     def create_industries(self):
         if RUN_TEST_STOCKS:
             self.industry_map = {123: TEST_STOCKS}
-        
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)
@@ -119,13 +121,6 @@ class PairsTrader(QCAlgorithm):
         return sorted(industries, key=lambda x: x.size(), reverse=False)
         
     def reset_vars(self):
-        this_month = self.Time.month 
-        if self.curr_month < 0:
-            self.curr_month = this_month
-        self.next_month = self.curr_month + INTERVAL - 12*(self.curr_month + INTERVAL > 12)
-        if (this_month != self.curr_month):
-            return False
-        self.curr_month = self.next_month
         self.industries.clear()
         self.strict_tester.reset()
         self.loose_tester.reset()
@@ -149,10 +144,9 @@ class PairsTrader(QCAlgorithm):
         return history
         
     def select_coarse(self, coarse):
-        self.industry_map.clear()
-        if self.Time.month == self.last_month:
+        if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
             return Universe.Unchanged
-
+        self.industry_map.clear()
         sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
         self.dv_by_symbol = {x.Symbol:x.DollarVolume for x in sortedByDollarVolume}
         if len(self.dv_by_symbol) == 0:
@@ -370,9 +364,7 @@ class PairTester:
             result = None
             test_function = self.library.get_func_by_name(test.lower())
             try:
-                if test == "HalfLife":
-                    result = test_function(pair.spreads)
-                elif test == "ZScore":
+                if test == "ZScore":
                     result = test_function(pair.spreads_raw)
                 elif test == "Alpha":
                     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
