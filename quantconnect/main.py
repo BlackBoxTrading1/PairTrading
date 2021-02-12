@@ -8,8 +8,8 @@ from params import *
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
-        self.SetStartDate(START_YEAR, START_MONTH, START_DAY)
-        self.SetEndDate(END_YEAR, END_MONTH, END_DAY)
+        self.SetStartDate(ST_Y, ST_M, ST_D)
+        self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.last_month = -1
@@ -19,7 +19,8 @@ class PairsTrader(QCAlgorithm):
         self.library = StatsLibrary(hedge_lookback=HEDGE_LOOKBACK, min_weight=MIN_WEIGHT)
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
-        self.AddUniverse(self.select_coarse, self.select_fine)
+        if not RUN_TEST_STOCKS:
+            self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
     
@@ -103,7 +104,7 @@ class PairsTrader(QCAlgorithm):
     
     def create_industries(self):
         if RUN_TEST_STOCKS:
-            self.industry_map = {123: TEST_STOCKS}
+            self.industry_map = TEST_STOCKS
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)

@@ -6,17 +6,13 @@
 
 # UNIVERSE PARAMS
 RUN_TEST_STOCKS     = False
-TEST_STOCKS         = ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']
-COARSE_LIMIT        = 1000
-FINE_LIMIT          = 500
+TEST_STOCKS         = {123: ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']}
+COARSE_LIMIT        = 500
+FINE_LIMIT          = 100
 
 # BACKTEST PARAMS
-START_YEAR          = 2016
-START_MONTH         = 1
-START_DAY           = 1
-END_YEAR            = 2016
-END_MONTH           = 1
-END_DAY             = 28
+ST_M, ST_D, ST_Y    = 11, 1, 2016
+END_M, END_D, END_Y = 3, 28, 2017
 
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 1e4
