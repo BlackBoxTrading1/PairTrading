@@ -82,9 +82,11 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
             
-            slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-            std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
-            zscore = (pair.spreads_raw[-1])/std
+            slope = 1
+            zscore = pair.spreads_raw[-1]
+            if not SIMPLE_SPREADS:
+                slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
+                zscore = (pair.spreads_raw[-1])/np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)

@@ -145,6 +145,14 @@ class StatsLibrary:
         return series
     
     def get_spreads(self, series1, series2, length):
+        if SIMPLE_SPREADS:
+            spreads = np.array(series1[-length:]) - np.array(series2[-length:])
+            mean, std = np.mean(spreads), np.std(spreads)
+            normalized_spreads = []
+            for i in range(length):
+                normalized_spreads.append((spreads[i+len(spreads)-length] - mean)/std)
+            return normalized_spreads
+            
         residuals = []
         for i in range(length):
             start_index = len(series1) - length + i

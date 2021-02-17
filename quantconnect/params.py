@@ -11,8 +11,9 @@ COARSE_LIMIT        = 500
 FINE_LIMIT          = 100
 
 # BACKTEST PARAMS
-ST_M, ST_D, ST_Y    = 11, 1, 2016
-END_M, END_D, END_Y = 3, 28, 2017
+ST_M, ST_D, ST_Y    = 1, 1, 2016
+END_M, END_D, END_Y = 2, 25, 2016
+SIMPLE_SPREADS      = True
 
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 1e4
@@ -44,12 +45,12 @@ PVALUE                    = 0.01
 TEST_PARAMS               = {
     'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 1 },
     'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
-    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },
+    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 0 },
     'ADFuller':     {'min': -1e9,  'max': -2.8723451788613157,      'spreads': 1,  'run': 1 },
-    'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 1 },
-    'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
-    'Zscore':       {'min': ENTRY, 'max': Z_STOP-ENTRY,             'spreads': 1,  'run': 1 },
-    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 1 },
+    'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 0 },
+    'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
+    'Zscore':       {'min': ENTRY, 'max': Z_STOP-ENTRY,             'spreads': 1,  'run': 0 },
+    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 0 },
     'ADFPrices':    {'min': 0.10,  'max': 1.00,                     'spreads': 0,  'run': 1 }
 }
 
