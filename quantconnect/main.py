@@ -3,6 +3,7 @@ from itertools import groupby
 from math import ceil
 import numpy as np
 from statlib import StatsLibrary
+import scipy.stats as ss
 from params import *
 
 class PairsTrader(QCAlgorithm):
@@ -82,9 +83,17 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
             
-            slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-            std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
-            zscore = (pair.spreads_raw[-1])/std
+            slope = 1
+            # current_spread = pair.spreads_raw[-1]
+            # std = np.std(pair.spreads_raw)
+            # avg = np.mean(pair.spreads_raw)
+            # zscore = (current_spread - avg)/std
+            
+            if not SIMPLE_SPREADS:
+                slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
+                # zscore = (pair.spreads_raw[-1]-np.mean(pair.spreads_raw[-HEDGE_LOOKBACK:]))/np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
+                
+            zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
@@ -365,18 +374,16 @@ class PairTester:
             result = None
             test_function = self.library.get_func_by_name(test.lower())
             try:
-                if test == "ZScore":
-                    result = test_function(pair.spreads_raw)
-                elif test == "Alpha":
-                    result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
-                elif test == "ADFPrices":
-                    result = test_function(pair.left.ph, pair.right.ph)    
-                elif test == "ShapiroWilke":
-                    result = test_function(pair.spreads_raw)
-                elif spreads:
+                # if test == "ZScore":
+                #     result = test_function(pair.spreads_raw)
+                # elif test == "Alpha":
+                #     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
+                # elif test == "ShapiroWilke":
+                #     result = test_function(pair.spreads_raw)
+                if spreads:
                     result = test_function(pair.spreads)
                 else:
-                    result = test_function(pair.left.ph[-HEDGE_LOOKBACK:], pair.right.ph[-HEDGE_LOOKBACK:])
+                    result = test_function(pair.left.ph, pair.right.ph)
             except:
                 pass
             

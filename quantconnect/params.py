@@ -7,50 +7,51 @@
 # UNIVERSE PARAMS
 RUN_TEST_STOCKS     = False
 TEST_STOCKS         = {123: ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']}
-COARSE_LIMIT        = 500
-FINE_LIMIT          = 100
+COARSE_LIMIT        = 10000
+FINE_LIMIT          = 350
 
 # BACKTEST PARAMS
-ST_M, ST_D, ST_Y    = 11, 1, 2016
-END_M, END_D, END_Y = 3, 28, 2017
+ST_M, ST_D, ST_Y    = 1, 1, 2014
+END_M, END_D, END_Y = 6, 28, 2014
 
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 1e4
 LEVERAGE               = 1.0
-INTERVAL               = 1
-DESIRED_PAIRS          = 10
-LOOKBACK               = 365
-HEDGE_LOOKBACK         = 21    #usually 15-300
-ENTRY                  = 1.5   #usually 1.5
-EXIT                   = 0.0   #usually 0.0
-Z_STOP                 = 4.5   #usually >4.0
-STOPLOSS               = 0.15
+INTERVAL               = 1     #caldeira: 4 months w/reversals
+DESIRED_PAIRS          = 10    #caldeira: 20
+LOOKBACK               = 365*5 #quantopian: 5 years
+HEDGE_LOOKBACK         = 15    #pairtradinglab: 15-300, quantconnect: 3 mo, quantopian: 20
+ENTRY                  = 2.00  #pairtradinglab: 1.5, quantconnect: 2.23, caldeira: 2.0, quantopian: 1
+EXIT                   = 0.50  #pairtradinglab/quantopian: 0.0, quantconnect: 0.5, caldeira: 0.5
+Z_STOP                 = 4.00  #pairtradinglab >4.0, quantconnect: 4.5
+STOPLOSS               = 0.07  #caldeira: 7%
 MIN_SHARE              = 5.00
-MAX_SHARE              = (INITIAL_PORTFOLIO_VALUE/DESIRED_PAIRS)/2
-MIN_AGE                = 365*3
-MIN_WEIGHT             = 0.25
+MIN_AGE                = LOOKBACK*1.5
+MIN_WEIGHT             = 0.40
+MAX_SHARE              = MIN_WEIGHT*(INITIAL_PORTFOLIO_VALUE/DESIRED_PAIRS)
 MAX_PAIR_WEIGHT        = 0.20
 MIN_VOLUME             = 1e4
 MKTCAP_MIN             = 1e8
 MKTCAP_MAX             = 1e11
 
 EQUAL_WEIGHTS          = True
+SIMPLE_SPREADS         = True
 
 # TESTING PARAMS
-RANK_BY                   = 'ADFuller' # Ranking metric: select key from TEST_PARAMS
+RANK_BY                   = 'Zscore' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.01
+PVALUE                    = 0.05
 
 TEST_PARAMS               = {
-    'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 1 },
-    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
-    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },
-    'ADFuller':     {'min': -1e9,  'max': -2.8723451788613157,      'spreads': 1,  'run': 1 },
-    'HalfLife':     {'min': 2,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 1 },
+    'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 0 }, #quantconnect: min = 0.9
+    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 1 },
+    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 0 }, #wikipedia: 0-0.49
+    'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
+    'HalfLife':     {'min': 0,     'max': 50,                       'spreads': 1,  'run': 0 }, #caldeira: max=50 
     'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
-    'Zscore':       {'min': ENTRY, 'max': Z_STOP-ENTRY,             'spreads': 1,  'run': 1 },
-    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 1 },
-    'ADFPrices':    {'min': 0.10,  'max': 1.00,                     'spreads': 0,  'run': 1 }
+    'Zscore':       {'min': ENTRY, 'max': Z_STOP,                   'spreads': 1,  'run': 1 },
+    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 0 },
+    'ADFPrices':    {'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 1 }
 }
 
 LOOSE_PARAMS              = {
@@ -58,9 +59,9 @@ LOOSE_PARAMS              = {
     'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
     'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 0 },
     'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
-    'HalfLife':     {'min': 0,     'max': HEDGE_LOOKBACK*INTERVAL,  'spreads': 1,  'run': 0 },
+    'HalfLife':     {'min': 0,     'max': 42,                       'spreads': 1,  'run': 0 },
     'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
     'Zscore':       {'min': 0.0,   'max': Z_STOP,                   'spreads': 1,  'run': 1 },
-    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 1 },
+    'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 0 },
     'ADFPrices':    {'min': 0.05,  'max': 1.00,                     'spreads': 0,  'run': 0 }
 }
