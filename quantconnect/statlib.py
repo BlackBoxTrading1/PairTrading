@@ -108,7 +108,7 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         if SIMPLE_SPREADS:
-            spreads = np.array(series1[-length:]) - np.array(series2[-length:])
+            spreads = np.array(np.log(series1[-length:])) - np.array(np.log(series2[-length:]))
             # mean, std = np.mean(spreads), np.std(spreads)
             # normalized_spreads = []
             # for i in range(length):
