@@ -83,7 +83,11 @@ class PairsTrader(QCAlgorithm):
                 continue
             
             slope = 1
-            zscore = pair.spreads_raw[-1]
+            current_spread = pair.spreads_raw[-1]
+            std = np.std(pair.spreads_raw)
+            mean = np.mean(pair.spreads_raw)
+            zscore = (current_spread - avg)/std
+            
             if not SIMPLE_SPREADS:
                 slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
                 zscore = (pair.spreads_raw[-1])/np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
