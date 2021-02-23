@@ -3,6 +3,7 @@ from itertools import groupby
 from math import ceil
 import numpy as np
 from statlib import StatsLibrary
+import scipy.stats as ss
 from params import *
 
 class PairsTrader(QCAlgorithm):
@@ -85,12 +86,14 @@ class PairsTrader(QCAlgorithm):
             slope = 1
             current_spread = pair.spreads_raw[-1]
             std = np.std(pair.spreads_raw)
-            avg = np.mean(pair.spreads_raw)
+            latest_spreads = df(pair.spreads_raw[-HEDGE_LOOKBACK:])
+            latest_spreads_ewm = df.ewm(latest_spreads, span=HEDGE_LOOKBACK).mean()
+            avg = list(latest_spreads_ewm[0])[-1]
             zscore = (current_spread - avg)/std
             
             if not SIMPLE_SPREADS:
                 slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-                zscore = (pair.spreads_raw[-1]-np.mean(pair.spreads_raw[-HEDGE_LOOKBACK:]))/np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
+                zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)

@@ -8,7 +8,9 @@
 import numpy as np
 import statsmodels.tsa.stattools as sm
 from scipy.stats import shapiro, pearsonr, linregress
+import scipy.stats as ss
 from pykalman import KalmanFilter
+from pandas import DataFrame as df
 import math
 from params import *
 
@@ -79,13 +81,21 @@ class StatsLibrary:
         p2 = sm.adfuller(series2, autolag='BIC')[1]
         return min(p1,p2)
     
-    def zscore(self, series):
+    def zscore(self, spreads):
         current_residual = series[-1]
-        latest_residuals = series[-self.hedge_lookback:]
+        latest_residuals = series[-HEDGE_LOOKBACK:]
+        
         std = np.std(latest_residuals)
-        avg = np.mean(latest_residuals)
+        spreads_df = df(latest_residuals)
+        spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
+        avg = list(spreads_ewm_df[0])[-1]
+        
+        # avg = np.mean(latest_residuals)
+        
         zscore = (current_residual-avg)/std
         return abs(zscore)
+        
+        # return abs(ss.zscore(series[-HEDGE_LOOKBACK:], nan_policy='omit')[-1])
     
     def alpha(self, series1, series2):
         slope, intercept = self.linreg(series2, series1)
@@ -108,19 +118,16 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         if SIMPLE_SPREADS:
-            spreads = np.array(np.log(series1[-length:])) - np.array(np.log(series2[-length:]))
-            # mean, std = np.mean(spreads), np.std(spreads)
-            # normalized_spreads = []
-            # for i in range(length):
-            #     normalized_spreads.append((spreads[i+len(spreads)-length] - mean)/std)
-            # return normalized_spreads
+            # spreads = np.array(series1[-length:]) - np.array(series2[-length:])
+            
+            spreads = np.array(series1)/np.array(series2)
             return spreads
 
         residuals = []
         for i in range(length):
             start_index = len(series1) - length + i
-            X = sm.add_constant(series2[(start_index-self.hedge_lookback):start_index])
-            model = sm.OLS(series1[(start_index-self.hedge_lookback):start_index], X)
+            X = sm.add_constant(series2[(start_index-HEDGE_LOOKBACK):start_index])
+            model = sm.OLS(series1[(start_index-HEDGE_LOOKBACK):start_index], X)
             results = model.fit()
             resid = results.resid[-1]
             residuals = np.append(residuals, resid)
