@@ -25,7 +25,7 @@ class StatsLibrary:
 
     def correlation(self, series1, series2):
         r, p = pearsonr(series1, series2)
-        if p < PVALUE:
+        if p <= PVALUE:
             return r
         else:
             return float('NaN')
@@ -81,21 +81,18 @@ class StatsLibrary:
         p2 = sm.adfuller(series2, autolag='BIC')[1]
         return min(p1,p2)
     
-    def zscore(self, spreads):
-        current_residual = series[-1]
+    def zscore(self, series):
         latest_residuals = series[-HEDGE_LOOKBACK:]
         
-        std = np.std(latest_residuals)
-        spreads_df = df(latest_residuals)
-        spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
-        avg = list(spreads_ewm_df[0])[-1]
+        # current_residual = series[-1]
+        # std = np.std(latest_residuals)
+        # spreads_df = df(latest_residuals)
+        # spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
+        # avg = list(spreads_ewm_df[0])[-1]
+        # zscore = (current_residual-avg)/std
+        # return abs(zscore)
         
-        # avg = np.mean(latest_residuals)
-        
-        zscore = (current_residual-avg)/std
-        return abs(zscore)
-        
-        # return abs(ss.zscore(series[-HEDGE_LOOKBACK:], nan_policy='omit')[-1])
+        return abs(ss.zscore(latest_residuals, nan_policy='omit')[-1])
     
     def alpha(self, series1, series2):
         slope, intercept = self.linreg(series2, series1)
@@ -118,8 +115,6 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         if SIMPLE_SPREADS:
-            # spreads = np.array(series1[-length:]) - np.array(series2[-length:])
-            
             spreads = np.array(series1)/np.array(series2)
             return spreads
 

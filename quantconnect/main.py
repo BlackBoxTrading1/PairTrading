@@ -5,6 +5,7 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
+from pandas import DataFrame as df
 
 class PairsTrader(QCAlgorithm):
     
