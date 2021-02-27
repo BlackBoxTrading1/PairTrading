@@ -292,18 +292,18 @@ class Stock:
         self.id = id
         self.ph_raw = []
         self.ph = []
-        self.max_price = 0
+        self.stop_price = 0
         self.long = False
         
     def __str__(self):
         return "{1}".format(self.id)
         
     def purchase_info(self):
-        return {"long": self.long, "max": self.max_price, "current": self.ph_raw[-1]}
+        return {"long": self.long, "stop price": self.stop_price, "current": self.ph_raw[-1]}
 
     def update_purchase_info(self, price, is_long):
-        if price > self.max_price:
-            self.max_price = price
+        if (is_long and price > self.stop_price) or ((not is_long) and (price < self.stop_price or self.stop_price == 0)):
+            self.stop_price = price
         self.long = is_long
 
 class Pair:
@@ -401,8 +401,8 @@ class PairTester:
         return (result >= self.config[test]['min'] and result <= self.config[test]['max'])
         
     def test_stoploss(self, pair):
-        if (pair.left.max_price) == 0 and (pair.right.max_price == 0):
+        if (pair.left.stop_price) == 0 and (pair.right.stop_price == 0):
             return True
-        left_fail = (pair.left.long and pair.left.ph[-1] < (1-STOPLOSS)*pair.left.max_price) or (not pair.left.long and pair.left.ph[-1] > (1+STOPLOSS)*pair.left.max_price)
-        right_fail = (pair.right.long and pair.right.ph[-1] < (1-STOPLOSS)*pair.right.max_price) or (not pair.right.long and pair.right.ph[-1] > (1+STOPLOSS)*pair.right.max_price)
+        left_fail = (pair.left.long and pair.left.ph[-1] < (1-STOPLOSS)*pair.left.stop_price) or (not pair.left.long and pair.left.ph[-1] > (1+STOPLOSS)*pair.left.stop_price)
+        right_fail = (pair.right.long and pair.right.ph[-1] < (1-STOPLOSS)*pair.right.stop_price) or (not pair.right.long and pair.right.ph[-1] > (1+STOPLOSS)*pair.right.stop_price)
         return not (left_fail or right_fail)
