@@ -63,6 +63,9 @@ class PairsTrader(QCAlgorithm):
             return
         # Check validity
         for pair in list(self.weight_mgr.pairs):
+            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+100), self.daily_close(pair.right.ticker, LOOKBACK+100)
+            pair.left.update_purchase_info(pair.left.ph_raw[-1], pair.left.long)
+            pair.right.update_purchase_info(pair.right.ph_raw[-1], pair.right.long)
             if not self.loose_tester.test_stoploss(pair):
                 self.Log("Removing {0}. Failed stoploss. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.weight_mgr.zero(pair)
@@ -71,7 +74,6 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
         # Run loose tests
         for pair in list(self.weight_mgr.pairs):
-            pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+100), self.daily_close(pair.right.ticker, LOOKBACK+100)
             pair.left.ph, pair.right.ph = self.library.run_kalman(pair.left.ph_raw), self.library.run_kalman(pair.right.ph_raw)
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
@@ -290,17 +292,18 @@ class Stock:
         self.id = id
         self.ph_raw = []
         self.ph = []
-        self.purchase_price = 0
+        self.max_price = 0
         self.long = False
         
     def __str__(self):
         return "{1}".format(self.id)
         
     def purchase_info(self):
-        return {"long": self.long, "purchase": self.purchase_price, "current": self.ph_raw[-1]}
+        return {"long": self.long, "max": self.max_price, "current": self.ph_raw[-1]}
 
     def update_purchase_info(self, price, is_long):
-        self.purchase_price = price
+        if price > self.max_price:
+            self.max_price = price
         self.long = is_long
 
 class Pair:
@@ -398,8 +401,8 @@ class PairTester:
         return (result >= self.config[test]['min'] and result <= self.config[test]['max'])
         
     def test_stoploss(self, pair):
-        if (pair.left.purchase_price) == 0 and (pair.right.purchase_price == 0):
+        if (pair.left.max_price) == 0 and (pair.right.max_price == 0):
             return True
-        left_fail = (pair.left.long and pair.left.ph[-1] < (1-STOPLOSS)*pair.left.purchase_price) or (not pair.left.long and pair.left.ph[-1] > (1+STOPLOSS)*pair.left.purchase_price)
-        right_fail = (pair.right.long and pair.right.ph[-1] < (1-STOPLOSS)*pair.right.purchase_price) or (not pair.right.long and pair.right.ph[-1] > (1+STOPLOSS)*pair.right.purchase_price)
+        left_fail = (pair.left.long and pair.left.ph[-1] < (1-STOPLOSS)*pair.left.max_price) or (not pair.left.long and pair.left.ph[-1] > (1+STOPLOSS)*pair.left.max_price)
+        right_fail = (pair.right.long and pair.right.ph[-1] < (1-STOPLOSS)*pair.right.max_price) or (not pair.right.long and pair.right.ph[-1] > (1+STOPLOSS)*pair.right.max_price)
         return not (left_fail or right_fail)
