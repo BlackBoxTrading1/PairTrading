@@ -25,6 +25,7 @@ class PairsTrader(QCAlgorithm):
             self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
+        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage)
     
     def choose_pairs(self):
         if not self.industry_map:
@@ -100,10 +101,22 @@ class PairsTrader(QCAlgorithm):
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
-            elif (zscore > ENTRY and (not pair.currently_short)):
+            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+                if CHECK_DOWNTICK:
+                    pair.short_dt, pair.long_dt = True, False
+                else:
+                    self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
+            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+                if CHECK_DOWNTICK:
+                    pair.long_dt, pair.short_dt = True, False
+                else:
+                    self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
+            
+            if CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (zscore < -ENTRY and (not pair.currently_long)):
+            elif CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
+            
 
         # Place orders
         weights = self.weight_mgr.weights
@@ -239,6 +252,7 @@ class WeightManager:
         pair.left.update_purchase_info(0, False)
         pair.right.update_purchase_info(0, False)
         pair.currently_short, pair.currently_long = False, False
+        pair.long_dt, pair.short_dt = False, False
         if (self.num_allocated/2) > (1/self.max_pair_weight):
             self.scale_keys(self.num_allocated/(self.num_allocated-2))
         self.num_allocated = self.num_allocated - 2
@@ -314,6 +328,7 @@ class Pair:
         self.industry = industry
         self.latest_test_results = {}
         self.currently_long, self.currently_short = False, False
+        self.long_dt, self.short_dt = False, False
     
     def __str__(self):
         pair = "([{0} & [{1}])".format(self.left.ticker, self.right.ticker)
