@@ -111,9 +111,9 @@ class PairsTrader(QCAlgorithm):
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
-            if CHECK_DOWNTICK and pair.short_dt and (zscore > EXIT) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            if CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif CHECK_DOWNTICK and pair.long_dt and (zscore < -EXIT) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif CHECK_DOWNTICK and pair.long_dt and (zscore < -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
 

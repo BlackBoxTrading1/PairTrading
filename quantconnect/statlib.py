@@ -92,7 +92,9 @@ class StatsLibrary:
         # zscore = (current_residual-avg)/std
         # return abs(zscore)
         
-        return abs(ss.zscore(latest_residuals, nan_policy='omit')[-1])
+        zscore = ss.zscore(latest_residuals, nan_policy='omit')[-1]
+        
+        return abs(zscore)
     
     def alpha(self, series1, series2):
         slope, intercept = self.linreg(series2, series1)
