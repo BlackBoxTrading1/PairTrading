@@ -25,6 +25,7 @@ class PairsTrader(QCAlgorithm):
             self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
+        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage)
     
     def choose_pairs(self):
         if not self.industry_map:
