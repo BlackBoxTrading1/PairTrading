@@ -17,13 +17,13 @@ END_M, END_D, END_Y = 12, 28, 2018
 INITIAL_PORTFOLIO_VALUE= 1e4
 LEVERAGE               = 1.0
 INTERVAL               = 1     #caldeira: 4 months w/reversals
-DESIRED_PAIRS          = 20    #caldeira: 20
-MAX_ACTIVE_PAIRS       = 10
+DESIRED_PAIRS          = FINE_LIMIT    
+MAX_ACTIVE_PAIRS       = 10    #caldeira: 20
 LOOKBACK               = 365*1 #quantopian: 5 years
 HEDGE_LOOKBACK         = 21*3  #pairtradinglab: 15-300, quantconnect: 3 mo, quantopian: 20
 ENTRY                  = 2.00  #pairtradinglab: 1.5, quantconnect: 2.23, caldeira: 2.0, quantopian: 1
 EXIT                   = 0.50  #pairtradinglab/quantopian: 0.0, quantconnect: 0.5, caldeira: 0.5
-DOWTICK                = 1.00  #pairtradinglab: 0-1
+DOWNTICK               = 1.00  #pairtradinglab: 0-1
 Z_STOP                 = 4.50  #pairtradinglab >4.0, quantconnect: 4.5
 STOPLOSS               = 0.15  #caldeira: 7%
 MIN_SHARE              = 5.00
@@ -42,7 +42,7 @@ CHECK_DOWNTICK         = True
 # TESTING PARAMS
 RANK_BY                   = 'Hurst' # Ranking metric: select key from TEST_PARAMS
 RANK_DESCENDING           = False
-PVALUE                    = 0.01
+PVALUE                    = 0.05
 
 TEST_PARAMS               = {
     'Correlation':  {'min': 0.90,  'max': 1.00,                     'spreads': 0,  'run': 1 },  #quantconnect: min = 0.9
