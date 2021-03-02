@@ -85,15 +85,15 @@ class StatsLibrary:
     def zscore(self, series):
         latest_residuals = series[-HEDGE_LOOKBACK:]
         
-        # current_residual = series[-1]
-        # std = np.std(latest_residuals)
-        # spreads_df = df(latest_residuals)
-        # spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
-        # avg = list(spreads_ewm_df[0])[-1]
-        # zscore = (current_residual-avg)/std
-        # return abs(zscore)
-        
-        zscore = ss.zscore(latest_residuals, nan_policy='omit')[-1]
+        if EWA:
+            current_residual = series[-1]
+            std = np.std(latest_residuals)
+            spreads_df = df(latest_residuals)
+            spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
+            avg = list(spreads_ewm_df[0])[-1]
+            zscore = (current_residual-avg)/std
+        else:
+            zscore = ss.zscore(latest_residuals, nan_policy='omit')[-1]
         
         return abs(zscore)
     

@@ -88,12 +88,15 @@ class PairsTrader(QCAlgorithm):
                 continue
             
             slope = 1
-            current_spread = pair.spreads_raw[-1]
-            std = np.std(pair.spreads_raw)
-            latest_spreads = df(pair.spreads_raw[-HEDGE_LOOKBACK:])
-            latest_spreads_ewm = df.ewm(latest_spreads, span=HEDGE_LOOKBACK).mean()
-            avg = list(latest_spreads_ewm[0])[-1]
-            zscore = (current_spread - avg)/std
+            if EWA:
+                current_spread = pair.spreads_raw[-1]
+                std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
+                latest_spreads = df(pair.spreads_raw[-HEDGE_LOOKBACK:])
+                latest_spreads_ewm = df.ewm(latest_spreads, span=HEDGE_LOOKBACK).mean()
+                avg = list(latest_spreads_ewm[0])[-1]
+                zscore = (current_spread - avg)/std
+            else:
+                zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
             if not SIMPLE_SPREADS:
                 slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
