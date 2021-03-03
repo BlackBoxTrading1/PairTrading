@@ -8,7 +8,7 @@
 RUN_TEST_STOCKS        = False
 TEST_STOCKS            = {123: ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']}
 COARSE_LIMIT           = 10000
-FINE_LIMIT             = 750    # <COARSE_LIMIT
+FINE_LIMIT             = 500    # <COARSE_LIMIT
 
 # BACKTEST PARAMS
 ST_M, ST_D, ST_Y       = 1, 1, 2016
@@ -21,12 +21,12 @@ DESIRED_PAIRS          = FINE_LIMIT
 MAX_ACTIVE_PAIRS       = 5     #caldeira: 20
 HEDGE_LOOKBACK         = 15*1  #pairtradinglab: 15-300, quantconnect: 3 mo, quantopian: 20
 RSI_LOOKBACK           = 14    #default = 14
-LOOKBACK               = 365*3 #quantopian: 5 years
+LOOKBACK               = 365*2 #quantopian: 5 years
 ENTRY                  = 2.00  #pairtradinglab: 1.5, quantconnect: 2.23, caldeira: 2.0, quantopian: 1
 EXIT                   = 0.50  #pairtradinglab/quantopian: 0.0, quantconnect: 0.5, caldeira: 0.5
 DOWNTICK               = 1.00  #pairtradinglab: 0-1
 Z_STOP                 = 4.50  #pairtradinglab >4.0, quantconnect: 4.5
-RSI_THRESHOLD          = 20    # default = 20
+RSI_THRESHOLD          = 30    # default = 20
 STOPLOSS               = 0.07  #caldeira: 7%
 MIN_SHARE              = 5.00
 MIN_AGE                = LOOKBACK*2

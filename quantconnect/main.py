@@ -87,41 +87,19 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
             
+            # spread adjustments
             if RSI:
-                deltas = np.append([0],np.diff(pair.spreads_raw))
-                avg_gain =  np.sum(deltas[1:RSI_LOOKBACK+1].clip(min=0)) / RSI_LOOKBACK
-                avg_loss = -np.sum(deltas[1:RSI_LOOKBACK+1].clip(max=0)) / RSI_LOOKBACK
-                array = np.empty(deltas.shape[0])
-                array.fill(np.nan)
-                up   = lambda x:  x if x > 0 else 0
-                down = lambda x: -x if x < 0 else 0
-                i = RSI_LOOKBACK+1
-                for d in deltas[RSI_LOOKBACK+1:]:
-                    avg_gain = ((avg_gain * (RSI_LOOKBACK-1)) + up(d)) / RSI_LOOKBACK
-                    avg_loss = ((avg_loss * (RSI_LOOKBACK-1)) + down(d)) / RSI_LOOKBACK
-                    if avg_loss != 0:
-                        rs = avg_gain / avg_loss
-                        array[i] = 100 - (100 / (1 + rs))
-                    else:
-                        array[i] = 100
-                    i += 1
-                latest_rsi = array[-1]-50
-            
+                latest_rsi = self.library.get_rsi(pair.spreads_raw, RSI_LOOKBACK)
             slope = 1
             if EWA:
-                current_spread = pair.spreads_raw[-1]
-                std = np.std(pair.spreads_raw[-HEDGE_LOOKBACK:])
-                latest_spreads = df(pair.spreads_raw[-HEDGE_LOOKBACK:])
-                latest_spreads_ewm = df.ewm(latest_spreads, span=HEDGE_LOOKBACK).mean()
-                avg = list(latest_spreads_ewm[0])[-1]
-                zscore = (current_spread - avg)/std
+                zscore = self.library.ewa(pair.spreads_raw[-HEDGE_LOOKBACK:])
             else:
                 zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
-            
             if not SIMPLE_SPREADS:
                 slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
                 zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
+            # trading logic
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
             elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
