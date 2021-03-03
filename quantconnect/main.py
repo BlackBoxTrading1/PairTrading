@@ -87,6 +87,26 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
             
+            if RSI:
+                deltas = np.append([0],np.diff(pair.spreads_raw))
+                avg_gain =  np.sum(deltas[1:RSI_LOOKBACK+1].clip(min=0)) / RSI_LOOKBACK
+                avg_loss = -np.sum(deltas[1:RSI_LOOKBACK+1].clip(max=0)) / RSI_LOOKBACK
+                array = np.empty(deltas.shape[0])
+                array.fill(np.nan)
+                up   = lambda x:  x if x > 0 else 0
+                down = lambda x: -x if x < 0 else 0
+                i = RSI_LOOKBACK+1
+                for d in deltas[RSI_LOOKBACK+1:]:
+                    avg_gain = ((avg_gain * (RSI_LOOKBACK-1)) + up(d)) / RSI_LOOKBACK
+                    avg_loss = ((avg_loss * (RSI_LOOKBACK-1)) + down(d)) / RSI_LOOKBACK
+                    if avg_loss != 0:
+                        rs = avg_gain / avg_loss
+                        array[i] = 100 - (100 / (1 + rs))
+                    else:
+                        array[i] = 100
+                    i += 1
+                latest_rsi = array[-1]-50
+            
             slope = 1
             if EWA:
                 current_spread = pair.spreads_raw[-1]
@@ -104,12 +124,12 @@ class PairsTrader(QCAlgorithm):
             
             if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
                 self.weight_mgr.zero(pair)
-            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.short_dt, pair.long_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.long_dt, pair.short_dt = True, False
                 else:
