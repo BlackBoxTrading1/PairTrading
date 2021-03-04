@@ -18,7 +18,7 @@ class PairsTrader(QCAlgorithm):
         self.industries= []
         self.industry_map, self.dv_by_symbol = {}, {}
         
-        self.library = StatsLibrary(hedge_lookback=HEDGE_LOOKBACK, min_weight=MIN_WEIGHT, downtick=DOWNTICK)
+        self.library = StatsLibrary()
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
         if not RUN_TEST_STOCKS:
@@ -65,8 +65,9 @@ class PairsTrader(QCAlgorithm):
         # Check validity
         for pair in list(self.weight_mgr.pairs):
             pair.left.ph_raw, pair.right.ph_raw = self.daily_close(pair.left.ticker, LOOKBACK+100), self.daily_close(pair.right.ticker, LOOKBACK+100)
-            pair.left.update_purchase_info(pair.left.ph_raw[-1], pair.left.long)
-            pair.right.update_purchase_info(pair.right.ph_raw[-1], pair.right.long)
+            if self.weight_mgr.is_allocated(pair):
+                pair.left.update_purchase_info(pair.left.ph_raw[-1], pair.left.long)
+                pair.right.update_purchase_info(pair.right.ph_raw[-1], pair.right.long)
             if not self.loose_tester.test_stoploss(pair):
                 self.Log("Removing {0}. Failed stoploss. \n\t\t\t{1}: {2}\n\t\t\t{3}: {4}".format(pair, pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
                 self.weight_mgr.zero(pair)
@@ -116,7 +117,7 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
             elif CHECK_DOWNTICK and pair.long_dt and (zscore <= -self.library.downtick) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
-            
+
 
         # Place orders
         weights = self.weight_mgr.weights
@@ -242,6 +243,9 @@ class WeightManager:
                 del self.weights[pair.right.id]
                 self.pairs.remove(pair)
         self.updated.clear()
+    
+    def is_allocated(self, pair):
+        return (self.weights[pair.left.id] != 0 and self.weights[pair.right.id] != 0)
     
     def zero(self, pair):
         self.updated.add(pair)

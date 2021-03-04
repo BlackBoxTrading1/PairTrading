@@ -15,11 +15,6 @@ import math
 from params import *
 
 class StatsLibrary:
-    
-    def __init__(self, hedge_lookback, min_weight, downtick):
-        self.hedge_lookback = hedge_lookback
-        self.min_weight = min_weight
-        self.downtick = downtick
 
     def get_func_by_name(self, name):
         return getattr(self, name.lower())
