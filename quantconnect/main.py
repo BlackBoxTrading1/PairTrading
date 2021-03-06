@@ -40,16 +40,23 @@ class PairsTrader(QCAlgorithm):
 
         # Testing pairs
         pairs = [pair for industry in self.industries for pair in industry.pairs]
-        pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
+        if SIMPLE_SPREADS:
+            pairs = [pair for pair in pairs if (self.strict_tester.test_pair(pair, spreads=False) and self.strict_tester.test_pair(pair.reverse_pair, spreads=False))]
+        else:
+            pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
             pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
             pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
         self.strict_tester.reset()
-        pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
+        if SIMPLE_SPREADS:
+            pairs = [pair for pair in pairs if (self.strict_tester.test_pair(pair, spreads=True) and self.strict_tester.test_pair(pair.reverse_pair, spreads=True))]
+        else:
+            pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
 
         # Sorting and removing overlapping pairs
+        pairs.extend([pair.reverse_pair for pair in pairs])
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         final_pairs = []
         for pair in pairs:
@@ -143,7 +150,10 @@ class PairsTrader(QCAlgorithm):
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
             if industry.size() > 1:
-                industry.create_pairs()
+                if SIMPLE_SPREADS:
+                    industry.create_pairs(allow_reverse=False)
+                else:
+                    industry.create_pairs(allow_reverse=True)
                 industries.append(industry)
         return sorted(industries, key=lambda x: x.size(), reverse=False)
         
@@ -328,6 +338,7 @@ class Pair:
     
     def __init__(self, s1, s2, industry):
         self.left, self.right = s1, s2
+        self.reverse_pair = None
         self.spreads, self.spreads_raw = [], []
         self.industry = industry
         self.latest_test_results = {}
@@ -363,12 +374,16 @@ class Industry:
     def add_stock(self, stock):
         self.stocks.append(stock)
         
-    def create_pairs(self):
+    def create_pairs(self, allow_reverse=True):
         for i in range(len(self.stocks)):
             for j in range(i+1, len(self.stocks)):
                 pair1 = Pair(self.stocks[i], self.stocks[j], self)
                 pair2 = Pair(self.stocks[j], self.stocks[i], self)
-                self.pairs.extend([pair1, pair2])
+                pair1.reverse_pair = pair2
+                pair2.reverse_pair = pair1
+                self.pairs.append(pair1)
+                if allow_reverse:
+                    self.pairs.append(pair2)
         
 class PairTester:
     
