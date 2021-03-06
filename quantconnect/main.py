@@ -5,7 +5,6 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
-from pandas import DataFrame as df
 
 class PairsTrader(QCAlgorithm):
     
@@ -13,6 +12,7 @@ class PairsTrader(QCAlgorithm):
         self.SetStartDate(ST_Y, ST_M, ST_D)
         self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
+        self.SetBenchmark("SPY")
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.last_month = -1
         self.industries= []
@@ -88,26 +88,27 @@ class PairsTrader(QCAlgorithm):
                 self.weight_mgr.zero(pair)
                 continue
             
+            # spread adjustments
+            if RSI:
+                latest_rsi = self.library.get_rsi(pair.spreads_raw, RSI_LOOKBACK)
             slope = 1
-            current_spread = pair.spreads_raw[-1]
-            std = np.std(pair.spreads_raw)
-            latest_spreads = df(pair.spreads_raw[-HEDGE_LOOKBACK:])
-            latest_spreads_ewm = df.ewm(latest_spreads, span=HEDGE_LOOKBACK).mean()
-            avg = list(latest_spreads_ewm[0])[-1]
-            zscore = (current_spread - avg)/std
-            
+            if EWA:
+                zscore = self.library.ewa(pair.spreads_raw[-HEDGE_LOOKBACK:])
+            else:
+                zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             if not SIMPLE_SPREADS:
                 slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
                 zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
-            if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
+            # trading logic
+            if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
                 self.weight_mgr.zero(pair)
-            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.short_dt, pair.long_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.long_dt, pair.short_dt = True, False
                 else:
@@ -264,7 +265,7 @@ class WeightManager:
     def assign(self, pair, y_target_shares, X_target_shares):
         notionalDol =  abs(y_target_shares * pair.left.ph_raw[-1]) + abs(X_target_shares * pair.right.ph_raw[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * pair.left.ph_raw[-1] / notionalDol, X_target_shares * pair.right.ph_raw[-1] / notionalDol)
-        if EQUAL_WEIGHTS:
+        if SIMPLE_SPREADS:
             if x_target_pct<0:
                 x_target_pct = -0.5
                 y_target_pct = 0.5

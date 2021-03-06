@@ -77,19 +77,46 @@ class StatsLibrary:
         p2 = sm.adfuller(series2, autolag='BIC')[1]
         return min(p1,p2)
     
+    def ewa(self, series):
+        current_residual = series[-1]
+        std = np.std(series)
+        spreads_df = df(series)
+        spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
+        avg = list(spreads_ewm_df[0])[-1]
+        zscore = (current_residual-avg)/std
+        return zscore
+    
+    def calc_rsi(self, array, deltas, avg_gain, avg_loss, n ):
+        up   = lambda x:  x if x > 0 else 0
+        down = lambda x: -x if x < 0 else 0
+        i = n+1
+        for d in deltas[n+1:]:
+            avg_gain = ((avg_gain * (n-1)) + up(d)) / n
+            avg_loss = ((avg_loss * (n-1)) + down(d)) / n
+            if avg_loss != 0:
+                rs = avg_gain / avg_loss
+                array[i] = 100 - (100 / (1 + rs))
+            else:
+                array[i] = 100
+            i += 1
+        return array
+    
+    def get_rsi(self, array, n):   
+        deltas = np.append([0],np.diff(array))
+        avg_gain =  np.sum(deltas[1:n+1].clip(min=0)) / n
+        avg_loss = -np.sum(deltas[1:n+1].clip(max=0)) / n
+        array = np.empty(deltas.shape[0])
+        array.fill(np.nan)
+        array = self.calc_rsi( array, deltas, avg_gain, avg_loss, n )
+        latest_rsi = array[-1]-50
+        return latest_rsi
+    
     def zscore(self, series):
         latest_residuals = series[-HEDGE_LOOKBACK:]
-        
-        # current_residual = series[-1]
-        # std = np.std(latest_residuals)
-        # spreads_df = df(latest_residuals)
-        # spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
-        # avg = list(spreads_ewm_df[0])[-1]
-        # zscore = (current_residual-avg)/std
-        # return abs(zscore)
-        
-        zscore = ss.zscore(latest_residuals, nan_policy='omit')[-1]
-        
+        if EWA:
+            zscore = self.ewa(latest_residuals)
+        else:
+            zscore = ss.zscore(latest_residuals, nan_policy='omit')[-1]
         return abs(zscore)
     
     def alpha(self, series1, series2):
