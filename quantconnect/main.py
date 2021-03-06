@@ -5,7 +5,7 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
-from pandas import DataFrame as df
+from pandas import DataFrame as dfsi
 
 class PairsTrader(QCAlgorithm):
     
@@ -13,6 +13,7 @@ class PairsTrader(QCAlgorithm):
         self.SetStartDate(ST_Y, ST_M, ST_D)
         self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
+        self.SetBenchmark("SPY")
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.last_month = -1
         self.industries= []
@@ -100,7 +101,7 @@ class PairsTrader(QCAlgorithm):
                 zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
             
             # trading logic
-            if (pair.currently_short and zscore < EXIT) or (pair.currently_long and zscore > -EXIT):   
+            if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
                 self.weight_mgr.zero(pair)
             elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
@@ -261,7 +262,7 @@ class WeightManager:
     def assign(self, pair, y_target_shares, X_target_shares):
         notionalDol =  abs(y_target_shares * pair.left.ph_raw[-1]) + abs(X_target_shares * pair.right.ph_raw[-1])
         (y_target_pct, x_target_pct) = (y_target_shares * pair.left.ph_raw[-1] / notionalDol, X_target_shares * pair.right.ph_raw[-1] / notionalDol)
-        if EQUAL_WEIGHTS:
+        if SIMPLE_SPREADS:
             if x_target_pct<0:
                 x_target_pct = -0.5
                 y_target_pct = 0.5
