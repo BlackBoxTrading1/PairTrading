@@ -49,11 +49,15 @@ class PairsTrader(QCAlgorithm):
             pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
             pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
         self.strict_tester.reset()
-        if SIMPLE_SPREADS:
-            pairs = [pair for pair in pairs if (self.strict_tester.test_pair(pair, spreads=True) and self.strict_tester.test_pair(pair.reverse_pair, spreads=True))]
-        else:
-            pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
+        pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
+        if SIMPLE_SPREADS:
+            self.strict_tester.reset()
+            for pair in pairs:
+                pair.reverse_pair.spreads = self.library.get_spreads(pair.reverse_pair.left.ph, pair.reverse_pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
+                pair.reverse_pair.spreads_raw = self.library.get_spreads(pair.reverse_pair.left.ph_raw, pair.reverse_pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
+            pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair.reverse_pair, spreads=True)]
+            self.Log("Spread Testing Reverse Pairs...\n\t\t\t{0}".format(self.strict_tester))
 
         # Sorting and removing overlapping pairs
         pairs.extend([pair.reverse_pair for pair in pairs])
