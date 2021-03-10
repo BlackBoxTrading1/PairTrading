@@ -25,7 +25,7 @@ class PairsTrader(QCAlgorithm):
             self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
-        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage)
+        self.SetBrokerageModel(BrokerageName.TradierBrokerage)
     
     def choose_pairs(self):
         if not self.industry_map:
@@ -125,9 +125,9 @@ class PairsTrader(QCAlgorithm):
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
-            if CHECK_DOWNTICK and pair.short_dt and (zscore >= self.library.downtick) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            if CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif CHECK_DOWNTICK and pair.long_dt and (zscore <= -self.library.downtick) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
 
