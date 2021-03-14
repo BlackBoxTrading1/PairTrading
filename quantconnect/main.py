@@ -210,50 +210,6 @@ class PairsTrader(QCAlgorithm):
             self.industry_map[x.AssetClassification.MorningstarIndustryCode].append(x.Symbol.Value)
         return [x.Symbol for x in final_securities]
         
-    # def select_coarse(self, coarse):
-    #     if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
-    #         return Universe.Unchanged
-    #     self.industry_map.clear()
-    #     sortedByDollarVolume = sorted([x for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE], key = lambda x: x.DollarVolume, reverse=True)[:COARSE_LIMIT]
-    #     self.dv_by_symbol = {x.Symbol:x.DollarVolume for x in sortedByDollarVolume}
-    #     if len(self.dv_by_symbol) == 0:
-    #         return Universe.Unchanged
-
-    #     return list(self.dv_by_symbol.keys())
-        
-    # def select_fine(self, fine):
-    #     sortedBySector = sorted([x for x in fine if x.CompanyReference.CountryId == "USA"
-    #                                     and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
-    #                                     and (self.Time - x.SecurityReference.IPODate).days > MIN_AGE
-    #                                     and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
-    #                                     and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
-    #                                     and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
-    #                                     and MKTCAP_MIN < x.MarketCap 
-    #                                     and x.MarketCap < MKTCAP_MAX
-    #                                     and not x.SecurityReference.IsDepositaryReceipt],
-    #                           key = lambda x: x.CompanyReference.IndustryTemplateCode)
-
-    #     count = len(sortedBySector)
-    #     if count == 0:
-    #         return Universe.Unchanged
-
-    #     self.last_month = self.Time.month
-    #     percent = FINE_LIMIT / count
-    #     sortedByDollarVolume = []
-
-    #     for code, g in groupby(sortedBySector, lambda x: x.CompanyReference.IndustryTemplateCode):
-    #         y = sorted(g, key = lambda x: self.dv_by_symbol[x.Symbol], reverse = True)
-    #         c = ceil(len(y) * percent)
-    #         sortedByDollarVolume.extend(y[:c])
-
-    #     sortedByDollarVolume = sorted(sortedByDollarVolume, key = lambda x: self.dv_by_symbol[x.Symbol], reverse=True)
-    #     final_securities = sortedByDollarVolume[:FINE_LIMIT]
-    #     for x in final_securities:
-    #         if not (x.AssetClassification.MorningstarIndustryCode in self.industry_map):
-    #             self.industry_map[x.AssetClassification.MorningstarIndustryCode] = []
-    #         self.industry_map[x.AssetClassification.MorningstarIndustryCode].append(x.Symbol.Value)
-    #     return [x.Symbol for x in final_securities]
-        
 #####################
 # CLASS DEFINITIONS #
 ####################################################################################################
