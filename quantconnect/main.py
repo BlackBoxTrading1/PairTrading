@@ -114,20 +114,20 @@ class PairsTrader(QCAlgorithm):
             # trading logic
             if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
                 self.weight_mgr.zero(pair)
-            elif (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
+            elif (self.Time.day < 20) and (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.short_dt, pair.long_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
+            elif (self.Time.day < 20) and (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.long_dt, pair.short_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
-            if CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            if (self.Time.day < 20) and CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (self.Time.day < 20) and CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
 
