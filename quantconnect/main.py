@@ -16,7 +16,7 @@ class PairsTrader(QCAlgorithm):
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.last_month = -1
         self.industries= []
-        self.industry_map, self.dv_by_symbol = {}, {}
+        self.industry_map = {}
         
         self.library = StatsLibrary()
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
