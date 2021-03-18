@@ -140,7 +140,8 @@ class StatsLibrary:
     
     def get_spreads(self, series1, series2, length):
         if SIMPLE_SPREADS:
-            spreads = np.array(series1)/np.array(series2)
+            min_len = min(len(series1), len(series2))
+            spreads = np.array(series1[-min_len:])/np.array(series2[-min_len:])
             return spreads
 
         residuals = []
