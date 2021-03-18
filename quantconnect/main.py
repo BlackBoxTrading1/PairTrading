@@ -12,8 +12,8 @@ class PairsTrader(QCAlgorithm):
         self.SetStartDate(ST_Y, ST_M, ST_D)
         self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
-        self.SetBenchmark("SPY")
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
+        self.SetBenchmark("SPY")
         self.last_month = -1
         self.industries= []
         self.industry_map = {}
@@ -21,11 +21,13 @@ class PairsTrader(QCAlgorithm):
         self.library = StatsLibrary()
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
-        if not RUN_TEST_STOCKS:
-            self.AddUniverse(self.select_coarse, self.select_fine)
+        self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
         self.SetBrokerageModel(BrokerageName.TradierBrokerage)
+    
+    def OnData(self, data):
+        pass
     
     def choose_pairs(self):
         if not self.industry_map:
@@ -141,13 +143,11 @@ class PairsTrader(QCAlgorithm):
         self.weight_mgr.reset()
     
     def create_industries(self):
-        if RUN_TEST_STOCKS:
-            self.industry_map = TEST_STOCKS
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)
             for ticker in self.industry_map[code]:
-                equity = self.AddEquity(ticker)
+                equity = self.AddEquity(ticker, Resolution.Daily)
                 price_history = self.daily_close(ticker, LOOKBACK+100)
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
@@ -155,10 +155,7 @@ class PairsTrader(QCAlgorithm):
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
             if industry.size() > 1:
-                if SIMPLE_SPREADS:
-                    industry.create_pairs(allow_reverse=False)
-                else:
-                    industry.create_pairs(allow_reverse=True)
+                industry.create_pairs(allow_reverse=(not SIMPLE_SPREADS))
                 industries.append(industry)
         return sorted(industries, key=lambda x: x.size(), reverse=False)
         
@@ -189,7 +186,7 @@ class PairsTrader(QCAlgorithm):
         if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
             return Universe.Unchanged
         self.industry_map.clear()
-        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE]
+        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]
         
     def select_fine(self, fine):
         final_securities = [x for x in fine if x.CompanyReference.CountryId == "USA"

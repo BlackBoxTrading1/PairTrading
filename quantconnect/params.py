@@ -5,8 +5,6 @@
 ### </summary>
 
 # UNIVERSE PARAMS
-RUN_TEST_STOCKS        = False
-TEST_STOCKS            = {123: ['F', 'GM', 'FB', 'TWTR', 'KO', 'PEP']}
 COARSE_LIMIT           = 10000
 FINE_LIMIT             = 750    # <COARSE_LIMIT
 
