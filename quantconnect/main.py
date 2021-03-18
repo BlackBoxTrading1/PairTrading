@@ -5,7 +5,7 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
-
+ 
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
@@ -58,9 +58,9 @@ class PairsTrader(QCAlgorithm):
                 pair.reverse_pair.spreads_raw = self.library.get_spreads(pair.reverse_pair.left.ph_raw, pair.reverse_pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
             pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair.reverse_pair, spreads=True)]
             self.Log("Spread Testing Reverse Pairs...\n\t\t\t{0}".format(self.strict_tester))
-
+            pairs.extend([pair.reverse_pair for pair in pairs])
+            
         # Sorting and removing overlapping pairs
-        pairs.extend([pair.reverse_pair for pair in pairs])
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         final_pairs = []
         for pair in pairs:
@@ -338,7 +338,10 @@ class Pair:
     def formatted_results(self):
         results = {}
         for key in self.latest_test_results:
-            results[key] = "{:.4f}".format(self.latest_test_results[key])
+            if self.latest_test_results[key] == None:
+                results[key] = "None"
+            else:
+                results[key] = "{:.4f}".format(self.latest_test_results[key])
         return results
 
     def contains(self, id):
