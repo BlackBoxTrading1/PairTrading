@@ -5,29 +5,30 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
- 
+
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
         self.SetStartDate(ST_Y, ST_M, ST_D)
         self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
-        self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.SetBenchmark("SPY")
+        self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
         self.last_month = -1
         self.industries= []
         self.industry_map = {}
         
-        self.library = StatsLibrary()
-        self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library)
-        self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library)
-        self.AddUniverse(self.select_coarse, self.select_fine)
+        hedge_input = self.GetParameter("hedge-lookback")
+        self.hedge_lookback = 15 if hedge_input is None else int(hedge_input)
+        
+        self.library = StatsLibrary(hedge_lookback=self.hedge_lookback)
+        self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
+        self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
+        if not RUN_TEST_STOCKS:
+            self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
         self.SetBrokerageModel(BrokerageName.TradierBrokerage)
-    
-    def OnData(self, data):
-        pass
     
     def choose_pairs(self):
         if not self.industry_map:
@@ -48,21 +49,21 @@ class PairsTrader(QCAlgorithm):
             pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=False)]
         self.Log("Price Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         for pair in pairs:
-            pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
-            pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
+            pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(self.hedge_lookback))
+            pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(self.hedge_lookback))
         self.strict_tester.reset()
         pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair, spreads=True)]
         self.Log("Spread Testing Pairs...\n\t\t\t{0}".format(self.strict_tester))
         if SIMPLE_SPREADS:
             self.strict_tester.reset()
             for pair in pairs:
-                pair.reverse_pair.spreads = self.library.get_spreads(pair.reverse_pair.left.ph, pair.reverse_pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
-                pair.reverse_pair.spreads_raw = self.library.get_spreads(pair.reverse_pair.left.ph_raw, pair.reverse_pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
+                pair.reverse_pair.spreads = self.library.get_spreads(pair.reverse_pair.left.ph, pair.reverse_pair.right.ph, self.true_lookback-(self.hedge_lookback))
+                pair.reverse_pair.spreads_raw = self.library.get_spreads(pair.reverse_pair.left.ph_raw, pair.reverse_pair.right.ph_raw, self.true_lookback-(self.hedge_lookback))
             pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair.reverse_pair, spreads=True)]
             self.Log("Spread Testing Reverse Pairs...\n\t\t\t{0}".format(self.strict_tester))
-            pairs.extend([pair.reverse_pair for pair in pairs])
-            
+
         # Sorting and removing overlapping pairs
+            pairs.extend([pair.reverse_pair for pair in pairs])
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         final_pairs = []
         for pair in pairs:
@@ -93,8 +94,8 @@ class PairsTrader(QCAlgorithm):
             pair.latest_test_results.clear()
             passed = self.loose_tester.test_pair(pair, spreads=False)
             if passed:
-                pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(HEDGE_LOOKBACK))
-                pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(HEDGE_LOOKBACK))
+                pair.spreads = self.library.get_spreads(pair.left.ph, pair.right.ph, self.true_lookback-(self.hedge_lookback))
+                pair.spreads_raw = self.library.get_spreads(pair.left.ph_raw, pair.right.ph_raw, self.true_lookback-(self.hedge_lookback))
                 passed = self.loose_tester.test_pair(pair, spreads=True)
             if not passed:
                 self.Log("Removing {0}. Failed tests.\n\t\t\tResults:{1} \n\t\t\t{2}: {3}\n\t\t\t{4}: {5}".format(pair, pair.formatted_results(), pair.left.ticker, pair.left.purchase_info(), pair.right.ticker, pair.right.purchase_info()))
@@ -106,12 +107,12 @@ class PairsTrader(QCAlgorithm):
                 latest_rsi = self.library.get_rsi(pair.spreads_raw, RSI_LOOKBACK)
             slope = 1
             if EWA:
-                zscore = self.library.ewa(pair.spreads_raw[-HEDGE_LOOKBACK:])
+                zscore = self.library.ewa(pair.spreads_raw[-self.hedge_lookback:])
             else:
-                zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
+                zscore = ss.zscore(pair.spreads_raw[-self.hedge_lookback:], nan_policy='omit')[-1]
             if not SIMPLE_SPREADS:
-                slope, _ = self.library.linreg(pair.right.ph_raw[-HEDGE_LOOKBACK:], pair.left.ph_raw[-HEDGE_LOOKBACK:])
-                zscore = ss.zscore(pair.spreads_raw[-HEDGE_LOOKBACK:], nan_policy='omit')[-1]
+                slope, _ = self.library.linreg(pair.right.ph_raw[-self.hedge_lookback:], pair.left.ph_raw[-self.hedge_lookback:])
+                zscore = ss.zscore(pair.spreads_raw[-self.hedge_lookback:], nan_policy='omit')[-1]
             
             # trading logic
             if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
@@ -143,11 +144,13 @@ class PairsTrader(QCAlgorithm):
         self.weight_mgr.reset()
     
     def create_industries(self):
+        if RUN_TEST_STOCKS:
+            self.industry_map = TEST_STOCKS
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)
             for ticker in self.industry_map[code]:
-                equity = self.AddEquity(ticker, Resolution.Daily)
+                equity = self.AddEquity(ticker)
                 price_history = self.daily_close(ticker, LOOKBACK+100)
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
@@ -155,7 +158,10 @@ class PairsTrader(QCAlgorithm):
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
             if industry.size() > 1:
-                industry.create_pairs(allow_reverse=(not SIMPLE_SPREADS))
+                if SIMPLE_SPREADS:
+                    industry.create_pairs(allow_reverse=False)
+                else:
+                    industry.create_pairs(allow_reverse=True)
                 industries.append(industry)
         return sorted(industries, key=lambda x: x.size(), reverse=False)
         
@@ -165,7 +171,7 @@ class PairsTrader(QCAlgorithm):
         self.loose_tester.reset()
         self.Liquidate()
         
-        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + int(np.ceil(HEDGE_LOOKBACK*7/5))))
+        self.true_lookback = len(self.daily_close("SPY", LOOKBACK + int(np.ceil(self.hedge_lookback*7/5))))
         self.desired_pairs = int(round(DESIRED_PAIRS * (self.Portfolio.TotalPortfolioValue / INITIAL_PORTFOLIO_VALUE)))
         return True
         
@@ -186,7 +192,7 @@ class PairsTrader(QCAlgorithm):
         if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
             return Universe.Unchanged
         self.industry_map.clear()
-        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]
+        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE]
         
     def select_fine(self, fine):
         final_securities = [x for x in fine if x.CompanyReference.CountryId == "USA"
@@ -373,13 +379,14 @@ class Industry:
         
 class PairTester:
     
-    def __init__(self, config, library):
+    def __init__(self, config, library, hedge_lookback):
         self.price_tests = [name for name in config if ((not config[name]['spreads']) and config[name]['run'])]
         self.spread_tests = [name for name in config if (config[name]['spreads'] and config[name]['run'])]
         self.config = config
         self.library = library
         self.count = 0
         self.failures = {}
+        self.hedge_lookback = hedge_lookback
         
     def __str__(self):
         if self.count == 0:
@@ -400,11 +407,11 @@ class PairTester:
             try:
                 # if test == "ZScore":
                 #     result = test_function(pair.spreads_raw)
-                # elif test == "Alpha":
-                #     result = test_function(pair.left.ph_raw[-HEDGE_LOOKBACK:], pair.right.ph_raw[-HEDGE_LOOKBACK:])
+                if test == "Alpha":
+                    result = test_function(pair.left.ph_raw[-self.hedge_lookback:], pair.right.ph_raw[-self.hedge_lookback:])
                 # elif test == "ShapiroWilke":
                 #     result = test_function(pair.spreads_raw)
-                if spreads:
+                elif spreads:
                     result = test_function(pair.spreads)
                 else:
                     result = test_function(pair.left.ph, pair.right.ph)
