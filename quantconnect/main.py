@@ -5,30 +5,34 @@ import numpy as np
 from statlib import StatsLibrary
 import scipy.stats as ss
 from params import *
-
+ 
 class PairsTrader(QCAlgorithm):
     
     def Initialize(self):
         self.SetStartDate(ST_Y, ST_M, ST_D)
         self.SetEndDate(END_Y, END_M, END_D)
         self.SetCash(INITIAL_PORTFOLIO_VALUE)
-        self.SetBenchmark("SPY")
         self.spy = self.AddEquity("SPY", Resolution.Daily).Symbol
+        self.SetBenchmark("SPY")
         self.last_month = -1
         self.industries= []
         self.industry_map = {}
         
         hedge_input = self.GetParameter("hedge-lookback")
         self.hedge_lookback = 15 if hedge_input is None else int(hedge_input)
+        entry_input = self.GetParameter("entry-input")
+        self.entry = 2.00 if entry_input is None else float(entry_input)
         
         self.library = StatsLibrary(hedge_lookback=self.hedge_lookback)
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
-        if not RUN_TEST_STOCKS:
-            self.AddUniverse(self.select_coarse, self.select_fine)
+        self.AddUniverse(self.select_coarse, self.select_fine)
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
         self.SetBrokerageModel(BrokerageName.TradierBrokerage)
+    
+    def OnData(self, data):
+        pass
     
     def choose_pairs(self):
         if not self.industry_map:
@@ -61,9 +65,9 @@ class PairsTrader(QCAlgorithm):
                 pair.reverse_pair.spreads_raw = self.library.get_spreads(pair.reverse_pair.left.ph_raw, pair.reverse_pair.right.ph_raw, self.true_lookback-(self.hedge_lookback))
             pairs = [pair for pair in pairs if self.strict_tester.test_pair(pair.reverse_pair, spreads=True)]
             self.Log("Spread Testing Reverse Pairs...\n\t\t\t{0}".format(self.strict_tester))
-
-        # Sorting and removing overlapping pairs
             pairs.extend([pair.reverse_pair for pair in pairs])
+            
+        # Sorting and removing overlapping pairs
         pairs = sorted(pairs, key=lambda x: x.latest_test_results[RANK_BY], reverse=RANK_DESCENDING)
         final_pairs = []
         for pair in pairs:
@@ -117,20 +121,20 @@ class PairsTrader(QCAlgorithm):
             # trading logic
             if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
                 self.weight_mgr.zero(pair)
-            elif (self.Time.day < 20) and (zscore > ENTRY and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
+            elif (self.Time.day < 20) and (zscore > self.entry and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.short_dt, pair.long_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (self.Time.day < 20) and (zscore < -ENTRY and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
+            elif (self.Time.day < 20) and (zscore < -self.entry and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.long_dt, pair.short_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
-            if (self.Time.day < 20) and CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= ENTRY) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            if (self.Time.day < 20) and CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= self.entry) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (self.Time.day < 20) and CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -ENTRY) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (self.Time.day < 20) and CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -self.entry) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
 
@@ -144,13 +148,11 @@ class PairsTrader(QCAlgorithm):
         self.weight_mgr.reset()
     
     def create_industries(self):
-        if RUN_TEST_STOCKS:
-            self.industry_map = TEST_STOCKS
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)
             for ticker in self.industry_map[code]:
-                equity = self.AddEquity(ticker)
+                equity = self.AddEquity(ticker, Resolution.Daily)
                 price_history = self.daily_close(ticker, LOOKBACK+100)
                 if (len(price_history) >= self.true_lookback):
                     stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
@@ -158,10 +160,7 @@ class PairsTrader(QCAlgorithm):
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
             if industry.size() > 1:
-                if SIMPLE_SPREADS:
-                    industry.create_pairs(allow_reverse=False)
-                else:
-                    industry.create_pairs(allow_reverse=True)
+                industry.create_pairs(allow_reverse=(not SIMPLE_SPREADS))
                 industries.append(industry)
         return sorted(industries, key=lambda x: x.size(), reverse=False)
         
@@ -192,7 +191,7 @@ class PairsTrader(QCAlgorithm):
         if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
             return Universe.Unchanged
         self.industry_map.clear()
-        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE]
+        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]
         
     def select_fine(self, fine):
         final_securities = [x for x in fine if x.CompanyReference.CountryId == "USA"
