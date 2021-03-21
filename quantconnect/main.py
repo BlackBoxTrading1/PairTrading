@@ -17,6 +17,7 @@ class PairsTrader(QCAlgorithm):
         self.last_month = -1
         self.industries= []
         self.industry_map = {}
+        self.interval = 1
         
         hedge_input = self.GetParameter("hedge-lookback")
         self.hedge_lookback = 15 if hedge_input is None else int(hedge_input)
@@ -121,20 +122,20 @@ class PairsTrader(QCAlgorithm):
             # trading logic
             if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
                 self.weight_mgr.zero(pair)
-            elif (self.Time.day < 20) and (zscore > self.entry and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
+            elif (self.Time.day < DAY_CUTOFF) and (zscore > self.entry and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.short_dt, pair.long_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (self.Time.day < 20) and (zscore < -self.entry and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
+            elif (self.Time.day < DAY_CUTOFF) and (zscore < -self.entry and (not pair.currently_long)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi<-RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
                     pair.long_dt, pair.short_dt = True, False
                 else:
                     self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
             
-            if (self.Time.day < 20) and CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= self.entry) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            if (self.Time.day < DAY_CUTOFF) and CHECK_DOWNTICK and pair.short_dt and (zscore >= DOWNTICK) and (zscore <= self.entry) and (not pair.currently_short) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=-1, X_target_shares=slope)
-            elif (self.Time.day < 20) and CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -self.entry) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
+            elif (self.Time.day < DAY_CUTOFF) and CHECK_DOWNTICK and pair.long_dt and (zscore <= -DOWNTICK) and (zscore >= -self.entry) and (not pair.currently_long) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS):
                 self.weight_mgr.assign(pair=pair, y_target_shares=1, X_target_shares=-slope)
 
 
@@ -188,7 +189,7 @@ class PairsTrader(QCAlgorithm):
         return history
         
     def select_coarse(self, coarse):
-        if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+INTERVAL+12) % 12)):
+        if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+self.interval+12) % 12)):
             return Universe.Unchanged
         self.industry_map.clear()
         return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]

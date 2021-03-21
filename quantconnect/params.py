@@ -14,7 +14,6 @@ END_M, END_D, END_Y    = 12, 28, 2020
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 5e3
 LEVERAGE               = 1.0
-INTERVAL               = 1     #caldeira: 4 months w/reversals
 DESIRED_PAIRS          = FINE_LIMIT    
 MAX_ACTIVE_PAIRS       = 5     #caldeira: 20
 HEDGE_LOOKBACK         = 15*1  #pairtradinglab: 15-300, quantconnect: 3 mo, quantopian: 20
@@ -35,9 +34,10 @@ MAX_PAIR_WEIGHT        = 0.20
 MIN_VOLUME             = 1e4
 MKTCAP_MIN             = 1e8
 MKTCAP_MAX             = 1e11
+DAY_CUTOFF             = 10
 
 SIMPLE_SPREADS         = True
-CHECK_DOWNTICK         = True
+CHECK_DOWNTICK         = False
 EWA                    = False
 RSI                    = True
 
@@ -48,7 +48,7 @@ PVALUE                 = 0.05
 
 TEST_PARAMS            = {
     'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 0 },  #quantconnect: min = 0.9
-    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 1 },
+    'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
     'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },  #wikipedia: 0-0.49
     'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
     'HalfLife':     {'min': 0,     'max': 42,                       'spreads': 1,  'run': 1 },  #caldeira: max=50 
