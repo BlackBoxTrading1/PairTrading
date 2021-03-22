@@ -16,6 +16,9 @@ from params import *
 
 class StatsLibrary:
 
+    def __init__(self, hedge_lookback):
+        self.hedge_lookback = hedge_lookback
+        
     def get_func_by_name(self, name):
         return getattr(self, name.lower())
 
@@ -81,7 +84,7 @@ class StatsLibrary:
         current_residual = series[-1]
         std = np.std(series)
         spreads_df = df(series)
-        spreads_ewm_df = df.ewm(spreads_df, span=HEDGE_LOOKBACK).mean()
+        spreads_ewm_df = df.ewm(spreads_df, span=self.hedge_lookback).mean()
         avg = list(spreads_ewm_df[0])[-1]
         zscore = (current_residual-avg)/std
         return zscore
@@ -112,7 +115,7 @@ class StatsLibrary:
         return latest_rsi
     
     def zscore(self, series):
-        latest_residuals = series[-HEDGE_LOOKBACK:]
+        latest_residuals = series[-self.hedge_lookback:]
         if EWA:
             zscore = self.ewa(latest_residuals)
         else:
@@ -148,8 +151,8 @@ class StatsLibrary:
         residuals = []
         for i in range(length):
             start_index = len(series1) - length + i
-            X = sm.add_constant(series2[(start_index-HEDGE_LOOKBACK):start_index])
-            model = sm.OLS(series1[(start_index-HEDGE_LOOKBACK):start_index], X)
+            X = sm.add_constant(series2[(start_index-self.hedge_lookback):start_index])
+            model = sm.OLS(series1[(start_index-self.hedge_lookback):start_index], X)
             results = model.fit()
             resid = results.resid[-1]
             residuals = np.append(residuals, resid)
