@@ -149,14 +149,19 @@ class PairsTrader(QCAlgorithm):
         self.weight_mgr.reset()
     
     def create_industries(self):
+        tickers = [ticker for code in self.industry_map for ticker in self.industry_map[code]]
+        for ticker in tickers:
+            self.AddEquity(ticker, Resolution.Daily)
+        price_df = self.History([self.Symbol(ticker) for ticker in tickers], TimeSpan.FromDays(LOOKBACK+100), Resolution.Daily)
+        
         industries = []    
         for code in self.industry_map:
             industry = Industry(code)
             for ticker in self.industry_map[code]:
-                equity = self.AddEquity(ticker, Resolution.Daily)
-                price_history = self.daily_close(ticker, LOOKBACK+100)
+                equity = self.Symbol(ticker)
+                price_history = price_df.loc[ticker]['close'].values.tolist()
                 if (len(price_history) >= self.true_lookback):
-                    stock = Stock(ticker=ticker, id=equity.Symbol.ID.ToString())
+                    stock = Stock(ticker=ticker, id=equity.ID.ToString())
                     stock.ph_raw = price_history
                     stock.ph = self.library.run_kalman(stock.ph_raw)
                     industry.add_stock(stock)
