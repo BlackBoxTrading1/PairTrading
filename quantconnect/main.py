@@ -120,7 +120,7 @@ class PairsTrader(QCAlgorithm):
                 zscore = ss.zscore(pair.spreads_raw[-self.hedge_lookback:], nan_policy='omit')[-1]
             
             # trading logic
-            if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT)):   
+            if (pair.currently_short and (zscore < EXIT or latest_rsi < RSI_EXIT or zscore > Z_STOP)) or (pair.currently_long and (zscore > -EXIT or latest_rsi > -RSI_EXIT or zscore < -Z_STOP)):   
                 self.weight_mgr.zero(pair)
             elif (self.Time.day < DAY_CUTOFF) and (zscore > self.entry and (not pair.currently_short)) and (self.weight_mgr.num_allocated/2 < MAX_ACTIVE_PAIRS) and latest_rsi>RSI_THRESHOLD:
                 if CHECK_DOWNTICK:
