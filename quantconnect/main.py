@@ -197,6 +197,11 @@ class PairsTrader(QCAlgorithm):
         if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+self.interval+12) % 12)):
             return Universe.Unchanged
         self.industry_map.clear()
+        all_symbols = []
+        for security in self.Securities:
+            all_symbols.append(security.Key)
+        for symbol in all_symbols:
+            self.RemoveSecurity(symbol)
         return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]
         
     def select_fine(self, fine):
