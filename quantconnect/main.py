@@ -159,12 +159,15 @@ class PairsTrader(QCAlgorithm):
             industry = Industry(code)
             for ticker in self.industry_map[code]:
                 equity = self.Symbol(ticker)
-                price_history = price_df.loc[ticker]['close'].values.tolist()
-                if (len(price_history) >= self.true_lookback):
-                    stock = Stock(ticker=ticker, id=equity.ID.ToString())
-                    stock.ph_raw = price_history
-                    stock.ph = self.library.run_kalman(stock.ph_raw)
-                    industry.add_stock(stock)
+                try:
+                    price_history = price_df.loc[ticker]['close'].values.tolist()
+                    if (len(price_history) >= self.true_lookback):
+                        stock = Stock(ticker=ticker, id=equity.ID.ToString())
+                        stock.ph_raw = price_history
+                        stock.ph = self.library.run_kalman(stock.ph_raw)
+                        industry.add_stock(stock)
+                except:
+                    pass
             if industry.size() > 1:
                 industry.create_pairs(allow_reverse=(not SIMPLE_SPREADS))
                 industries.append(industry)
