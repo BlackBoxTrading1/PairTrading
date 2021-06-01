@@ -150,14 +150,11 @@ class PairsTrader(QCAlgorithm):
         self.weight_mgr.reset()
     
     def create_industries(self):
-        self.industry_map.clear()
-        for ticker in CRYPTO_TICKERS:
-            try:
-                self.AddCrypto(ticker, Resolution.Daily)
-                self.industry_map.setdefault(0, []).append(ticker)
-            except:
-                pass
-        price_df = self.History([self.Symbol(ticker) for ticker in self.industry_map[0]], TimeSpan.FromDays(LOOKBACK+100), Resolution.Daily)
+        self.industry_map = {123: ['BTCUSD','LTCUSD', 'ETHUSD', 'ETCUSD']}
+        tickers = [ticker for code in self.industry_map for ticker in self.industry_map[code]]
+        for ticker in tickers:
+            self.AddCrypto(ticker, Resolution.Daily)
+        price_df = self.History([self.Symbol(ticker) for ticker in tickers], TimeSpan.FromDays(LOOKBACK+100), Resolution.Daily)
         
         industries = []    
         for code in self.industry_map:

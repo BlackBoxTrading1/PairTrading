@@ -5,24 +5,11 @@
 ### </summary>
 
 # UNIVERSE PARAMS
-CRYPTO_TICKERS         = ['BTCUSD','LTCUSD', 'ETHUSD', 'ETCUSD', 'XRPUSD','EOSUSD','OMGUSD','BCHUSD',
-                            'TRXUSD','RCNUSD','RLCUSD','AIDUSD','SNGUSD','REPUSD','ELFUSD','IOSUSD'
-                            'AIOUSD','REQUSD','RDNUSD','LRCUSD','WAXUSD','DAIUSD','CFIUSD','AGIUSD',
-                            'BFTUSD','MTNUSD','ODEUSD','ANTUSD','DTHUSD','MITUSD','STJUSD','XLMUSD',
-                            'XVGUSD','BCIUSD','MKRUSD','VENUSD','KNCUSD','POAUSD','LYMUSD','UTKUSD',
-                            'VEEUSD','DADUSD','ORSUSD','AUCUSD','POYUSD','FSNUSD','CBTUSD','ZCNUSD',
-                            'SENUSD','NCAUSD','CNDUSD','CTXUSD','PAIUSD','SEEUSD','ESSUSD','ATMUSD',
-                            'HOTUSD','DTAUSD','IQXUSD','WPRUSD','ZILUSD','BNTUSD','ABSUSD','XRAUSD',
-                            'MANUSD','BBNUSD','NIOUSD','DGXUSD','VETUSD','UTNUSD','TKNUSD','GOTUSD',
-                            'XTZUSD','CNNUSD','BOXUSD','MGOUSD','RTEUSD','YGGUSD','MLNUSD','WTCUSD',
-                            'CSXUSD','OMNUSD','INTUSD','DRNUSD','PNKUSD','DGBUSD','BSVUSD','BABUSD',
-                            'WLOUSD','VLDUSD','ENJUSD','ONLUSD','RBTUSD','USTUSD','EUTUSD','GSDUSD',
-                            'UDCUSD','TDSUSD','PAXUSD','RIFUSD','PASUSD','VSYUSD'
-                            ]
+CRYPTO_TICKERS         = ['BTCUSD','LTCUSD', 'ETHUSD', 'ETCUSD', 'RRTUSD', 'ZECUSD']
 
 # BACKTEST PARAMS
-ST_M, ST_D, ST_Y       = 1, 1, 2017
-END_M, END_D, END_Y    = 12, 31, 2020
+ST_M, ST_D, ST_Y       = 1, 1, 2020
+END_M, END_D, END_Y    = 12, 29, 2020
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 5e3
 #LEVERAGE               = 1.0
