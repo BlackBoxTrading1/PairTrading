@@ -5,25 +5,37 @@
 ### </summary>
 
 # UNIVERSE PARAMS
-COARSE_LIMIT           = 10000
-FINE_LIMIT             = 500    # <COARSE_LIMIT
+CRYPTO_TICKERS         = ['BTCUSD','LTCUSD', 'ETHUSD', 'ETCUSD', 'XRPUSD','EOSUSD','OMGUSD','BCHUSD',
+                            'TRXUSD','RCNUSD','RLCUSD','AIDUSD','SNGUSD','REPUSD','ELFUSD','IOSUSD'
+                            'AIOUSD','REQUSD','RDNUSD','LRCUSD','WAXUSD','DAIUSD','CFIUSD','AGIUSD',
+                            'BFTUSD','MTNUSD','ODEUSD','ANTUSD','DTHUSD','MITUSD','STJUSD','XLMUSD',
+                            'XVGUSD','BCIUSD','MKRUSD','VENUSD','KNCUSD','POAUSD','LYMUSD','UTKUSD',
+                            'VEEUSD','DADUSD','ORSUSD','AUCUSD','POYUSD','FSNUSD','CBTUSD','ZCNUSD',
+                            'SENUSD','NCAUSD','CNDUSD','CTXUSD','PAIUSD','SEEUSD','ESSUSD','ATMUSD',
+                            'HOTUSD','DTAUSD','IQXUSD','WPRUSD','ZILUSD','BNTUSD','ABSUSD','XRAUSD',
+                            'MANUSD','BBNUSD','NIOUSD','DGXUSD','VETUSD','UTNUSD','TKNUSD','GOTUSD',
+                            'XTZUSD','CNNUSD','BOXUSD','MGOUSD','RTEUSD','YGGUSD','MLNUSD','WTCUSD',
+                            'CSXUSD','OMNUSD','INTUSD','DRNUSD','PNKUSD','DGBUSD','BSVUSD','BABUSD',
+                            'WLOUSD','VLDUSD','ENJUSD','ONLUSD','RBTUSD','USTUSD','EUTUSD','GSDUSD',
+                            'UDCUSD','TDSUSD','PAXUSD','RIFUSD','PASUSD','VSYUSD'
+                            ]
 
 # BACKTEST PARAMS
-ST_M, ST_D, ST_Y       = 12, 1, 2020
-END_M, END_D, END_Y    = 12, 28, 2020
+ST_M, ST_D, ST_Y       = 1, 1, 2017
+END_M, END_D, END_Y    = 12, 31, 2020
 # TRADING PARAMS
 INITIAL_PORTFOLIO_VALUE= 5e3
-LEVERAGE               = 1.0
-DESIRED_PAIRS          = FINE_LIMIT    
+#LEVERAGE               = 1.0
+DESIRED_PAIRS          = 10    
 MAX_ACTIVE_PAIRS       = 5     #caldeira: 20
 HEDGE_LOOKBACK         = 15*1  #pairtradinglab: 15-300, quantconnect: 3 mo, quantopian: 20
 RSI_LOOKBACK           = 14*1  #default = 14
 LOOKBACK               = 365*1 #quantopian: 5 years
-ENTRY                  = 2.00  #pairtradinglab: 1.5, quantconnect: 2.23, caldeira: 2.0, quantopian: 1
-EXIT                   = 0.25  #pairtradinglab/quantopian: 0.0, quantconnect: 0.5, caldeira: 0.5
+ENTRY                  = 1.00  #pairtradinglab: 1.5, quantconnect: 2.23, caldeira: 2.0, quantopian: 1
+EXIT                   = 0.5  #pairtradinglab/quantopian: 0.0, quantconnect: 0.5, caldeira: 0.5
 DOWNTICK               = 0.50  #pairtradinglab: 0-1
 Z_STOP                 = 4.50  #pairtradinglab >4.0, quantconnect: 4.5
-RSI_THRESHOLD          = 20    # default = 20
+RSI_THRESHOLD          = 5    # default = 20
 RSI_EXIT               = -20     # default = 0
 STOPLOSS               = 1.00  #caldeira: 7%
 MIN_SHARE              = 5.00
@@ -34,7 +46,7 @@ MAX_PAIR_WEIGHT        = 0.20
 MIN_VOLUME             = 1e4
 MKTCAP_MIN             = 1e8
 MKTCAP_MAX             = 1e11
-DAY_CUTOFF             = 10
+DAY_CUTOFF             = 20
 
 SIMPLE_SPREADS         = True
 CHECK_DOWNTICK         = False
@@ -49,11 +61,11 @@ PVALUE                 = 0.05
 TEST_PARAMS            = {
     'Correlation':  {'min': 0.80,  'max': 1.00,                     'spreads': 0,  'run': 0 },  #quantconnect: min = 0.9
     'Cointegration':{'min': 0.00,  'max': PVALUE,                   'spreads': 0,  'run': 0 },
-    'Hurst':        {'min': 0.00,  'max': 0.49,                     'spreads': 1,  'run': 1 },  #wikipedia: 0-0.49
-    'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
-    'HalfLife':     {'min': 0,     'max': 42,                       'spreads': 1,  'run': 1 },  #caldeira: max=50 
-    'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 1 },
-    'Zscore':       {'min': 0.00,  'max': Z_STOP,                   'spreads': 1,  'run': 1 },
+    'Hurst':        {'min': 0.00,  'max': 5,                     'spreads': 1,  'run': 1 },  #wikipedia: 0-0.49
+    'ADFuller':     {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
+    'HalfLife':     {'min': 0,     'max': 42,                       'spreads': 1,  'run': 0 },  #caldeira: max=50 
+    'ShapiroWilke': {'min': 0.00,  'max': PVALUE,                   'spreads': 1,  'run': 0 },
+    'Zscore':       {'min': 0.00,  'max': Z_STOP,                   'spreads': 1,  'run': 0 },
     'Alpha':        {'min': 1e-1,  'max': 1e1,                      'spreads': 0,  'run': 0 },
     'ADFPrices':    {'min': 0.10,  'max': 1.00,                     'spreads': 0,  'run': 1 }
 }

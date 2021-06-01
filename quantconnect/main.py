@@ -27,10 +27,9 @@ class PairsTrader(QCAlgorithm):
         self.library = StatsLibrary(hedge_lookback=self.hedge_lookback)
         self.strict_tester = PairTester(config=TEST_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
         self.loose_tester = PairTester(config=LOOSE_PARAMS, library=self.library, hedge_lookback=self.hedge_lookback)
-        self.AddUniverse(self.select_coarse, self.select_fine)
+        self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 1), Action(self.check_date))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 5), Action(self.choose_pairs))
         self.Schedule.On(self.DateRules.EveryDay(self.spy), self.TimeRules.AfterMarketOpen(self.spy, 35), Action(self.check_pair_status))
-        self.SetBrokerageModel(BrokerageName.TradierBrokerage)
     
     def OnData(self, data):
         pass
@@ -142,17 +141,23 @@ class PairsTrader(QCAlgorithm):
         # Place orders
         weights = self.weight_mgr.weights
         for pair in self.weight_mgr.updated:
-            self.SetHoldings(pair.left.ticker, weights[pair.left.id])
-            self.SetHoldings(pair.right.ticker, weights[pair.right.id])
+            if weights[pair.left.id] > 0:
+                self.SetHoldings(self.Symbol(pair.left.ticker), weights[pair.left.id])
+            if weights[pair.right.id] > 0:
+                self.SetHoldings(self.Symbol(pair.right.ticker), weights[pair.right.id])
         if len(self.weight_mgr.updated) > 0:
             self.Log("ALLOCATING\n\t\t\t{0}".format(self.weight_mgr))
         self.weight_mgr.reset()
     
     def create_industries(self):
-        tickers = [ticker for code in self.industry_map for ticker in self.industry_map[code]]
-        for ticker in tickers:
-            self.AddEquity(ticker, Resolution.Daily)
-        price_df = self.History([self.Symbol(ticker) for ticker in tickers], TimeSpan.FromDays(LOOKBACK+100), Resolution.Daily)
+        self.industry_map.clear()
+        for ticker in CRYPTO_TICKERS:
+            try:
+                self.AddCrypto(ticker, Resolution.Daily)
+                self.industry_map.setdefault(0, []).append(ticker)
+            except:
+                pass
+        price_df = self.History([self.Symbol(ticker) for ticker in self.industry_map[0]], TimeSpan.FromDays(LOOKBACK+100), Resolution.Daily)
         
         industries = []    
         for code in self.industry_map:
@@ -196,35 +201,12 @@ class PairsTrader(QCAlgorithm):
             pass
         return history
         
-    def select_coarse(self, coarse):
+    def check_date(self):
         if (self.last_month >= 0) and ((self.Time.month - 1) != ((self.last_month-1+self.interval+12) % 12)):
-            return Universe.Unchanged
-        self.industry_map.clear()
-        all_symbols = []
-        for security in self.Securities:
-            all_symbols.append(security.Key)
-        for symbol in all_symbols:
-            self.RemoveSecurity(symbol)
-        return [x.Symbol for x in coarse if x.HasFundamentalData and x.Volume > MIN_VOLUME and x.Price > MIN_SHARE and x.Price < MAX_SHARE][:COARSE_LIMIT]
-        
-    def select_fine(self, fine):
-        final_securities = [x for x in fine if x.CompanyReference.CountryId == "USA"
-                                        and x.CompanyReference.PrimaryExchangeID in ["NYS","NAS"]
-                                        and (self.Time - x.SecurityReference.IPODate).days > MIN_AGE
-                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.FinancialServices
-                                        and x.AssetClassification.MorningstarSectorCode != MorningstarSectorCode.Utilities
-                                        and x.AssetClassification.MorningstarIndustryGroupCode != MorningstarIndustryGroupCode.MetalsAndMining
-                                        and MKTCAP_MIN < x.MarketCap 
-                                        and x.MarketCap < MKTCAP_MAX
-                                        and not x.SecurityReference.IsDepositaryReceipt][:FINE_LIMIT]
-        if len(final_securities) == 0:
-            return Universe.Unchanged
+            return
         self.last_month = self.Time.month
-        for x in final_securities:
-            if not (x.AssetClassification.MorningstarIndustryCode in self.industry_map):
-                self.industry_map[x.AssetClassification.MorningstarIndustryCode] = []
-            self.industry_map[x.AssetClassification.MorningstarIndustryCode].append(x.Symbol.Value)
-        return [x.Symbol for x in final_securities]
+        self.industry_map.clear()
+        self.industry_map = {'Crypto': CRYPTO_TICKERS}
         
 #####################
 # CLASS DEFINITIONS #
